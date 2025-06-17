@@ -1,0 +1,92 @@
+@startuml Deployment Diagram
+
+skinparam node {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+skinparam database {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+skinparam rectangle {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+node "Docker Host" as host {
+  rectangle "Docker Network" as network {
+    node "Family Service Container" as app {
+      [Family Service GraphQL] as service
+    }
+    
+    database "MongoDB Container" as mongo {
+      [MongoDB] as mongodb
+    }
+    
+    database "PostgreSQL Container" as postgres {
+      [PostgreSQL] as postgresql
+    }
+  }
+  
+  rectangle "Volumes" as volumes {
+    folder "Logs Volume" as logs
+    folder "MongoDB Data Volume" as mongoData
+    folder "PostgreSQL Data Volume" as pgData
+  }
+}
+
+node "Client" as client {
+  [Web Browser/API Client] as browser
+}
+
+client --> app : HTTP/GraphQL
+app --> mongo : MongoDB Protocol
+app --> postgres : PostgreSQL Protocol
+app --> logs : Writes logs
+mongo --> mongoData : Persists data
+postgres --> pgData : Persists data
+
+note right of app
+  Exposes:
+  - GraphQL API (port 8089)
+  - Health check endpoint
+  Environment variables:
+  - PORT
+  - DB_DRIVER
+  - MONGO_URI/DB_URI
+  - LOG_LEVEL
+end note
+
+note right of mongo
+  Exposes:
+  - MongoDB port (27017)
+  Environment variables:
+  - MONGO_INITDB_ROOT_USERNAME
+  - MONGO_INITDB_ROOT_PASSWORD
+end note
+
+note right of postgres
+  Exposes:
+  - PostgreSQL port (5432)
+  Environment variables:
+  - POSTGRES_USER
+  - POSTGRES_PASSWORD
+  - POSTGRES_DB
+end note
+
+note bottom of host
+  Hardware Requirements:
+  - 2+ CPU cores
+  - 4+ GB RAM
+  - 10+ GB disk space
+  Software Requirements:
+  - Docker Engine 20.10.0+
+  - Docker Compose 2.0.0+
+end note
+
+@enduml

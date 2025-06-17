@@ -1,0 +1,67 @@
+@startuml SDD Sequence Diagram - Divorce Operation
+
+actor "API Client" as client
+participant "GraphQL Resolver" as resolver
+participant "FamilyService" as service
+participant "Family Aggregate" as family
+participant "FamilyRepository" as repo
+database "Database" as db
+
+title Divorce Operation Sequence
+
+client -> resolver: divorce(familyId, custodialParentId)
+activate resolver
+
+resolver -> service: Divorce(ctx, familyId, custodialParentId)
+activate service
+
+service -> repo: GetByID(ctx, familyId)
+activate repo
+
+repo -> db: Query family by ID
+activate db
+db --> repo: Family data
+deactivate db
+
+repo --> service: Family object
+deactivate repo
+
+service -> family: Divorce(custodialParentId)
+activate family
+
+note right of family
+  1. Validate family is in MARRIED status
+  2. Find custodial parent
+  3. Create new family for custodial parent
+  4. Move children to new family
+  5. Update status of original family to DIVORCED
+end note
+
+family --> service: New Family object
+deactivate family
+
+service -> repo: Save(ctx, originalFamily)
+activate repo
+repo -> db: Update original family
+activate db
+db --> repo: Success
+deactivate db
+repo --> service: Success
+deactivate repo
+
+service -> repo: Save(ctx, newFamily)
+activate repo
+repo -> db: Insert new family
+activate db
+db --> repo: Success
+deactivate db
+repo --> service: Success
+deactivate repo
+
+service --> resolver: New Family object
+deactivate service
+
+resolver --> client: New Family data
+deactivate resolver
+
+@enduml

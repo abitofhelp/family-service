@@ -1,0 +1,46 @@
+@startuml SRS Use Case Diagram
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "API Client" as client
+
+rectangle "Family Service GraphQL" {
+  usecase "Create Family" as UC1
+  usecase "Get Family" as UC2
+  usecase "Add Parent" as UC3
+  usecase "Add Child" as UC4
+  usecase "Remove Child" as UC5
+  usecase "Mark Parent Deceased" as UC6
+  usecase "Process Divorce" as UC7
+  usecase "Find Families by Parent" as UC8
+  usecase "Find Family by Child" as UC9
+}
+
+client --> UC1
+client --> UC2
+client --> UC3
+client --> UC4
+client --> UC5
+client --> UC6
+client --> UC7
+client --> UC8
+client --> UC9
+
+UC7 ..> UC1 : <<include>>
+UC3 ..> UC2 : <<include>>
+UC4 ..> UC2 : <<include>>
+UC5 ..> UC2 : <<include>>
+UC6 ..> UC2 : <<include>>
+
+note right of UC1
+  Creates a new family with 
+  parents and children
+end note
+
+note right of UC7
+  Creates a new family for 
+  the custodial parent with children
+end note
+
+@enduml

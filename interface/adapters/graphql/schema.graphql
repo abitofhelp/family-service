@@ -1,0 +1,165 @@
+"""
+Parent represents a parent in a family
+"""
+type Parent {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  birthDate: String!
+  deathDate: String
+}
+
+"""
+Child represents a child in a family
+"""
+type Child {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  birthDate: String!
+  deathDate: String
+}
+
+"""
+FamilyStatus represents the current status of a family
+"""
+enum FamilyStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  ABANDONED
+}
+
+"""
+Family represents a family unit with parents and children
+"""
+type Family {
+  id: ID!
+  status: FamilyStatus!
+  parents: [Parent!]!
+  children: [Child!]!
+  parentCount: Int!
+  childrenCount: Int!
+}
+
+"""
+Error represents an error that occurred during a GraphQL operation
+"""
+type Error {
+  message: String!
+  code: String
+  path: [String!]
+}
+
+"""
+Queries for retrieving family data
+"""
+type Query {
+  """
+  Get a family by ID
+  """
+  getFamily(id: ID!): Family
+
+  """
+  Get all families with their parents and children
+  """
+  getAllFamilies: [Family!]!
+
+  """
+  Find families that contain a specific parent
+  """
+  findFamiliesByParent(parentId: ID!): [Family!]
+
+  """
+  Find the family that contains a specific child
+  """
+  findFamilyByChild(childId: ID!): Family
+
+  """
+  Get all parents
+  """
+  parents: [Parent!]!
+
+  """
+  Get the total count of families
+  """
+  countFamilies: Int!
+
+  """
+  Get the total count of parents
+  """
+  countParents: Int!
+
+  """
+  Get the total count of children
+  """
+  countChildren: Int!
+}
+
+"""
+Mutations for modifying family data
+"""
+type Mutation {
+  """
+  Create a new family
+  """
+  createFamily(input: FamilyInput!): Family!
+
+  """
+  Add a parent to an existing family
+  """
+  addParent(familyId: ID!, input: ParentInput!): Family!
+
+  """
+  Add a child to an existing family
+  """
+  addChild(familyId: ID!, input: ChildInput!): Family!
+
+  """
+  Remove a child from a family
+  """
+  removeChild(familyId: ID!, childId: ID!): Family!
+
+  """
+  Mark a parent as deceased
+  """
+  markParentDeceased(familyId: ID!, parentId: ID!, deathDate: String!): Family!
+
+  """
+  Process a divorce, creating a new family for the custodial parent
+  """
+  divorce(familyId: ID!, custodialParentId: ID!): Family!
+}
+
+"""
+Input for creating a parent
+"""
+input ParentInput {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  birthDate: String!
+  deathDate: String
+}
+
+"""
+Input for creating a child
+"""
+input ChildInput {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  birthDate: String!
+  deathDate: String
+}
+
+"""
+Input for creating a family
+"""
+input FamilyInput {
+  id: ID!
+  status: FamilyStatus!
+  parents: [ParentInput!]!
+  children: [ChildInput!]!
+}

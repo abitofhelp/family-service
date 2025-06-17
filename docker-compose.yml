@@ -1,0 +1,203 @@
+name: macpro
+
+networks:
+  abohnet:
+    driver: bridge
+#    ipam:
+#      config:
+#        - subnet: 172.20.0.0/16
+
+secrets:
+#  # GRAFANA'S SECRETS
+  gf_security_admin_password:
+    file: ./secrets/gf_security_admin_password.txt
+
+  gf_security_admin_user:
+    file: ./secrets/gf_security_admin_user.txt
+
+  # MONGODB'S SECRETS
+  mongo_root_password:
+    file: ./secrets/mongo_root_password.txt
+
+  mongo_root_username:
+    file: ./secrets/mongo_root_username.txt
+
+  # POSTGRESQL'S SECRETS
+  postgresql_password:
+    file: ./secrets/postgresql_password.txt
+
+  postgresql_username:
+    file: ./secrets/postgresql_username.txt
+
+  # REDIS' SECRETS
+  redis_password:
+    file: ./secrets/redis_password.txt
+
+
+volumes:
+  grafana_data:
+  mongodb_data:
+  postgresql_data:
+  prometheus_data:
+  redis_data:
+  sqlite_data:
+
+
+services:
+  grafana:
+    image: "bitnami/grafana:12.0.1"
+    container_name: "grafana"
+    entrypoint: /app/entrypoint.sh
+    command: ["grafana-server"]
+    secrets:
+      - gf_security_admin_password
+      - gf_security_admin_user
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/bitnami/grafana
+      - ./entrypoint.sh:/app/entrypoint.sh
+      - ./secrets:/app/secrets
+      - ./grafana.ini:/etc/grafana/grafana.ini
+    networks:
+      - abohnet
+    restart: always
+
+  mongodb:
+    image: "bitnami/mongodb:8.0.9"
+    container_name: "mongodb"
+    entrypoint: /app/entrypoint.sh
+    command: ["/opt/bitnami/scripts/mongodb/entrypoint.sh", "/opt/bitnami/scripts/mongodb/run.sh"]
+    secrets:
+      - mongo_root_password
+      - mongo_root_username
+    ports:
+      - "27017:27017"
+    environment:
+      - GLIBC_TUNABLES=glibc.pthread.rseq=0 # Your system has glibc support for rseq built in, which is not yet supported by tcmalloc-google and has critical performance implications.
+    volumes:
+      - mongodb_data:/bitnami/mongodb
+      - ./entrypoint.sh:/app/entrypoint.sh
+      - ./secrets:/app/secrets
+    networks:
+      abohnet:
+        aliases:
+          - mongodb
+    restart: always
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/mongodb/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: "bitnami/postgresql:17.5.0"
+    container_name: "postgresql"
+    entrypoint: /app/entrypoint.sh
+    command: ["/opt/bitnami/scripts/postgresql/entrypoint.sh", "/opt/bitnami/scripts/postgresql/run.sh"]
+    secrets:
+      - postgresql_password
+      - postgresql_username
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/bitnami/postgresql
+      - ./entrypoint.sh:/app/entrypoint.sh
+      - ./secrets:/app/secrets
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - abohnet
+    restart: always
+
+  prometheus:
+    image: "bitnami/prometheus:3.4.0"
+    container_name: "prometheus"
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/bitnami/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - abohnet
+    restart: always
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  redis:
+    image: "bitnami/redis:8.0.1"
+    container_name: "redis"
+    entrypoint: /app/entrypoint.sh
+    command: ["redis-server"]
+    secrets:
+      - redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/bitnami/redis
+      - ./entrypoint.sh:/app/entrypoint.sh
+      - ./secrets:/app/secrets
+    networks:
+      - abohnet
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl http://localhost:8089/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  family_service:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    build: .
+    container_name: "family_service"
+    depends_on:
+      - mongodb
+        #condition: service_healthy
+      - postgres
+        #condition: service_healthy
+    secrets:
+      - mongo_root_password
+      - mongo_root_username
+      - postgresql_password
+      - postgresql_username
+      # sqlite3 does not have authentication.
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./entrypoint.sh:/app/entrypoint.sh
+      - ./secrets:/app/secrets
+      - ./data/dev/sqlite/family_service.db:/app/data/dev/sqlite/family_service.db
+    env_file:
+      - dev.docker.env
+    networks:
+      abohnet:
+        aliases:
+          - family_service
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8089/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+        compress: "true"
+        mode: "non-blocking"
+        tag: "{{.Name}}/{{.ID}}"
+        labels: "family_service"

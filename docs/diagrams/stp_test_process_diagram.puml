@@ -1,0 +1,75 @@
+@startuml STP Test Process Activity Diagram
+
+skinparam ActivityBackgroundColor white
+skinparam ActivityBorderColor black
+skinparam ArrowColor black
+
+title Test Execution Process
+
+start
+
+:Initialize Test Environment;
+
+partition "Unit Testing" {
+  :Run Domain Layer Tests;
+  :Run Service Layer Tests;
+  :Run Repository Tests (with mocks);
+  :Run GraphQL Resolver Tests (with mocks);
+  
+  if (All Unit Tests Pass?) then (yes)
+    :Generate Unit Test Coverage Report;
+  else (no)
+    :Fix Failed Unit Tests;
+    stop
+  endif
+}
+
+partition "Integration Testing" {
+  :Set Up Test Databases;
+  :Run Repository Integration Tests;
+  :Run Service Integration Tests;
+  :Run GraphQL Integration Tests;
+  
+  if (All Integration Tests Pass?) then (yes)
+    :Generate Integration Test Coverage Report;
+  else (no)
+    :Fix Failed Integration Tests;
+    stop
+  endif
+}
+
+partition "End-to-End Testing" {
+  :Start Application with Test Configuration;
+  :Run API Tests;
+  :Run Complete Workflow Tests;
+  
+  if (All E2E Tests Pass?) then (yes)
+    :Generate E2E Test Report;
+  else (no)
+    :Fix Failed E2E Tests;
+    stop
+  endif
+}
+
+:Generate Combined Test Coverage Report;
+
+if (Coverage Meets Targets?) then (yes)
+  :Analyze Test Results;
+  
+  if (Any Performance Issues?) then (yes)
+    :Address Performance Issues;
+  else (no)
+    :Mark Tests as Passed;
+  endif
+  
+else (no)
+  :Identify Coverage Gaps;
+  :Add Missing Tests;
+  stop
+endif
+
+:Clean Up Test Environment;
+
+stop
+
+@enduml

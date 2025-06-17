@@ -1,0 +1,81 @@
+@startuml STP Test Coverage Component Diagram
+
+skinparam component {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+package "Domain Layer" {
+  [Family Aggregate] as family
+  [Parent Entity] as parent
+  [Child Entity] as child
+}
+
+package "Service Layer" {
+  [Family Service] as service
+}
+
+package "Ports Layer" {
+  [Repository Interface] as repoInterface
+}
+
+package "Adapters Layer" {
+  [GraphQL Resolver] as resolver
+  [MongoDB Repository] as mongoRepo
+  [PostgreSQL Repository] as pgRepo
+}
+
+package "Test Coverage" {
+  [Unit Tests] as unitTests
+  [Integration Tests] as integrationTests
+  [End-to-End Tests] as e2eTests
+}
+
+' Unit Test Coverage
+unitTests --> family : 95% coverage
+unitTests --> parent : 95% coverage
+unitTests --> child : 95% coverage
+unitTests --> service : 90% coverage
+unitTests --> repoInterface : 100% coverage
+unitTests --> resolver : 80% coverage
+unitTests --> mongoRepo : 80% coverage
+unitTests --> pgRepo : 80% coverage
+
+' Integration Test Coverage
+integrationTests --> service : 85% coverage
+integrationTests --> mongoRepo : 90% coverage
+integrationTests --> pgRepo : 90% coverage
+integrationTests --> resolver : 85% coverage
+
+' End-to-End Test Coverage
+e2eTests --> resolver : 75% coverage
+e2eTests ..> service : indirect coverage
+e2eTests ..> mongoRepo : indirect coverage
+e2eTests ..> pgRepo : indirect coverage
+
+note right of unitTests
+  Unit Tests:
+  - Test components in isolation
+  - Mock dependencies
+  - Focus on business logic
+  - Target: 90%+ overall coverage
+end note
+
+note right of integrationTests
+  Integration Tests:
+  - Test component interactions
+  - Use actual databases
+  - Focus on data flow
+  - Target: 85%+ coverage of integration points
+end note
+
+note right of e2eTests
+  End-to-End Tests:
+  - Test complete workflows
+  - Use actual API and databases
+  - Focus on user scenarios
+  - Target: Cover all use cases
+end note
+
+@enduml

@@ -1,0 +1,42 @@
+app:
+  version: 1.0.0
+auth:
+  oidc_timeout: 3000s
+database:
+  mongodb:
+    connection_timeout: 1000s
+    disconnect_timeout: 5000s
+    index_timeout: 1000s
+    migration_timeout: 3000s
+    ping_timeout: 3000s
+    uri: mongodb://${MONGODB_ROOT_USERNAME}:${MONGODB_ROOT_PASSWORD}@localhost:27017/family_service?authSource=admin&tlsMode=disable
+  postgres:
+    dsn: postgres://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@localhost:5432/family_service?sslmode=disable
+    migration_timeout: 3000s
+  sqlite:
+    uri: file:data/dev/sqlite/family_service.db?cache=shared&mode=rwc
+    migration_timeout: 3000s
+    connection_timeout: 1000s
+    disconnect_timeout: 5000s
+    ping_timeout: 3000s
+  type: sqlite
+features:
+  use_generics: true
+log:
+  development: true
+  level: debug
+server:
+  health_endpoint: /health
+  idle_timeout: 1200s
+  port: '8089'
+  read_timeout: 1000s
+  shutdown_timeout: 1000s
+  write_timeout: 1000s
+telemetry:
+  shutdown_timeout: 5000s
+  exporters:
+    metrics:
+      prometheus:
+        enabled: true
+        listen: localhost:8089
+        path: /metrics

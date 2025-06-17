@@ -1,0 +1,60 @@
+@startuml SRS Data Model Diagram
+
+skinparam class {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+enum FamilyStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  ABANDONED
+}
+
+class Family {
+  id: string
+  status: FamilyStatus
+}
+
+class Parent {
+  id: string
+  firstName: string
+  lastName: string
+  birthDate: date
+  deathDate: date (optional)
+}
+
+class Child {
+  id: string
+  firstName: string
+  lastName: string
+  birthDate: date
+  deathDate: date (optional)
+}
+
+Family "1" *-- "1..2" Parent : contains
+Family "1" *-- "0..*" Child : contains
+Family -- FamilyStatus : has
+
+note right of Family
+  - A family must have at least one parent
+  - A family cannot have more than two parents
+  - Family status must be consistent with parent count
+end note
+
+note right of Parent
+  - A parent may belong to multiple families
+  - Birth date must be in the past
+  - Death date must be after birth date
+end note
+
+note right of Child
+  - A child belongs to only one family at a time
+  - Birth date must be in the past
+  - Death date must be after birth date
+end note
+
+@enduml

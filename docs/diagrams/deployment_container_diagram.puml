@@ -1,0 +1,99 @@
+@startuml Deployment Container Diagram
+
+skinparam rectangle {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+rectangle "Docker Compose Environment" as dockerCompose {
+  rectangle "family-service" as appService {
+    [Family Service GraphQL] as app
+    file "Dockerfile" as dockerfile
+    file ".env" as env
+
+    app --> env : reads
+    app <-- dockerfile : builds
+  }
+
+  rectangle "mongo" as mongoService {
+    database "MongoDB" as mongo
+  }
+
+  rectangle "postgres" as postgresService {
+    database "PostgreSQL" as postgres
+  }
+
+  rectangle "Volumes" as volumes {
+    folder "./logs" as logs
+    folder "./data/mongo" as mongoData
+    folder "./data/postgres" as pgData
+  }
+
+  rectangle "Networks" as networks {
+    cloud "default network" as defaultNetwork
+  }
+}
+
+rectangle "External" as external {
+  actor "User" as user
+  rectangle "Host Machine" as host
+}
+
+' Service dependencies
+appService --> mongoService : depends_on
+appService --> postgresService : depends_on
+
+' Network connections
+appService -- defaultNetwork
+mongoService -- defaultNetwork
+postgresService -- defaultNetwork
+
+' Volume connections
+appService --> logs : mounts
+mongoService --> mongoData : mounts
+postgresService --> pgData : mounts
+
+' External connections
+user --> host : port 8089
+host --> appService : forwards port 8089
+host --> mongoService : forwards port 27017
+host --> postgresService : forwards port 5432
+
+' Configuration
+note right of appService
+  Configuration:
+  - image: family-service-graphql:latest
+  - ports: 8089:8089
+  - restart: unless-stopped
+  - healthcheck: curl -f http://localhost:8089/healthz
+end note
+
+note right of mongoService
+  Configuration:
+  - image: mongo:6
+  - ports: 27017:27017
+  - restart: unless-stopped
+  - healthcheck: mongosh ping
+end note
+
+note right of postgresService
+  Configuration:
+  - image: postgres:15
+  - ports: 5432:5432
+  - restart: unless-stopped
+  - healthcheck: pg_isready
+end note
+
+note bottom of dockerCompose
+  Deployment Commands:
+  - docker-compose build
+  - docker-compose up -d
+  - docker-compose down
+  - make db-init (initialize database based on DB_DRIVER)
+
+  Scaling:
+  - docker-compose up -d --scale family-service=3
+end note
+
+@enduml

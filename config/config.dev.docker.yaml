@@ -1,0 +1,43 @@
+app:
+  version: 1.0.0
+auth:
+  oidc_timeout: 30s
+database:
+  mongodb:
+    connection_timeout: 10s
+    disconnect_timeout: 50s
+    index_timeout: 10s
+    migration_timeout: 30s
+    ping_timeout: 30s
+    uri: mongodb://${MONGODB_ROOT_USERNAME}:${MONGODB_ROOT_PASSWORD}@mongodb:27017/family_service?authSource=admin&tlsMode=disable
+  postgres:
+    dsn: postgres://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@postgresql:5432/family_service?sslmode=disable
+    migration_timeout: 30s
+  sqlite:
+    # Path inside the container not on the local computer.
+    uri: file:app/data/dev/sqlite/family_service.db?cache=shared&mode=rwc
+    migration_timeout: 3000s
+    connection_timeout: 1000s
+    disconnect_timeout: 5000s
+    ping_timeout: 3000s
+  type: sqlite
+features:
+  use_generics: true
+log:
+  development: true
+  level: debug
+server:
+  health_endpoint: /health
+  idle_timeout: 12s
+  port: '8089'
+  read_timeout: 10s
+  shutdown_timeout: 10s
+  write_timeout: 10s
+telemetry:
+  shutdown_timeout: 5s
+  exporters:
+    metrics:
+      prometheus:
+        enabled: true
+        listen: 0.0.0.0:8089 # Allow metrics to be exposed on "0.0.0.0:8089" instead of "family_service:8089" when in DOCKER. This change resolves the connection issue, enabling Prometheus to successfully scrape metrics from the family_service.
+        path: /metrics

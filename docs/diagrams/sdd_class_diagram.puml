@@ -1,0 +1,194 @@
+@startuml SDD Class Diagram
+
+skinparam class {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+package "Domain Layer" {
+  package "Family Aggregate" {
+    class Family {
+      -id: string
+      -status: Status
+      -parents: []*Parent
+      -children: []*Child
+      +NewFamily(id: string, status: Status, parents: []*Parent, children: []*Child): *Family
+      +ID(): string
+      +Status(): Status
+      +Parents(): []*Parent
+      +Children(): []*Child
+      +AddParent(parent: *Parent): error
+      +AddChild(child: *Child): error
+      +RemoveChild(childID: string): error
+      +MarkParentDeceased(parentID: string, deathDate: time.Time): error
+      +Divorce(custodialParentID: string): (*Family, error)
+    }
+
+    class Parent {
+      -id: string
+      -firstName: string
+      -lastName: string
+      -birthDate: time.Time
+      -deathDate: *time.Time
+      +NewParent(id: string, firstName: string, lastName: string, birthDate: time.Time): *Parent
+      +ID(): string
+      +FirstName(): string
+      +LastName(): string
+      +BirthDate(): time.Time
+      +DeathDate(): *time.Time
+      +MarkDeceased(deathDate: time.Time): error
+    }
+
+    class Child {
+      -id: string
+      -firstName: string
+      -lastName: string
+      -birthDate: time.Time
+      -deathDate: *time.Time
+      +NewChild(id: string, firstName: string, lastName: string, birthDate: time.Time): *Child
+      +ID(): string
+      +FirstName(): string
+      +LastName(): string
+      +BirthDate(): time.Time
+      +DeathDate(): *time.Time
+      +MarkDeceased(deathDate: time.Time): error
+    }
+
+    enum Status {
+      SINGLE
+      MARRIED
+      DIVORCED
+      WIDOWED
+      ABANDONED
+    }
+  }
+}
+
+package "Service Layer" {
+  class FamilyService {
+    -repo: FamilyRepository
+    +NewFamilyService(repo: FamilyRepository): *FamilyService
+    +CreateFamily(ctx: context.Context, dto: FamilyDTO): (*Family, error)
+    +GetFamily(ctx: context.Context, id: string): (*Family, error)
+    +AddParent(ctx: context.Context, familyID: string, dto: ParentDTO): (*Family, error)
+    +AddChild(ctx: context.Context, familyID: string, dto: ChildDTO): (*Family, error)
+    +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*Family, error)
+    +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*Family, error)
+    +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*Family, error)
+    +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*Family, error)
+    +FindFamilyByChild(ctx: context.Context, childID: string): (*Family, error)
+  }
+
+  class FamilyDTO {
+    +ID: string
+    +Status: string
+    +Parents: []ParentDTO
+    +Children: []ChildDTO
+  }
+
+  class ParentDTO {
+    +ID: string
+    +FirstName: string
+    +LastName: string
+    +BirthDate: string
+    +DeathDate: string
+  }
+
+  class ChildDTO {
+    +ID: string
+    +FirstName: string
+    +LastName: string
+    +BirthDate: string
+    +DeathDate: string
+  }
+}
+
+package "Ports Layer" {
+  interface Repository<T> {
+    +GetByID(ctx: context.Context, id: string): (T, error)
+    +GetAll(ctx: context.Context): ([]T, error)
+    +Save(ctx: context.Context, entity: T): error
+  }
+
+  interface FamilyRepository {
+    +Repository<*Family>
+    +FindByParentID(ctx: context.Context, parentID: string): ([]*Family, error)
+    +FindByChildID(ctx: context.Context, childID: string): (*Family, error)
+  }
+
+  interface ApplicationService<T, D> {
+    +Create(ctx: context.Context, dto: D): (D, error)
+    +GetByID(ctx: context.Context, id: string): (D, error)
+    +GetAll(ctx: context.Context): ([]D, error)
+  }
+
+  interface FamilyApplicationService {
+    +ApplicationService<*Family, *FamilyDTO>
+    +AddParent(ctx: context.Context, familyID: string, parentDTO: ParentDTO): (*FamilyDTO, error)
+    +AddChild(ctx: context.Context, familyID: string, childDTO: ChildDTO): (*FamilyDTO, error)
+    +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*FamilyDTO, error)
+    +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*FamilyDTO, error)
+    +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*FamilyDTO, error)
+    +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*FamilyDTO, error)
+    +FindFamilyByChild(ctx: context.Context, childID: string): (*FamilyDTO, error)
+  }
+}
+
+package "Adapters Layer" {
+  package "GraphQL Adapter" {
+    class Resolver {
+      -familySvc: *FamilyService
+      +NewResolver(familySvc: *FamilyService): *Resolver
+      +CreateFamily(ctx: context.Context, input: FamilyInput): (*Family, error)
+      +GetFamily(ctx: context.Context, id: string): (*Family, error)
+      +AddParent(ctx: context.Context, familyID: string, input: ParentInput): (*Family, error)
+      +AddChild(ctx: context.Context, familyID: string, input: ChildInput): (*Family, error)
+      +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*Family, error)
+      +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: string): (*Family, error)
+      +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*Family, error)
+      +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*Family, error)
+      +FindFamilyByChild(ctx: context.Context, childID: string): (*Family, error)
+    }
+  }
+
+  package "MongoDB Adapter" {
+    class MongoFamilyRepository {
+      -collection: *mongo.Collection
+      +NewMongoFamilyRepository(collection: *mongo.Collection): *MongoFamilyRepository
+      +GetByID(ctx: context.Context, id: string): (*Family, error)
+      +Save(ctx: context.Context, family: *Family): error
+      +FindByParentID(ctx: context.Context, parentID: string): ([]*Family, error)
+      +FindByChildID(ctx: context.Context, childID: string): (*Family, error)
+    }
+  }
+
+  package "PostgreSQL Adapter" {
+    class PostgresFamilyRepository {
+      -db: *pgxpool.Pool
+      +NewPostgresFamilyRepository(db: *pgxpool.Pool): *PostgresFamilyRepository
+      +GetByID(ctx: context.Context, id: string): (*Family, error)
+      +Save(ctx: context.Context, family: *Family): error
+      +FindByParentID(ctx: context.Context, parentID: string): ([]*Family, error)
+      +FindByChildID(ctx: context.Context, childID: string): (*Family, error)
+    }
+  }
+}
+
+' Relationships
+Family "1" *-- "1..2" Parent
+Family "1" *-- "0..*" Child
+Family -- Status
+
+FamilyService --> FamilyRepository : uses
+Resolver --> FamilyService : uses
+
+MongoFamilyRepository ..|> FamilyRepository : implements
+PostgresFamilyRepository ..|> FamilyRepository : implements
+
+FamilyService ..> Family : creates/manipulates
+FamilyService ..> FamilyDTO : converts
+FamilyService ..> ParentDTO : converts
+FamilyService ..> ChildDTO : converts
+
+@enduml

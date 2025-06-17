@@ -1,0 +1,23 @@
+# .air.toml configuration file
+root = "./"
+tmp_dir = "tmp"
+
+[build]
+  cmd = "make graphql-gen && go build -o ./tmp/main ./cmd/server/graphql"
+  bin = "./tmp/main"
+  delay = 1000
+  exclude_dir = ["assets", "tmp", "vendor", "bin"]
+  include_ext = ["go", "yaml", "yml", "graphql"]
+  exclude_regex = ["_test\.go"]
+
+[log]
+  time = true
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[screen]
+  clear_on_rebuild = true
