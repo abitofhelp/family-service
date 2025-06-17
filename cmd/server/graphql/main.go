@@ -87,7 +87,7 @@ func setupRoutes(container *di.Container, logger *zap.Logger, cfg *config.Config
 	logger.Info("Setting up HTTP routes")
 
 	// Create a container adapter for health checks
-	adapter := health.NewContainerAdapter(container)
+	adapter := health.NewGenericContainerAdapter(container)
 
 	// Create a ServeMux for routing
 	mux := http.NewServeMux()
@@ -101,7 +101,7 @@ func setupRoutes(container *di.Container, logger *zap.Logger, cfg *config.Config
 	// Health check endpoint
 	healthEndpoint := cfg.Server.HealthEndpoint
 	logger.Info("Setting up health check endpoint", zap.String("endpoint", healthEndpoint))
-	configAdapter := pkgconfig.NewConfigAdapter(cfg)
+	configAdapter := pkgconfig.NewGenericConfigAdapter(cfg)
 	mux.Handle(healthEndpoint, health.NewHandler(adapter, logger, configAdapter))
 
 	logger.Info("HTTP routes set up successfully")
