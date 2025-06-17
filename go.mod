@@ -2,7 +2,7 @@ module github.com/abitofhelp/family-service
 
 go 1.24
 
-replace github.com/abitofhelp/servicelib => ./servicelib
+replace github.com/abitofhelp/servicelib => ../servicelib
 
 require (
 	github.com/99designs/gqlgen v0.17.75

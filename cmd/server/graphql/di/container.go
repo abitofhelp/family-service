@@ -12,6 +12,7 @@ import (
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
+	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/di"
 	basedi "github.com/abitofhelp/servicelib/di"
 	"go.uber.org/zap"
 )
@@ -44,21 +45,21 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 	switch dbType {
 	case "mongodb":
 		// Initialize MongoDB repository
-		repo, err := basedi.InitMongoRepository(ctx, cfg.Database.MongoDB.URI, logger)
+		repo, err := adaptdi.InitMongoRepository(ctx, cfg.Database.MongoDB.URI, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize MongoDB repository: %w", err)
 		}
 		container.familyRepo = repo
 	case "postgres":
 		// Initialize PostgreSQL repository
-		repo, err := basedi.InitPostgresRepository(ctx, cfg.Database.Postgres.DSN, logger)
+		repo, err := adaptdi.InitPostgresRepository(ctx, cfg.Database.Postgres.DSN, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize PostgreSQL repository: %w", err)
 		}
 		container.familyRepo = repo
 	case "sqlite":
 		// Initialize SQLite repository
-		repo, err := basedi.InitSQLiteRepository(ctx, cfg.Database.SQLite.URI, logger)
+		repo, err := adaptdi.InitSQLiteRepository(ctx, cfg.Database.SQLite.URI, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize SQLite repository: %w", err)
 		}
