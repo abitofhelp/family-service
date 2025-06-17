@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 // Package auth provides authentication and authorization functionality for the family service.
 // It includes JWT token handling, OIDC integration, and middleware for securing API endpoints.
 // This package is part of the infrastructure layer and implements the authorization interfaces

@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package valueobject
 
 import (
@@ -18,7 +20,7 @@ const (
 func NewGender(gender string) (Gender, error) {
 	// Trim whitespace and convert to lowercase
 	trimmedGender := strings.ToLower(strings.TrimSpace(gender))
-	
+
 	// Validate gender
 	switch trimmedGender {
 	case string(GenderMale), string(GenderFemale), string(GenderOther):

@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 // Package main is the entry point for the GraphQL server.
 package main
 

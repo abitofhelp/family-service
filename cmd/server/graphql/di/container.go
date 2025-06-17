@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 // Package di provides a dependency injection container for the GraphQL server.
 package di
 

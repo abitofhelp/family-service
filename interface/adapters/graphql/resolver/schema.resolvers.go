@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package resolver
 
 // This file will be automatically regenerated based on the schema, any resolver implementations

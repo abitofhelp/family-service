@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 // Package server provides functionality for HTTP server management.
 package server
 

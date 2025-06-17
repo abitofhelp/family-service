@@ -158,6 +158,8 @@ BEFORE UPDATE ON families
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
+--  Copyright (c) 2025 A Bit of Help, Inc.
+
 -- Print confirmation (this will only work in psql)
 -- \echo 'PostgreSQL initialization completed successfully!'
 -- \echo 'Created table: families'

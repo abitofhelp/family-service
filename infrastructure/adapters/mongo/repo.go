@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package mongo
 
 import (
@@ -14,28 +16,28 @@ import (
 
 // FamilyDocument represents how a family is stored in MongoDB
 type FamilyDocument struct {
-	ID       string          `bson:"_id"`
-	Status   string          `bson:"status"`
-	Parents  []ParentDocument  `bson:"parents"`
-	Children []ChildDocument   `bson:"children"`
+	ID       string           `bson:"_id"`
+	Status   string           `bson:"status"`
+	Parents  []ParentDocument `bson:"parents"`
+	Children []ChildDocument  `bson:"children"`
 }
 
 // ParentDocument represents how a parent is stored in MongoDB
 type ParentDocument struct {
-	ID        string    `bson:"id"`
-	FirstName string    `bson:"firstName"`
-	LastName  string    `bson:"lastName"`
-	BirthDate string    `bson:"birthDate"`
-	DeathDate *string   `bson:"deathDate,omitempty"`
+	ID        string  `bson:"id"`
+	FirstName string  `bson:"firstName"`
+	LastName  string  `bson:"lastName"`
+	BirthDate string  `bson:"birthDate"`
+	DeathDate *string `bson:"deathDate,omitempty"`
 }
 
 // ChildDocument represents how a child is stored in MongoDB
 type ChildDocument struct {
-	ID        string    `bson:"id"`
-	FirstName string    `bson:"firstName"`
-	LastName  string    `bson:"lastName"`
-	BirthDate string    `bson:"birthDate"`
-	DeathDate *string   `bson:"deathDate,omitempty"`
+	ID        string  `bson:"id"`
+	FirstName string  `bson:"firstName"`
+	LastName  string  `bson:"lastName"`
+	BirthDate string  `bson:"birthDate"`
+	DeathDate *string `bson:"deathDate,omitempty"`
 }
 
 // MongoFamilyRepository implements the ports.FamilyRepository interface for MongoDB

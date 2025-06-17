@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package valueobject
 
 import (
@@ -15,18 +17,18 @@ var phoneRegex = regexp.MustCompile(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\
 func NewPhone(phone string) (Phone, error) {
 	// Trim whitespace
 	trimmedPhone := strings.TrimSpace(phone)
-	
+
 	// Empty phone is allowed (optional field)
 	if trimmedPhone == "" {
 		return "", nil
 	}
-	
+
 	// Validate phone format with a simple regex
 	// This is a basic validation and might need to be enhanced for specific requirements
 	if !phoneRegex.MatchString(trimmedPhone) {
 		return "", errors.New("invalid phone number format")
 	}
-	
+
 	return Phone(trimmedPhone), nil
 }
 
@@ -40,7 +42,7 @@ func (p Phone) Equals(other Phone) bool {
 	// Remove all non-digit characters for comparison
 	cleanThis := regexp.MustCompile(`\D`).ReplaceAllString(string(p), "")
 	cleanOther := regexp.MustCompile(`\D`).ReplaceAllString(string(other), "")
-	
+
 	return cleanThis == cleanOther
 }
 

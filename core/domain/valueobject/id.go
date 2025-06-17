@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package valueobject
 
 import (
@@ -13,12 +15,12 @@ func NewID(id string) (ID, error) {
 	if id == "" {
 		return "", errors.New("ID cannot be empty")
 	}
-	
+
 	// Validate UUID format if not empty
 	if _, err := uuid.Parse(id); err != nil {
 		return "", errors.New("invalid ID format")
 	}
-	
+
 	return ID(id), nil
 }
 

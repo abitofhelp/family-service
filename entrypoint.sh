@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (c) 2025 A Bit of Help, Inc.
+
 # Function to safely read a secret file with fallback paths
 read_secret() {
   local secret_name=$1

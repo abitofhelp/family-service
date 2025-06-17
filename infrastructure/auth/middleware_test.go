@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package auth
 
 import (
@@ -28,8 +30,8 @@ func TestNewAuthMiddleware(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	jwtService := &JWTService{
 		config: JWTConfig{
-			SecretKey:     "test-secret-key",
-			Issuer:        "test-issuer",
+			SecretKey: "test-secret-key",
+			Issuer:    "test-issuer",
 		},
 		logger: logger,
 	}
@@ -49,8 +51,8 @@ func TestNewAuthMiddlewareWithOIDC(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	jwtService := &JWTService{
 		config: JWTConfig{
-			SecretKey:     "test-secret-key",
-			Issuer:        "test-issuer",
+			SecretKey: "test-secret-key",
+			Issuer:    "test-issuer",
 		},
 		logger: logger,
 	}
@@ -74,8 +76,8 @@ func TestMiddleware_NoAuthHeader(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	jwtService := &JWTService{
 		config: JWTConfig{
-			SecretKey:     "test-secret-key",
-			Issuer:        "test-issuer",
+			SecretKey: "test-secret-key",
+			Issuer:    "test-issuer",
 		},
 		logger: logger,
 	}
@@ -101,8 +103,8 @@ func TestMiddleware_InvalidAuthHeaderFormat(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	jwtService := &JWTService{
 		config: JWTConfig{
-			SecretKey:     "test-secret-key",
-			Issuer:        "test-issuer",
+			SecretKey: "test-secret-key",
+			Issuer:    "test-issuer",
 		},
 		logger: logger,
 	}
@@ -197,8 +199,8 @@ func TestMiddleware_InvalidToken(t *testing.T) {
 	// Setup
 	logger, _ := zap.NewDevelopment()
 	config := JWTConfig{
-		SecretKey:     "test-secret-key",
-		Issuer:        "test-issuer",
+		SecretKey: "test-secret-key",
+		Issuer:    "test-issuer",
 	}
 	jwtService := NewJWTService(config, logger)
 	middleware := NewAuthMiddleware(jwtService, logger)

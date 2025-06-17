@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package valueobject
 
 import (
@@ -12,17 +14,17 @@ type Name string
 func NewName(name string) (Name, error) {
 	// Trim whitespace
 	trimmedName := strings.TrimSpace(name)
-	
+
 	// Validate name is not empty
 	if trimmedName == "" {
 		return "", errors.New("name cannot be empty")
 	}
-	
+
 	// Validate name length
 	if len(trimmedName) > 100 {
 		return "", errors.New("name is too long")
 	}
-	
+
 	return Name(trimmedName), nil
 }
 

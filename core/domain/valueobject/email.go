@@ -1,3 +1,5 @@
+// Copyright (c) 2025 A Bit of Help, Inc.
+
 package valueobject
 
 import (
@@ -13,18 +15,18 @@ type Email string
 func NewEmail(email string) (Email, error) {
 	// Trim whitespace
 	trimmedEmail := strings.TrimSpace(email)
-	
+
 	// Empty email is allowed (optional field)
 	if trimmedEmail == "" {
 		return "", nil
 	}
-	
+
 	// Validate email format
 	_, err := mail.ParseAddress(trimmedEmail)
 	if err != nil {
 		return "", errors.New("invalid email format")
 	}
-	
+
 	return Email(trimmedEmail), nil
 }
 
