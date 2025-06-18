@@ -6,7 +6,7 @@ replace github.com/abitofhelp/servicelib => ../servicelib
 
 require (
 	github.com/99designs/gqlgen v0.17.75
-	github.com/abitofhelp/servicelib v1.0.0
+	github.com/abitofhelp/servicelib v0.0.0-00010101000000-000000000000
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	go.mongodb.org/mongo-driver v1.17.4
@@ -15,10 +15,10 @@ require (
 
 require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
-	github.com/coreos/go-oidc/v3 v3.14.1
+	github.com/coreos/go-oidc/v3 v3.14.1 // indirect
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -53,7 +53,7 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 )
 
-require golang.org/x/oauth2 v0.28.0
+require golang.org/x/oauth2 v0.28.0 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -79,7 +79,6 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.6.0 // indirect
 	golang.org/x/net v0.41.0 // indirect

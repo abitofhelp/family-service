@@ -3,7 +3,7 @@ app:
 auth:
   oidc_timeout: 3000s
   jwt:
-    secret_key: "your-secret-key-here"
+    secret_key: "abc123"
     token_duration: 24h
     issuer: "family-service"
 database:

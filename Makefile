@@ -141,10 +141,10 @@ init:
 .PHONY: graphql-gen
 graphql-gen:
 	@echo "Generating GraphQL code..."
-	@go get github.com/99designs/gqlgen/codegen/config@v0.17.74
-	@go get github.com/99designs/gqlgen/internal/imports@v0.17.74
-	@go get github.com/99designs/gqlgen/api@v0.17.74
-	@go get github.com/99designs/gqlgen@v0.17.74
+	@go get github.com/99designs/gqlgen/codegen/config@v0.17.75
+	@go get github.com/99designs/gqlgen/internal/imports@v0.17.75
+	@go get github.com/99designs/gqlgen/api@v0.17.75
+	@go get github.com/99designs/gqlgen@v0.17.75
 	@go get github.com/urfave/cli/v2
 	@go run github.com/99designs/gqlgen generate --config interface/adapters/graphql/gqlgen.yml --verbose
 	@echo "GraphQL code generated successfully"

@@ -4,27 +4,47 @@ package resolver
 
 import (
 	"context"
+	"fmt"
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/abitofhelp/family-service/core/application/ports"
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/valueobject"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/model"
-	"github.com/abitofhelp/servicelib/graphql"
+	mygraphql "github.com/abitofhelp/servicelib/graphql"
 	"github.com/abitofhelp/servicelib/logging"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
+
+var (
+	AuthorizationCheckDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "authorization_check_duration_seconds",
+		Help:    "Duration of authorization checks in seconds",
+		Buckets: prometheus.DefBuckets,
+	})
+	AuthorizationFailures = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "authorization_failures_total",
+		Help: "Total number of authorization failures",
+	})
+)
+
+func init() {
+	// Register metrics
+	prometheus.MustRegister(AuthorizationCheckDuration)
+	prometheus.MustRegister(AuthorizationFailures)
+}
 
 // Resolver is the resolver for GraphQL queries and mutations
 type Resolver struct {
 	familyService ports.FamilyApplicationService
-	//FIXME: authService   ports.AuthorizationService
-	logger *logging.ContextLogger
-	tracer trace.Tracer
+	logger        *logging.ContextLogger
+	tracer        trace.Tracer
 }
 
 // NewResolver creates a new GraphQL resolver
 func NewResolver(familyService ports.FamilyApplicationService, logger *logging.ContextLogger) *Resolver {
-	// FIXME: func NewResolver(familyService ports.FamilyApplicationService, authService ports.AuthorizationService, logger *zap.Logger) *Resolver {
 	if familyService == nil {
 		panic("family application service cannot be nil")
 	}
@@ -89,5 +109,28 @@ func (r *Resolver) GetChildrenCount(ctx context.Context, obj *model.Family) (int
 // It logs the error and converts it to a GraphQL error with appropriate extensions
 func (r *Resolver) HandleError(ctx context.Context, err error, operation string) error {
 	// Use the pkg/graphql.HandleError function
-	return graphql.HandleError(ctx, err, operation, r.logger)
+	return mygraphql.HandleError(ctx, err, operation, r.logger)
+}
+
+// CheckAuthorization checks if the user is authorized to perform the specified operation
+// It returns an error if the user is not authorized
+func (r *Resolver) CheckAuthorization(ctx context.Context, allowedRoles []string, operation string) error {
+	// Use the generic CheckAuthorization function from servicelib
+	return mygraphql.CheckAuthorization(ctx, allowedRoles, operation, r.logger)
+}
+
+func (r *Resolver) IsAuthorized(ctx context.Context, obj any, next graphql.Resolver, allowedRoles []model.Role) (res any, err error) {
+	// Validate roles
+	for _, role := range allowedRoles {
+		if !role.IsValid() {
+			r.logger.Warn(ctx, "Invalid role specified in authorization check", zap.String("role", role.String()))
+			return nil, fmt.Errorf("invalid role specified: %s", role)
+		}
+	}
+
+	// Convert model.Role to a string array for middleware check
+	strRoles := mygraphql.ConvertRolesToStrings(allowedRoles)
+
+	// Use the generic directive implementation from servicelib
+	return mygraphql.IsAuthorizedDirective(ctx, obj, next, strRoles, r.logger)
 }

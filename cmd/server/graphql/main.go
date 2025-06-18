@@ -123,9 +123,15 @@ func setupMetricsEndpoint(mux *http.ServeMux, cfg *config.Config, logger *zap.Lo
 
 // setupGraphQLEndpoints sets up all GraphQL-related endpoints.
 func setupGraphQLEndpoints(mux *http.ServeMux, container *di.Container) {
+	// Get the resolver
+	resolverInstance := resolver.NewResolver(container.GetFamilyApplicationService(), container.GetContextLogger())
+
 	// Initialize GraphQL schema
 	schema := generated.NewExecutableSchema(generated.Config{
-		Resolvers: resolver.NewResolver(container.GetFamilyApplicationService(), container.GetContextLogger()),
+		Resolvers: resolverInstance,
+		Directives: generated.DirectiveRoot{
+			IsAuthorized: resolverInstance.IsAuthorized,
+		},
 	})
 
 	// Create GraphQL server with configuration

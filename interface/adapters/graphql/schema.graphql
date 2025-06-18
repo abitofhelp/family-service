@@ -32,6 +32,19 @@ enum FamilyStatus {
 }
 
 """
+Role represents the authorization role of a user
+"""
+enum Role {
+  ADMIN
+  AUTHUSER
+}
+
+"""
+isAuthorized directive for role-based access control
+"""
+directive @isAuthorized(allowedRoles: [Role!]!) on FIELD_DEFINITION
+
+"""
 Family represents a family unit with parents and children
 """
 type Family {
@@ -59,42 +72,42 @@ type Query {
   """
   Get a family by ID
   """
-  getFamily(id: ID!): Family
+  getFamily(id: ID!): Family @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Get all families with their parents and children
   """
-  getAllFamilies: [Family!]!
+  getAllFamilies: [Family!]! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Find families that contain a specific parent
   """
-  findFamiliesByParent(parentId: ID!): [Family!]
+  findFamiliesByParent(parentId: ID!): [Family!] @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Find the family that contains a specific child
   """
-  findFamilyByChild(childId: ID!): Family
+  findFamilyByChild(childId: ID!): Family @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Get all parents
   """
-  parents: [Parent!]!
+  parents: [Parent!]! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Get the total count of families
   """
-  countFamilies: Int!
+  countFamilies: Int! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Get the total count of parents
   """
-  countParents: Int!
+  countParents: Int! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 
   """
   Get the total count of children
   """
-  countChildren: Int!
+  countChildren: Int! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
 }
 
 """
@@ -104,32 +117,32 @@ type Mutation {
   """
   Create a new family
   """
-  createFamily(input: FamilyInput!): Family!
+  createFamily(input: FamilyInput!): Family! @isAuthorized(allowedRoles: [ADMIN])
 
   """
   Add a parent to an existing family
   """
-  addParent(familyId: ID!, input: ParentInput!): Family!
+  addParent(familyId: ID!, input: ParentInput!): Family! @isAuthorized(allowedRoles: [ADMIN])
 
   """
   Add a child to an existing family
   """
-  addChild(familyId: ID!, input: ChildInput!): Family!
+  addChild(familyId: ID!, input: ChildInput!): Family! @isAuthorized(allowedRoles: [ADMIN])
 
   """
   Remove a child from a family
   """
-  removeChild(familyId: ID!, childId: ID!): Family!
+  removeChild(familyId: ID!, childId: ID!): Family! @isAuthorized(allowedRoles: [ADMIN])
 
   """
   Mark a parent as deceased
   """
-  markParentDeceased(familyId: ID!, parentId: ID!, deathDate: String!): Family!
+  markParentDeceased(familyId: ID!, parentId: ID!, deathDate: String!): Family! @isAuthorized(allowedRoles: [ADMIN])
 
   """
   Process a divorce, creating a new family for the custodial parent
   """
-  divorce(familyId: ID!, custodialParentId: ID!): Family!
+  divorce(familyId: ID!, custodialParentId: ID!): Family! @isAuthorized(allowedRoles: [ADMIN])
 }
 
 """
