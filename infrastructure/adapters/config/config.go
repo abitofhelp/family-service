@@ -41,6 +41,14 @@ type AppConfig struct {
 // AuthConfig contains authentication configuration
 type AuthConfig struct {
 	OIDCTimeout time.Duration `mapstructure:"oidc_timeout" validate:"required,min=1"`
+	JWT         JWTConfig     `mapstructure:"jwt" validate:"required"`
+}
+
+// JWTConfig contains JWT-specific configuration
+type JWTConfig struct {
+	SecretKey     string        `mapstructure:"secret_key" validate:"required"`
+	TokenDuration time.Duration `mapstructure:"token_duration" validate:"required,min=1"`
+	Issuer        string        `mapstructure:"issuer" validate:"required"`
 }
 
 // DatabaseConfig contains database configuration
@@ -377,6 +385,7 @@ func ProcessEnvVarsInString(s string, required bool) (string, error) {
 func convertDurations(m map[string]interface{}) {
 	durationPaths := []string{
 		"auth.oidc_timeout",
+		"auth.jwt.token_duration",
 		"database.mongodb.connection_timeout",
 		"database.mongodb.disconnect_timeout",
 		"database.mongodb.index_timeout",
@@ -483,6 +492,9 @@ func getDefaultsMap() map[string]interface{} {
 
 		// Auth defaults
 		"auth.oidc_timeout": "30s", // 30 seconds
+		"auth.jwt.secret_key": "your-secret-key-here", // Default secret key, should be overridden in production
+		"auth.jwt.token_duration": "24h", // 24 hours
+		"auth.jwt.issuer": "family-service", // Default issuer
 
 		// Database defaults
 		"database.type":                       "sqlite",

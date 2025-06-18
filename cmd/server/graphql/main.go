@@ -227,6 +227,12 @@ func main() {
 	// Set up HTTP routes
 	handler := setupRoutes(container, logger, cfg)
 
+	// Apply auth middleware to all routes
+	// Note: The auth middleware will validate JWT tokens locally.
+	// In the future, this should be configured to use a remote authorization server
+	// for improved security and centralized management.
+	handler = container.GetAuthService().Middleware()(handler)
+
 	// Start the server
 	srv := startServer(handler, cfg, logger, container.GetContextLogger())
 

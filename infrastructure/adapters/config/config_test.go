@@ -31,7 +31,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "8089", config.Server.Port)
 	assert.Equal(t, "debug", config.Log.Level)
 	assert.Equal(t, true, config.Log.Development)
-	assert.Equal(t, "mongodb", config.Database.Type)
+	assert.Equal(t, "sqlite", config.Database.Type)
 	assert.NotEmpty(t, config.Database.Postgres.DSN)
 	assert.NotEmpty(t, config.Database.MongoDB.URI)
 

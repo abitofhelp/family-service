@@ -5,7 +5,7 @@ package di_test
 import (
 	"context"
 	"github.com/abitofhelp/family-service/cmd/server/graphql/di"
-	"github.com/abitofhelp/servicelib/config"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	"testing"
 	"time"
 
@@ -29,6 +29,11 @@ func TestNewContainer_MongoDB(t *testing.T) {
 		},
 		Auth: config.AuthConfig{
 			OIDCTimeout: 5 * time.Second,
+			JWT: config.JWTConfig{
+				SecretKey:     "test-secret-key",
+				TokenDuration: 24 * time.Hour,
+				Issuer:        "test-issuer",
+			},
 		},
 		Database: config.DatabaseConfig{
 			Type: "mongodb",
@@ -100,6 +105,11 @@ func TestNewContainer_Postgres(t *testing.T) {
 		},
 		Auth: config.AuthConfig{
 			OIDCTimeout: 5 * time.Second,
+			JWT: config.JWTConfig{
+				SecretKey:     "test-secret-key",
+				TokenDuration: 24 * time.Hour,
+				Issuer:        "test-issuer",
+			},
 		},
 		Database: config.DatabaseConfig{
 			Type: "postgres",
@@ -168,6 +178,11 @@ func TestNewContainer_UnsupportedDB(t *testing.T) {
 		},
 		Auth: config.AuthConfig{
 			OIDCTimeout: 5 * time.Second,
+			JWT: config.JWTConfig{
+				SecretKey:     "test-secret-key",
+				TokenDuration: 24 * time.Hour,
+				Issuer:        "test-issuer",
+			},
 		},
 		Database: config.DatabaseConfig{
 			Type: "unsupported",
@@ -259,6 +274,11 @@ func TestContainer_Close(t *testing.T) {
 		},
 		Auth: config.AuthConfig{
 			OIDCTimeout: 5 * time.Second,
+			JWT: config.JWTConfig{
+				SecretKey:     "test-secret-key",
+				TokenDuration: 24 * time.Hour,
+				Issuer:        "test-issuer",
+			},
 		},
 		Database: config.DatabaseConfig{
 			Type: "mongodb",

@@ -56,6 +56,14 @@ func (m *mockRepo) FindByChildID(ctx context.Context, childID string) (*entity.F
 	return nil, errors.NewNotFoundError("Family with Child", childID)
 }
 
+func (m *mockRepo) GetAll(ctx context.Context) ([]*entity.Family, error) {
+	var families []*entity.Family
+	for _, fam := range m.store {
+		families = append(families, fam)
+	}
+	return families, nil
+}
+
 func TestCreateFamily(t *testing.T) {
 	// Setup
 	repo := &mockRepo{store: make(map[string]*entity.Family)}

@@ -2,6 +2,10 @@ app:
   version: 1.0.0
 auth:
   oidc_timeout: 3000s
+  jwt:
+    secret_key: "your-secret-key-here"
+    token_duration: 24h
+    issuer: "family-service"
 database:
   mongodb:
     connection_timeout: 1000s

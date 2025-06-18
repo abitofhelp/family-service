@@ -470,6 +470,46 @@ docker-compose up --build
 
 This configuration will automatically initialize the databases with sample data using the provided scripts.
 
+## 🔐 Authentication and Authorization
+
+The Family Service includes built-in support for authentication and authorization using JWT (JSON Web Tokens). All requests to the service must be authenticated and provide authorization roles in a JWT token.
+
+### JWT Authentication
+
+The service uses the `servicelib/auth` package to validate JWT tokens locally. The token validation is applied as middleware to all routes, ensuring that only authenticated users can access the service.
+
+### Configuration
+
+JWT authentication is configured in the application configuration:
+
+```yaml
+auth:
+  jwt:
+    secret_key: "your-secret-key-here"  # Should be overridden in production
+    token_duration: "24h"               # Token validity period
+    issuer: "family-service"            # Token issuer
+```
+
+These settings can be overridden using environment variables:
+
+```env
+APP_AUTH_JWT_SECRET_KEY=your-secret-key
+APP_AUTH_JWT_TOKEN_DURATION=24h
+APP_AUTH_JWT_ISSUER=family-service
+```
+
+### Role-Based Authorization
+
+The service supports role-based authorization with three roles:
+
+1. **admin**: Has full access to all operations
+2. **authuser**: Has read-only access to data
+3. **non-user**: Has no access (unauthenticated)
+
+### Future Improvements
+
+In the future, the service will be configured to use a remote authorization server instead of local token validation for improved security and centralized management.
+
 ## 📊 Monitoring and Observability
 
 The Family Service includes built-in support for monitoring and observability using Prometheus and Grafana. This allows you to collect and visualize metrics about the application's performance and behavior.

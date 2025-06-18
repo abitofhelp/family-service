@@ -80,6 +80,11 @@ DB_URI=postgres://postgres:postgres@postgres:5432/familydb
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=familydb
+
+# Authentication configuration
+APP_AUTH_JWT_SECRET_KEY=your-secret-key-here  # Should be overridden in production
+APP_AUTH_JWT_TOKEN_DURATION=24h
+APP_AUTH_JWT_ISSUER=family-service
 ```
 
 ### 4. Docker Configuration
@@ -103,6 +108,9 @@ services:
       - MONGO_URI=${MONGO_URI}
       - DB_URI=${DB_URI}
       - LOG_LEVEL=${LOG_LEVEL}
+      - APP_AUTH_JWT_SECRET_KEY=${APP_AUTH_JWT_SECRET_KEY}
+      - APP_AUTH_JWT_TOKEN_DURATION=${APP_AUTH_JWT_TOKEN_DURATION}
+      - APP_AUTH_JWT_ISSUER=${APP_AUTH_JWT_ISSUER}
     depends_on:
       - mongo
       - postgres
@@ -460,7 +468,24 @@ docker-compose exec family-service sh
 
 ### 10. Security Considerations
 
-#### 10.1 Environment Variables and Secrets
+#### 10.1 Authentication and Authorization
+The Family Service uses JWT (JSON Web Tokens) for authentication and authorization. All requests to the service must be authenticated and provide authorization roles in a JWT token.
+
+##### 10.1.1 JWT Configuration
+- Configure the JWT secret key, token duration, and issuer in the `.env` file
+- Use a strong, unique secret key in production environments
+- Consider using a secrets management solution to store the JWT secret key
+
+##### 10.1.2 Role-Based Authorization
+The service supports role-based authorization with three roles:
+- **admin**: Has full access to all operations
+- **authuser**: Has read-only access to data
+- **non-user**: Has no access (unauthenticated)
+
+##### 10.1.3 Future Improvements
+In the future, the service will be configured to use a remote authorization server instead of local token validation for improved security and centralized management.
+
+#### 10.2 Environment Variables and Secrets
 - Use strong passwords for database credentials
 - Do not commit `.env` file to version control
 - Set up the required secrets files as described in the [Secrets Setup Guide](Secrets_Setup_Guide.md)
@@ -501,6 +526,9 @@ For a production environment, consider:
 | LOG_LEVEL | Logging level | info |
 | MONGO_URI | MongoDB connection URI | mongodb://mongo:27017/family_service |
 | DB_URI | PostgreSQL connection URI | postgres://postgres:postgres@postgres:5432/familydb |
+| APP_AUTH_JWT_SECRET_KEY | JWT secret key for token signing and validation | your-secret-key-here |
+| APP_AUTH_JWT_TOKEN_DURATION | JWT token validity period | 24h |
+| APP_AUTH_JWT_ISSUER | JWT token issuer | family-service |
 
 #### 12.2 Docker Compose Commands Reference
 | Command | Description |

@@ -13,6 +13,7 @@ import (
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/di"
+	"github.com/abitofhelp/servicelib/auth"
 	basedi "github.com/abitofhelp/servicelib/di"
 	"go.uber.org/zap"
 )
@@ -23,6 +24,7 @@ type Container struct {
 	familyRepo          domainports.FamilyRepository
 	familyDomainService *domainservices.FamilyDomainService
 	familyAppService    appports.FamilyApplicationService
+	authService         *auth.Auth
 	dbType              string
 }
 
@@ -77,6 +79,21 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 		container.familyRepo,
 	)
 
+	// Initialize auth service
+	// Note: In the future, this should be configured to use a remote authorization server
+	// instead of local token validation for improved security and centralized management.
+	authConfig := auth.DefaultConfig()
+	authConfig.JWT.SecretKey = cfg.Auth.JWT.SecretKey
+	authConfig.JWT.Issuer = cfg.Auth.JWT.Issuer
+	authConfig.JWT.TokenDuration = cfg.Auth.JWT.TokenDuration
+	authConfig.Middleware.SkipPaths = []string{"/health", "/metrics", "/playground"}
+
+	authService, err := auth.New(ctx, authConfig, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize auth service: %w", err)
+	}
+	container.authService = authService
+
 	return container, nil
 }
 
@@ -107,7 +124,12 @@ func (c *Container) GetFamilyService() interface{} {
 
 // For backward compatibility with the test file
 func (c *Container) GetAuthorizationService() interface{} {
-	return nil
+	return c.authService
+}
+
+// GetAuthService returns the auth service
+func (c *Container) GetAuthService() *auth.Auth {
+	return c.authService
 }
 
 // Close closes all resources
