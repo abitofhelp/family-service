@@ -185,10 +185,8 @@ func (f *Family) AddParent(p *Parent) error {
 
 	f.parents = append(f.parents, p)
 
-	// Update status if needed
-	if len(f.parents) == 2 && f.status == Single {
-		f.status = Married
-	}
+	// We don't automatically update the status when adding a parent
+	// This allows the caller to control the family status
 
 	return nil
 }
@@ -298,7 +296,7 @@ func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 
 	// Create new family for custodial parent with all children
 	newFamily, err := NewFamily(
-		"", // Generate new ID
+		f.id, // Preserve original family ID
 		Divorced,
 		[]*Parent{custodialParent},
 		f.children,

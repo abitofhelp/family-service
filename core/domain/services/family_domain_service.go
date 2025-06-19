@@ -82,9 +82,20 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		return nil, errors.NewApplicationError(err, "invalid parent data", "INVALID_INPUT")
 	}
 
-	// Add parent to family
+ // Add parent to family
 	if err := fam.AddParent(p); err != nil {
 		return nil, err
+	}
+
+	// Update family status if needed
+	// If we're adding a second parent to a SINGLE family, change status to MARRIED
+	if fam.Status() == entity.Single && len(fam.Parents()) == 2 {
+		// Create a new family with updated status
+		updatedFam, err := entity.NewFamily(fam.ID(), entity.Married, fam.Parents(), fam.Children())
+		if err != nil {
+			return nil, errors.NewApplicationError(err, "failed to update family status", "DOMAIN_ERROR")
+		}
+		fam = updatedFam
 	}
 
 	// Save updated family

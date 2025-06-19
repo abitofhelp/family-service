@@ -31,9 +31,22 @@ var (
 )
 
 func init() {
-	// Register metrics
-	prometheus.MustRegister(AuthorizationCheckDuration)
-	prometheus.MustRegister(AuthorizationFailures)
+	// Register metrics - using Register instead of MustRegister to avoid panic on duplicate registration
+	if err := prometheus.Register(AuthorizationCheckDuration); err != nil {
+		// If the error is because the metric is already registered, we can ignore it
+		// Otherwise, log the error but don't panic
+		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+			fmt.Printf("Error registering AuthorizationCheckDuration metric: %v\n", err)
+		}
+	}
+
+	if err := prometheus.Register(AuthorizationFailures); err != nil {
+		// If the error is because the metric is already registered, we can ignore it
+		// Otherwise, log the error but don't panic
+		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+			fmt.Printf("Error registering AuthorizationFailures metric: %v\n", err)
+		}
+	}
 }
 
 // Resolver is the resolver for GraphQL queries and mutations

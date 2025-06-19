@@ -88,10 +88,10 @@ func New(cfg Config, handler http.Handler, logger *zap.Logger, contextLogger *lo
 // It begins listening for HTTP requests in a non-blocking manner.
 // If the server fails to start, it logs a fatal error and terminates the application.
 func (s *Server) Start() {
-	s.contextLogger.Info(context.Background(), "Starting GraphQL server", zap.String("address", s.Addr))
+	s.contextLogger.Info(context.Background(), "Starting HTTP server", zap.String("address", s.Addr))
 	go func() {
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.contextLogger.Fatal(context.Background(), "GraphQL server failed to start", zap.Error(err))
+			s.contextLogger.Fatal(context.Background(), "HTTP server failed to start", zap.Error(err))
 		}
 	}()
 }
@@ -106,7 +106,7 @@ func (s *Server) Start() {
 // Returns:
 //   - An error if the shutdown fails, or nil on success
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.contextLogger.Info(ctx, "Shutting down server...")
+	s.contextLogger.Info(ctx, "Shutting down HTTP server...")
 
 	// Create a deadline to wait for server shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, s.shutdownTimeout)
@@ -114,10 +114,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	// Doesn't block if no connections, but will otherwise wait until the timeout deadline
 	if err := s.Server.Shutdown(shutdownCtx); err != nil {
-		s.contextLogger.Error(ctx, "Server forced to shutdown", zap.Error(err))
+		s.contextLogger.Error(ctx, "HTTP server forced to shutdown", zap.Error(err))
 		return err
 	}
 
-	s.contextLogger.Info(ctx, "Server exited properly")
+	s.contextLogger.Info(ctx, "HTTP server exited properly")
 	return nil
 }

@@ -86,7 +86,7 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 	authConfig.JWT.SecretKey = cfg.Auth.JWT.SecretKey
 	authConfig.JWT.Issuer = cfg.Auth.JWT.Issuer
 	authConfig.JWT.TokenDuration = cfg.Auth.JWT.TokenDuration
-	authConfig.Middleware.SkipPaths = []string{"/health", "/metrics", "/playground"}
+	authConfig.Middleware.SkipPaths = []string{"/health", "/metrics", "/playground", "/graphql/health"}
 
 	authService, err := auth.New(ctx, authConfig, logger)
 	if err != nil {

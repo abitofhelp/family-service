@@ -130,8 +130,9 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 	}
 
 	// Ensure transaction is rolled back if an error occurs
+	committed := false
 	defer func() {
-		if err != nil {
+		if !committed {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
 				// Log rollback error, but don't return it as it would mask the original error
 				fmt.Printf("Error rolling back transaction: %v\n", rollbackErr)
@@ -192,6 +193,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 	if err = tx.Commit(); err != nil {
 		return errors.NewRepositoryError(err, "failed to commit transaction", "SQLITE_ERROR")
 	}
+	committed = true
 
 	return nil
 }

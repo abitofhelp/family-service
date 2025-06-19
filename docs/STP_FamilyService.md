@@ -149,6 +149,25 @@ End-to-end tests focus on testing the entire system from the API to the database
 ##### 3.2.3 GraphQL Integration Tests
 - Test GraphQL resolvers with actual services
 - Test GraphQL schema validation
+- Test authorization for all queries and mutations
+- Test all queries:
+  - getFamily
+  - getAllFamilies
+  - findFamiliesByParent
+  - findFamilyByChild
+  - parents
+  - countFamilies
+  - countParents
+  - countChildren
+- Test all mutations:
+  - createFamily
+  - addParent
+  - addChild
+  - removeChild
+  - markParentDeceased
+  - divorce
+- Test error handling and validation
+- Test with and without proper authorization tokens
 
 #### 3.3 End-to-End Test Cases
 

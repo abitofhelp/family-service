@@ -162,8 +162,6 @@ func setupGraphQLEndpoints(mux *http.ServeMux, container *di.Container) {
 // startServer creates and starts the HTTP server.
 // It returns the server and any error that occurred.
 func startServer(handler http.Handler, cfg *config.Config, logger *zap.Logger, contextLogger *logging.ContextLogger) *server.Server {
-	logger.Info("Starting HTTP server", zap.String("port", cfg.Server.Port))
-
 	serverConfig := server.NewConfig(
 		cfg.Server.Port,
 		cfg.Server.ReadTimeout,
@@ -246,11 +244,11 @@ func main() {
 	shutdownFunc := setupGracefulShutdown(rootCtx, rootCancel, srv, cfg)
 
 	// Wait for a shutdown signal
-	logger.Info("Server is running. Press Ctrl+C to stop")
+	logger.Info("HTTP server is running. Press Ctrl+C to stop")
 	if err := shutdown.GracefulShutdown(rootCtx, container.GetContextLogger(), shutdownFunc); err != nil {
-		logger.Error("Failed to shutdown gracefully", zap.Error(err))
+		logger.Error("Failed to gracefully shutdown the HTTP server", zap.Error(err))
 		os.Exit(1)
 	}
 
-	logger.Info("Server shutdown complete")
+	logger.Info("HTTP server shutdown complete")
 }

@@ -6,7 +6,6 @@ package resolver
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/valueobject"
@@ -37,12 +36,12 @@ func (r *childResolver) DeathDate(ctx context.Context, obj *entity.Child) (*stri
 
 // ParentCount is the resolver for the parentCount field.
 func (r *familyResolver) ParentCount(ctx context.Context, obj *model.Family) (int, error) {
-	panic(fmt.Errorf("not implemented: ParentCount - parentCount"))
+	return len(obj.Parents), nil
 }
 
 // ChildrenCount is the resolver for the childrenCount field.
 func (r *familyResolver) ChildrenCount(ctx context.Context, obj *model.Family) (int, error) {
-	panic(fmt.Errorf("not implemented: ChildrenCount - childrenCount"))
+	return len(obj.Children), nil
 }
 
 // CreateFamily is the resolver for the createFamily field.
