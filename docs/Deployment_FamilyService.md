@@ -477,9 +477,10 @@ The Family Service uses JWT (JSON Web Tokens) for authentication and authorizati
 - Consider using a secrets management solution to store the JWT secret key
 
 ##### 10.1.2 Role-Based Authorization
-The service supports role-based authorization with three roles:
+The service supports role-based authorization with four roles:
 - **admin**: Has full access to all operations
-- **authuser**: Has read-only access to data
+- **editor**: Has access to create, update, and delete operations
+- **viewer**: Has read-only access to data
 - **non-user**: Has no access (unauthenticated)
 
 ##### 10.1.3 Future Improvements

@@ -27,8 +27,10 @@ func main() {
 		logger.Fatal("Failed to create auth instance", zap.Error(err))
 	}
 
-	// Generate admin token
-	adminToken, err := authInstance.GenerateToken(ctx, "admin", []string{"ADMIN"})
+	// Generate admin token with all scopes for all resources
+	adminScopes := []string{"READ", "WRITE", "DELETE", "CREATE"}
+	adminResources := []string{"FAMILY", "PARENT", "CHILD"}
+	adminToken, err := authInstance.GenerateToken(ctx, "admin", []string{"ADMIN"}, adminScopes, adminResources)
 	if err != nil {
 		logger.Fatal("Failed to generate admin token", zap.Error(err))
 		return
@@ -36,14 +38,27 @@ func main() {
 
 	fmt.Printf("\nAdmin Token: %s\n", adminToken)
 
-	// Generate authuser token
-	authuserToken, err := authInstance.GenerateToken(ctx, "user", []string{"AUTHUSER"})
+	// Generate editor token with all scopes for all resources
+	editorScopes := []string{"READ", "WRITE", "DELETE", "CREATE"}
+	editorResources := []string{"FAMILY", "PARENT", "CHILD"}
+	editorToken, err := authInstance.GenerateToken(ctx, "editor", []string{"EDITOR"}, editorScopes, editorResources)
 	if err != nil {
-		logger.Fatal("Failed to generate authuser token", zap.Error(err))
+		logger.Fatal("Failed to generate editor token", zap.Error(err))
 		return
 	}
 
-	fmt.Printf("\nAuthuser Token: %s\n", authuserToken)
+	fmt.Printf("\nEditor Token: %s\n", editorToken)
+
+	// Generate viewer token with only READ scope for all resources
+	viewerScopes := []string{"READ"}
+	viewerResources := []string{"FAMILY", "PARENT", "CHILD"}
+	viewerToken, err := authInstance.GenerateToken(ctx, "viewer", []string{"VIEWER"}, viewerScopes, viewerResources)
+	if err != nil {
+		logger.Fatal("Failed to generate viewer token", zap.Error(err))
+		return
+	}
+
+	fmt.Printf("\nViewer Token: %s\n", viewerToken)
 
 	// Validate admin token
 	adminClaims, err := authInstance.ValidateToken(ctx, adminToken)
@@ -53,11 +68,19 @@ func main() {
 	}
 	fmt.Printf("\nValid Admin Token, Claims: %+v\n", adminClaims)
 
-	// Validate authuser token
-	authuserClaims, err := authInstance.ValidateToken(ctx, authuserToken)
+	// Validate editor token
+	editorClaims, err := authInstance.ValidateToken(ctx, editorToken)
 	if err != nil {
-		logger.Fatal("Failed to validate authuser token", zap.Error(err))
+		logger.Fatal("Failed to validate editor token", zap.Error(err))
 		return
 	}
-	fmt.Printf("\nValid Authuser Token, Claims: %+v\n", authuserClaims)
+	fmt.Printf("\nValid Editor Token, Claims: %+v\n", editorClaims)
+
+	// Validate viewer token
+	viewerClaims, err := authInstance.ValidateToken(ctx, viewerToken)
+	if err != nil {
+		logger.Fatal("Failed to validate viewer token", zap.Error(err))
+		return
+	}
+	fmt.Printf("\nValid Viewer Token, Claims: %+v\n", viewerClaims)
 }

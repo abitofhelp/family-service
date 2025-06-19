@@ -1,5 +1,3 @@
-// Copyright (c) 2025 A Bit of Help, Inc.
-
 package resolver
 
 // This file will be automatically regenerated based on the schema, any resolver implementations
@@ -50,7 +48,7 @@ func (r *familyResolver) ChildrenCount(ctx context.Context, obj *model.Family) (
 // CreateFamily is the resolver for the createFamily field.
 func (r *mutationResolver) CreateFamily(ctx context.Context, input model.FamilyInput) (*model.Family, error) {
 	// Check if the user is authorized to create a family
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin"}, "CreateFamily"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"CREATE"}, "FAMILY", "CreateFamily"); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +128,7 @@ func (r *mutationResolver) CreateFamily(ctx context.Context, input model.FamilyI
 // AddParent is the resolver for the addParent field.
 func (r *mutationResolver) AddParent(ctx context.Context, familyID valueobject.ID, input model.ParentInput) (*model.Family, error) {
 	// Check if the user is authorized to add a parent
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin"}, "AddParent"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"CREATE"}, "PARENT", "AddParent"); err != nil {
 		return nil, err
 	}
 
@@ -173,7 +171,7 @@ func (r *mutationResolver) AddParent(ctx context.Context, familyID valueobject.I
 // AddChild is the resolver for the addChild field.
 func (r *mutationResolver) AddChild(ctx context.Context, familyID valueobject.ID, input model.ChildInput) (*model.Family, error) {
 	// Check if the user is authorized to add a child
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin"}, "AddChild"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"CREATE"}, "CHILD", "AddChild"); err != nil {
 		return nil, err
 	}
 
@@ -216,7 +214,7 @@ func (r *mutationResolver) AddChild(ctx context.Context, familyID valueobject.ID
 // RemoveChild is the resolver for the removeChild field.
 func (r *mutationResolver) RemoveChild(ctx context.Context, familyID valueobject.ID, childID valueobject.ID) (*model.Family, error) {
 	// Check if the user is authorized to remove a child
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin"}, "RemoveChild"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"DELETE"}, "CHILD", "RemoveChild"); err != nil {
 		return nil, err
 	}
 
@@ -238,7 +236,7 @@ func (r *mutationResolver) RemoveChild(ctx context.Context, familyID valueobject
 // MarkParentDeceased is the resolver for the markParentDeceased field.
 func (r *mutationResolver) MarkParentDeceased(ctx context.Context, familyID valueobject.ID, parentID valueobject.ID, deathDate string) (*model.Family, error) {
 	// Check if the user is authorized to mark a parent as deceased
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin"}, "MarkParentDeceased"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"WRITE"}, "PARENT", "MarkParentDeceased"); err != nil {
 		return nil, err
 	}
 
@@ -267,7 +265,7 @@ func (r *mutationResolver) MarkParentDeceased(ctx context.Context, familyID valu
 // Divorce is the resolver for the divorce field.
 func (r *mutationResolver) Divorce(ctx context.Context, familyID valueobject.ID, custodialParentID valueobject.ID) (*model.Family, error) {
 	// Check if the user is authorized to process a divorce
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin"}, "Divorce"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"WRITE"}, "FAMILY", "Divorce"); err != nil {
 		return nil, err
 	}
 
@@ -307,7 +305,7 @@ func (r *parentResolver) DeathDate(ctx context.Context, obj *entity.Parent) (*st
 // GetFamily is the resolver for the getFamily field.
 func (r *queryResolver) GetFamily(ctx context.Context, id valueobject.ID) (*model.Family, error) {
 	// Check if the user is authorized to get a family
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "GetFamily"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "FAMILY", "GetFamily"); err != nil {
 		return nil, err
 	}
 
@@ -328,7 +326,7 @@ func (r *queryResolver) GetFamily(ctx context.Context, id valueobject.ID) (*mode
 // GetAllFamilies is the resolver for the getAllFamilies field.
 func (r *queryResolver) GetAllFamilies(ctx context.Context) ([]*model.Family, error) {
 	// Check if the user is authorized to get all families
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "GetAllFamilies"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "FAMILY", "GetAllFamilies"); err != nil {
 		return nil, err
 	}
 
@@ -354,7 +352,7 @@ func (r *queryResolver) GetAllFamilies(ctx context.Context) ([]*model.Family, er
 // FindFamiliesByParent is the resolver for the findFamiliesByParent field.
 func (r *queryResolver) FindFamiliesByParent(ctx context.Context, parentID valueobject.ID) ([]*model.Family, error) {
 	// Check if the user is authorized to find families by parent
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "FindFamiliesByParent"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "PARENT", "FindFamiliesByParent"); err != nil {
 		return nil, err
 	}
 
@@ -380,7 +378,7 @@ func (r *queryResolver) FindFamiliesByParent(ctx context.Context, parentID value
 // FindFamilyByChild is the resolver for the findFamilyByChild field.
 func (r *queryResolver) FindFamilyByChild(ctx context.Context, childID valueobject.ID) (*model.Family, error) {
 	// Check if the user is authorized to find family by child
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "FindFamilyByChild"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "CHILD", "FindFamilyByChild"); err != nil {
 		return nil, err
 	}
 
@@ -392,7 +390,7 @@ func (r *queryResolver) FindFamilyByChild(ctx context.Context, childID valueobje
 // Parents is the resolver for the parents field.
 func (r *queryResolver) Parents(ctx context.Context) ([]*entity.Parent, error) {
 	// Check if the user is authorized to get all parents
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "Parents"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "PARENT", "Parents"); err != nil {
 		return nil, err
 	}
 
@@ -437,7 +435,7 @@ func (r *queryResolver) Parents(ctx context.Context) ([]*entity.Parent, error) {
 // CountFamilies is the resolver for the countFamilies field.
 func (r *queryResolver) CountFamilies(ctx context.Context) (int, error) {
 	// Check if the user is authorized to count families
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "CountFamilies"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "FAMILY", "CountFamilies"); err != nil {
 		return 0, err
 	}
 
@@ -459,7 +457,7 @@ func (r *queryResolver) CountFamilies(ctx context.Context) (int, error) {
 // CountParents is the resolver for the countParents field.
 func (r *queryResolver) CountParents(ctx context.Context) (int, error) {
 	// Check if the user is authorized to count parents
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "CountParents"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "PARENT", "CountParents"); err != nil {
 		return 0, err
 	}
 
@@ -492,7 +490,7 @@ func (r *queryResolver) CountParents(ctx context.Context) (int, error) {
 // CountChildren is the resolver for the countChildren field.
 func (r *queryResolver) CountChildren(ctx context.Context) (int, error) {
 	// Check if the user is authorized to count children
-	if err := r.Resolver.CheckAuthorization(ctx, []string{"admin", "authuser"}, "CountChildren"); err != nil {
+	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "CHILD", "CountChildren"); err != nil {
 		return 0, err
 	}
 

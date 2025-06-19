@@ -36,13 +36,37 @@ Role represents the authorization role of a user
 """
 enum Role {
   ADMIN
-  AUTHUSER
+  EDITOR
+  VIEWER
+}
+
+"""
+Scope represents the permission scope for a resource
+"""
+enum Scope {
+  READ
+  WRITE
+  DELETE
+  CREATE
+}
+
+"""
+Resource represents the resource type being accessed
+"""
+enum Resource {
+  FAMILY
+  PARENT
+  CHILD
 }
 
 """
 isAuthorized directive for role-based access control
 """
-directive @isAuthorized(allowedRoles: [Role!]!) on FIELD_DEFINITION
+directive @isAuthorized(
+  allowedRoles: [Role!]!, 
+  requiredScopes: [Scope!] = [READ], 
+  resource: Resource = FAMILY
+) on FIELD_DEFINITION
 
 """
 Family represents a family unit with parents and children
@@ -72,42 +96,74 @@ type Query {
   """
   Get a family by ID
   """
-  getFamily(id: ID!): Family @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  getFamily(id: ID!): Family @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: FAMILY
+  )
 
   """
   Get all families with their parents and children
   """
-  getAllFamilies: [Family!]! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  getAllFamilies: [Family!]! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: FAMILY
+  )
 
   """
   Find families that contain a specific parent
   """
-  findFamiliesByParent(parentId: ID!): [Family!] @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  findFamiliesByParent(parentId: ID!): [Family!] @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: PARENT
+  )
 
   """
   Find the family that contains a specific child
   """
-  findFamilyByChild(childId: ID!): Family @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  findFamilyByChild(childId: ID!): Family @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: CHILD
+  )
 
   """
   Get all parents
   """
-  parents: [Parent!]! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  parents: [Parent!]! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: PARENT
+  )
 
   """
   Get the total count of families
   """
-  countFamilies: Int! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  countFamilies: Int! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: FAMILY
+  )
 
   """
   Get the total count of parents
   """
-  countParents: Int! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  countParents: Int! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: PARENT
+  )
 
   """
   Get the total count of children
   """
-  countChildren: Int! @isAuthorized(allowedRoles: [ADMIN, AUTHUSER])
+  countChildren: Int! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR, VIEWER], 
+    requiredScopes: [READ], 
+    resource: CHILD
+  )
 }
 
 """
@@ -117,32 +173,56 @@ type Mutation {
   """
   Create a new family
   """
-  createFamily(input: FamilyInput!): Family! @isAuthorized(allowedRoles: [ADMIN])
+  createFamily(input: FamilyInput!): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [CREATE], 
+    resource: FAMILY
+  )
 
   """
   Add a parent to an existing family
   """
-  addParent(familyId: ID!, input: ParentInput!): Family! @isAuthorized(allowedRoles: [ADMIN])
+  addParent(familyId: ID!, input: ParentInput!): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [CREATE], 
+    resource: PARENT
+  )
 
   """
   Add a child to an existing family
   """
-  addChild(familyId: ID!, input: ChildInput!): Family! @isAuthorized(allowedRoles: [ADMIN])
+  addChild(familyId: ID!, input: ChildInput!): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [CREATE], 
+    resource: CHILD
+  )
 
   """
   Remove a child from a family
   """
-  removeChild(familyId: ID!, childId: ID!): Family! @isAuthorized(allowedRoles: [ADMIN])
+  removeChild(familyId: ID!, childId: ID!): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [DELETE], 
+    resource: CHILD
+  )
 
   """
   Mark a parent as deceased
   """
-  markParentDeceased(familyId: ID!, parentId: ID!, deathDate: String!): Family! @isAuthorized(allowedRoles: [ADMIN])
+  markParentDeceased(familyId: ID!, parentId: ID!, deathDate: String!): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [WRITE], 
+    resource: PARENT
+  )
 
   """
   Process a divorce, creating a new family for the custodial parent
   """
-  divorce(familyId: ID!, custodialParentId: ID!): Family! @isAuthorized(allowedRoles: [ADMIN])
+  divorce(familyId: ID!, custodialParentId: ID!): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [WRITE], 
+    resource: FAMILY
+  )
 }
 
 """

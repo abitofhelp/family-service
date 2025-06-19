@@ -503,8 +503,9 @@ APP_AUTH_JWT_ISSUER=family-service
 The service supports role-based authorization with three roles:
 
 1. **admin**: Has full access to all operations
-2. **authuser**: Has read-only access to data
-3. **non-user**: Has no access (unauthenticated)
+2. **editor**: Has access to create, update, and delete operations
+3. **viewer**: Has read-only access to data
+4. **non-user**: Has no access (unauthenticated)
 
 ### Future Improvements
 

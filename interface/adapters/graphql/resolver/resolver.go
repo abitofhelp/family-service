@@ -114,12 +114,12 @@ func (r *Resolver) HandleError(ctx context.Context, err error, operation string)
 
 // CheckAuthorization checks if the user is authorized to perform the specified operation
 // It returns an error if the user is not authorized
-func (r *Resolver) CheckAuthorization(ctx context.Context, allowedRoles []string, operation string) error {
+func (r *Resolver) CheckAuthorization(ctx context.Context, allowedRoles []string, requiredScopes []string, resource string, operation string) error {
 	// Use the generic CheckAuthorization function from servicelib
-	return mygraphql.CheckAuthorization(ctx, allowedRoles, operation, r.logger)
+	return mygraphql.CheckAuthorization(ctx, allowedRoles, requiredScopes, resource, operation, r.logger)
 }
 
-func (r *Resolver) IsAuthorized(ctx context.Context, obj any, next graphql.Resolver, allowedRoles []model.Role) (res any, err error) {
+func (r *Resolver) IsAuthorized(ctx context.Context, obj any, next graphql.Resolver, allowedRoles []model.Role, requiredScopes []model.Scope, resource *model.Resource) (res any, err error) {
 	// Validate roles
 	for _, role := range allowedRoles {
 		if !role.IsValid() {
@@ -128,9 +128,32 @@ func (r *Resolver) IsAuthorized(ctx context.Context, obj any, next graphql.Resol
 		}
 	}
 
+	// Validate scopes
+	for _, scope := range requiredScopes {
+		if !scope.IsValid() {
+			r.logger.Warn(ctx, "Invalid scope specified in authorization check", zap.String("scope", scope.String()))
+			return nil, fmt.Errorf("invalid scope specified: %s", scope)
+		}
+	}
+
+	// Validate resource
+	if resource != nil && !resource.IsValid() {
+		r.logger.Warn(ctx, "Invalid resource specified in authorization check", zap.String("resource", resource.String()))
+		return nil, fmt.Errorf("invalid resource specified: %s", resource)
+	}
+
 	// Convert model.Role to a string array for middleware check
 	strRoles := mygraphql.ConvertRolesToStrings(allowedRoles)
 
+	// Convert model.Scope to a string array for middleware check
+	strScopes := mygraphql.ConvertRolesToStrings(requiredScopes)
+
+	// Convert model.Resource to a string for middleware check
+	strResource := ""
+	if resource != nil {
+		strResource = resource.String()
+	}
+
 	// Use the generic directive implementation from servicelib
-	return mygraphql.IsAuthorizedDirective(ctx, obj, next, strRoles, r.logger)
+	return mygraphql.IsAuthorizedDirective(ctx, obj, next, strRoles, strScopes, strResource, r.logger)
 }
