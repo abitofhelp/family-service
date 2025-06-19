@@ -74,5 +74,5 @@ func InitSQLiteRepository(ctx context.Context, uri string, zapLogger *zap.Logger
 	db.LogDatabaseConnection(ctx, logger, "SQLite")
 
 	// Create repository
-	return sqlite.NewSQLiteFamilyRepository(sqliteDB), nil
+	return sqlite.NewSQLiteFamilyRepository(sqliteDB, logger), nil
 }

@@ -62,10 +62,10 @@ models:
       - github.com/abitofhelp/family-service/core/domain/valueobject.ID
   Parent:
     model:
-      - github.com/abitofhelp/family-service/core/domain/entity.Parent
+      - github.com/abitofhelp/family-service/interface/adapters/graphql/model.Parent
   Child:
     model:
-      - github.com/abitofhelp/family-service/core/domain/entity.Child
+      - github.com/abitofhelp/family-service/interface/adapters/graphql/model.Child
   Family:
     fields:
       parentCount:

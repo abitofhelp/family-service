@@ -5,6 +5,7 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"time"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/abitofhelp/family-service/core/application/ports"
 	"github.com/abitofhelp/family-service/core/domain/entity"
@@ -74,29 +75,75 @@ func NewResolver(familyService ports.FamilyApplicationService, logger *logging.C
 
 // dtoToModelFamily converts a domain FamilyDTO to a GraphQL Family model
 func (r *Resolver) dtoToModelFamily(dto entity.FamilyDTO) *model.Family {
+	// We need a context for logging, but this method doesn't receive one
+	// Create a background context for logging purposes
+	ctx := context.Background()
+
 	// Convert domain status to GraphQL status
 	status := model.FamilyStatus(dto.Status)
 
-	// Convert parents from DTO to entity
-	parents := make([]*entity.Parent, 0, len(dto.Parents))
+	// Convert parents from DTO to model
+	parents := make([]*model.Parent, 0, len(dto.Parents))
 	for _, parentDTO := range dto.Parents {
 		parent, err := entity.ParentFromDTO(parentDTO)
 		if err != nil {
 			// Log error but continue
+			r.logger.Warn(ctx, "Failed to convert parent DTO to entity in resolver", 
+				zap.Error(err), 
+				zap.String("parent_id", parentDTO.ID),
+				zap.String("family_id", dto.ID))
 			continue
 		}
-		parents = append(parents, parent)
+
+		// Convert entity to model
+		deathDate := parent.DeathDate()
+		var deathDateStr *string
+		if deathDate != nil {
+			formatted := parent.DeathDate().Format(time.RFC3339)
+			deathDateStr = &formatted
+		}
+
+		modelParent := &model.Parent{
+			ID:        valueobject.ID(parent.ID()),
+			FirstName: parent.FirstName(),
+			LastName:  parent.LastName(),
+			BirthDate: parent.BirthDate().Format(time.RFC3339),
+			DeathDate: deathDateStr,
+		}
+
+		parents = append(parents, modelParent)
 	}
 
-	// Convert children from DTO to entity
-	children := make([]*entity.Child, 0, len(dto.Children))
+	// Convert children from DTO to model
+	children := make([]*model.Child, 0, len(dto.Children))
 	for _, childDTO := range dto.Children {
 		child, err := entity.ChildFromDTO(childDTO)
 		if err != nil {
 			// Log error but continue
+			r.logger.Warn(ctx, "Failed to convert child DTO to entity in resolver", 
+				zap.Error(err), 
+				zap.String("child_id", childDTO.ID),
+				zap.String("family_id", dto.ID))
 			continue
 		}
-		children = append(children, child)
+
+		// Convert entity to model
+		deathDate := child.DeathDate()
+		var deathDateStr *string
+		if deathDate != nil {
+			formatted := child.DeathDate().Format(time.RFC3339)
+			deathDateStr = &formatted
+		}
+
+		modelChild := &model.Child{
+			ID:        valueobject.ID(child.ID()),
+			FirstName: child.FirstName(),
+			LastName:  child.LastName(),
+			BirthDate: child.BirthDate().Format(time.RFC3339),
+			DeathDate: deathDateStr,
+		}
+
+		children = append(children, modelChild)
 	}
 
 	// Create and return the GraphQL model

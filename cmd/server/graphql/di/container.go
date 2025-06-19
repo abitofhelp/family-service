@@ -71,12 +71,13 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 	}
 
 	// Initialize domain service
-	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo)
+	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo, container.GetContextLogger())
 
 	// Initialize application service
 	container.familyAppService = application.NewFamilyApplicationService(
 		container.familyDomainService,
 		container.familyRepo,
+		container.GetContextLogger(),
 	)
 
 	// Initialize auth service

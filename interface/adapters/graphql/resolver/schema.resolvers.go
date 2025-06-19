@@ -6,6 +6,7 @@ package resolver
 
 import (
 	"context"
+	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/valueobject"
@@ -15,24 +16,6 @@ import (
 	myerrors "github.com/abitofhelp/servicelib/errors"
 	"go.uber.org/zap"
 )
-
-// ID is the resolver for the id field.
-func (r *childResolver) ID(ctx context.Context, obj *entity.Child) (valueobject.ID, error) {
-	return valueobject.ID(obj.ID()), nil
-}
-
-// BirthDate is the resolver for the birthDate field.
-func (r *childResolver) BirthDate(ctx context.Context, obj *entity.Child) (string, error) {
-	return date.FormatDate(obj.BirthDate()), nil
-}
-
-// DeathDate is the resolver for the deathDate field.
-func (r *childResolver) DeathDate(ctx context.Context, obj *entity.Child) (*string, error) {
-	if obj.DeathDate() == nil {
-		return nil, nil
-	}
-	return date.FormatOptionalDate(obj.DeathDate()), nil
-}
 
 // ParentCount is the resolver for the parentCount field.
 func (r *familyResolver) ParentCount(ctx context.Context, obj *model.Family) (int, error) {
@@ -283,24 +266,6 @@ func (r *mutationResolver) Divorce(ctx context.Context, familyID valueobject.ID,
 	return r.Resolver.dtoToModelFamily(*resultDTO), nil
 }
 
-// ID is the resolver for the id field.
-func (r *parentResolver) ID(ctx context.Context, obj *entity.Parent) (valueobject.ID, error) {
-	return valueobject.ID(obj.ID()), nil
-}
-
-// BirthDate is the resolver for the birthDate field.
-func (r *parentResolver) BirthDate(ctx context.Context, obj *entity.Parent) (string, error) {
-	return date.FormatDate(obj.BirthDate()), nil
-}
-
-// DeathDate is the resolver for the deathDate field.
-func (r *parentResolver) DeathDate(ctx context.Context, obj *entity.Parent) (*string, error) {
-	if obj.DeathDate() == nil {
-		return nil, nil
-	}
-	return date.FormatOptionalDate(obj.DeathDate()), nil
-}
-
 // GetFamily is the resolver for the getFamily field.
 func (r *queryResolver) GetFamily(ctx context.Context, id valueobject.ID) (*model.Family, error) {
 	// Check if the user is authorized to get a family
@@ -387,7 +352,7 @@ func (r *queryResolver) FindFamilyByChild(ctx context.Context, childID valueobje
 }
 
 // Parents is the resolver for the parents field.
-func (r *queryResolver) Parents(ctx context.Context) ([]*entity.Parent, error) {
+func (r *queryResolver) Parents(ctx context.Context) ([]*model.Parent, error) {
 	// Check if the user is authorized to get all parents
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "PARENT", "Parents"); err != nil {
 		return nil, err
@@ -418,17 +383,33 @@ func (r *queryResolver) Parents(ctx context.Context) ([]*entity.Parent, error) {
 		}
 	}
 
-	// Convert map to slice
-	parents := make([]*entity.Parent, 0, len(parentMap))
+	// Convert entity parents to model parents
+	modelParents := make([]*model.Parent, 0, len(parentMap))
 	for _, parent := range parentMap {
-		parents = append(parents, parent)
+		// Convert entity to model
+		deathDate := parent.DeathDate()
+		var deathDateStr *string
+		if deathDate != nil {
+			formatted := parent.DeathDate().Format(time.RFC3339)
+			deathDateStr = &formatted
+		}
+
+		modelParent := &model.Parent{
+			ID:        valueobject.ID(parent.ID()),
+			FirstName: parent.FirstName(),
+			LastName:  parent.LastName(),
+			BirthDate: parent.BirthDate().Format(time.RFC3339),
+			DeathDate: deathDateStr,
+		}
+
+		modelParents = append(modelParents, modelParent)
 	}
 
 	// Log successful retrieval
 	r.Resolver.logger.Debug(ctx, "All parents retrieved",
-		zap.Int("count", len(parents)))
+		zap.Int("count", len(modelParents)))
 
-	return parents, nil
+	return modelParents, nil
 }
 
 // CountFamilies is the resolver for the countFamilies field.
@@ -519,23 +500,15 @@ func (r *queryResolver) CountChildren(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// Child returns generated.ChildResolver implementation.
-func (r *Resolver) Child() generated.ChildResolver { return &childResolver{r} }
-
 // Family returns generated.FamilyResolver implementation.
 func (r *Resolver) Family() generated.FamilyResolver { return &familyResolver{r} }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
-// Parent returns generated.ParentResolver implementation.
-func (r *Resolver) Parent() generated.ParentResolver { return &parentResolver{r} }
-
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type childResolver struct{ *Resolver }
 type familyResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
-type parentResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

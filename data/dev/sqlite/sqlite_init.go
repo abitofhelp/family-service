@@ -12,7 +12,9 @@ import (
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/sqlite"
+	"github.com/abitofhelp/servicelib/logging"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
+	"go.uber.org/zap"
 )
 
 const (
@@ -47,8 +49,18 @@ func main() {
 
 	fmt.Println("Connected to SQLite database")
 
+	// Create logger
+	zapLogger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to create logger: %v", err)
+	}
+	defer zapLogger.Sync()
+
+	// Create context logger
+	contextLogger := logging.NewContextLogger(zapLogger)
+
 	// Create repository
-	repo := sqlite.NewSQLiteFamilyRepository(db)
+	repo := sqlite.NewSQLiteFamilyRepository(db, contextLogger)
 
 	// Create and save sample families
 	if err := createSampleFamilies(ctx, repo); err != nil {

@@ -269,7 +269,8 @@ func (f *Family) MarkParentDeceased(parentID string, deathDate time.Time) error 
 	return nil
 }
 
-// Divorce handles the divorce process, creating a new family for the custodial parent
+// Divorce handles the divorce process, creating a new family for the remaining parent
+// The original family keeps the custodial parent and children
 func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	if f.status != Married {
 		return nil, errors.NewDomainError(nil, "only married families can divorce", "INVALID_STATUS_TRANSITION")
@@ -294,24 +295,26 @@ func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 		return nil, errors.NewNotFoundError("Parent", custodialParentID)
 	}
 
-	// Create new family for custodial parent with all children
-	newFamily, err := NewFamily(
-		f.id, // Preserve original family ID
+	// Create a new family for the remaining parent (this will get a new ID)
+	// The original family ID will stay with the custodial parent and children
+	remainingFamily, err := NewFamily(
+		"", // Empty ID will cause a new ID to be generated
 		Divorced,
-		[]*Parent{custodialParent},
-		f.children,
+		[]*Parent{remainingParent},
+		[]*Child{}, // No children with the remaining parent
 	)
 
 	if err != nil {
-		return nil, errors.NewDomainError(err, "failed to create new family for custodial parent", "DIVORCE_FAILED")
+		return nil, errors.NewDomainError(err, "failed to create new family for remaining parent", "DIVORCE_FAILED")
 	}
 
-	// Update original family
-	f.children = []*Child{} // Children move to the new family
-	f.parents = []*Parent{remainingParent}
+	// Update the original family to keep only the custodial parent
+	f.parents = []*Parent{custodialParent}
 	f.status = Divorced
 
-	return newFamily, nil
+	// Return the new family with the remaining parent
+	// The original family (with custodial parent and children) is modified in place
+	return remainingFamily, nil
 }
 
 // ToDTO converts the Family aggregate to a data transfer object for external use

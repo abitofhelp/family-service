@@ -9,6 +9,8 @@ import (
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/servicelib/logging"
+	"go.uber.org/zap/zaptest"
 )
 
 // mockRepo is a mock implementation of the FamilyRepository interface for testing
@@ -67,7 +69,9 @@ func (m *mockRepo) GetAll(ctx context.Context) ([]*entity.Family, error) {
 func TestCreateFamily(t *testing.T) {
 	// Setup
 	repo := &mockRepo{store: make(map[string]*entity.Family)}
-	svc := NewFamilyDomainService(repo)
+	logger := zaptest.NewLogger(t)
+	contextLogger := logging.NewContextLogger(logger)
+	svc := NewFamilyDomainService(repo, contextLogger)
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -105,7 +109,9 @@ func TestCreateFamily(t *testing.T) {
 func TestGetFamily(t *testing.T) {
 	// Setup
 	repo := &mockRepo{store: make(map[string]*entity.Family)}
-	svc := NewFamilyDomainService(repo)
+	logger := zaptest.NewLogger(t)
+	contextLogger := logging.NewContextLogger(logger)
+	svc := NewFamilyDomainService(repo, contextLogger)
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -147,7 +153,9 @@ func TestGetFamily(t *testing.T) {
 func TestAddParent(t *testing.T) {
 	// Setup
 	repo := &mockRepo{store: make(map[string]*entity.Family)}
-	svc := NewFamilyDomainService(repo)
+	logger := zaptest.NewLogger(t)
+	contextLogger := logging.NewContextLogger(logger)
+	svc := NewFamilyDomainService(repo, contextLogger)
 
 	// Create a parent
 	birthDate1 := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -196,7 +204,9 @@ func TestAddParent(t *testing.T) {
 func TestAddChild(t *testing.T) {
 	// Setup
 	repo := &mockRepo{store: make(map[string]*entity.Family)}
-	svc := NewFamilyDomainService(repo)
+	logger := zaptest.NewLogger(t)
+	contextLogger := logging.NewContextLogger(logger)
+	svc := NewFamilyDomainService(repo, contextLogger)
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -242,7 +252,9 @@ func TestAddChild(t *testing.T) {
 func TestDivorce(t *testing.T) {
 	// Setup
 	repo := &mockRepo{store: make(map[string]*entity.Family)}
-	svc := NewFamilyDomainService(repo)
+	logger := zaptest.NewLogger(t)
+	contextLogger := logging.NewContextLogger(logger)
+	svc := NewFamilyDomainService(repo, contextLogger)
 
 	// Create parents
 	birthDate1 := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -282,7 +294,7 @@ func TestDivorce(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify
+	// Verify the original family (now with custodial parent)
 	if result.Status != string(entity.Divorced) {
 		t.Errorf("expected Status %s, got %s", entity.Divorced, result.Status)
 	}
@@ -292,19 +304,46 @@ func TestDivorce(t *testing.T) {
 	if len(result.Children) != 1 {
 		t.Errorf("expected 1 child, got %d", len(result.Children))
 	}
+	// Verify the family with custodial parent keeps the original ID
+	if result.ID != "abc123" {
+		t.Errorf("expected family with custodial parent to keep the original ID, got %s", result.ID)
+	}
+	// Verify the parent is the custodial parent
+	if result.Parents[0].ID != "p1" {
+		t.Errorf("expected custodial parent ID to be p1, got %s", result.Parents[0].ID)
+	}
 
-	// Check original family
-	origFam, err := svc.GetFamily(context.Background(), "abc123")
+	// Find the new family with the remaining parent
+	// We need to get all families and find the one that's not the original
+	allFamilies, err := repo.GetAll(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if origFam.Status != string(entity.Divorced) {
-		t.Errorf("expected Status %s, got %s", entity.Divorced, origFam.Status)
+
+	var remainingFam *entity.Family
+	for _, f := range allFamilies {
+		if f.ID() != "abc123" {
+			remainingFam = f
+			break
+		}
 	}
-	if len(origFam.Parents) != 1 {
-		t.Errorf("expected 1 parent, got %d", len(origFam.Parents))
+
+	if remainingFam == nil {
+		t.Fatalf("could not find family with remaining parent")
 	}
-	if len(origFam.Children) != 0 {
-		t.Errorf("expected 0 children, got %d", len(origFam.Children))
+
+	// Verify the family with remaining parent
+	if remainingFam.Status() != entity.Divorced {
+		t.Errorf("expected Status %s, got %s", entity.Divorced, remainingFam.Status())
+	}
+	if len(remainingFam.Parents()) != 1 {
+		t.Errorf("expected 1 parent, got %d", len(remainingFam.Parents()))
+	}
+	if len(remainingFam.Children()) != 0 {
+		t.Errorf("expected 0 children, got %d", len(remainingFam.Children()))
+	}
+	// Verify the parent is the remaining parent
+	if remainingFam.Parents()[0].ID() != "p2" {
+		t.Errorf("expected remaining parent ID to be p2, got %s", remainingFam.Parents()[0].ID())
 	}
 }
