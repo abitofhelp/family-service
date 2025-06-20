@@ -95,6 +95,7 @@ func setupPostgreSQLTestContainer(t *testing.T) *di.Container {
 }
 
 // cleanupPostgreSQLTestData removes all test data from the PostgreSQL database
+// and ensures the table exists with the correct schema
 func cleanupPostgreSQLTestData(t *testing.T, dsn string) {
 	// Create a PostgreSQL connection pool
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -104,11 +105,43 @@ func cleanupPostgreSQLTestData(t *testing.T, dsn string) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	// Delete all data from the families table
-	_, err = pool.Exec(ctx, "DELETE FROM families")
+	// First, drop the existing table if it exists
+	_, err = pool.Exec(ctx, "DROP TABLE IF EXISTS families")
 	if err != nil {
-		// Log the error but continue with the test
-		t.Logf("Failed to delete data from families table: %v", err)
+		t.Fatalf("Failed to drop families table: %v", err)
+	}
+
+	// Then, create the table with the correct schema
+	createTableSQL := `
+	CREATE TABLE families (
+		id VARCHAR(36) PRIMARY KEY,
+		status VARCHAR(20) NOT NULL,
+		parents JSONB NOT NULL,
+		children JSONB NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX idx_families_status ON families(status);
+	CREATE INDEX idx_families_parents ON families USING GIN (parents);
+	CREATE INDEX idx_families_children ON families USING GIN (children);
+
+	CREATE OR REPLACE FUNCTION update_updated_at_column()
+	RETURNS TRIGGER AS $$
+	BEGIN
+		NEW.updated_at = CURRENT_TIMESTAMP;
+		RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
+
+	CREATE TRIGGER update_families_updated_at
+	BEFORE UPDATE ON families
+	FOR EACH ROW
+	EXECUTE FUNCTION update_updated_at_column();
+	`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("Failed to create families table: %v", err)
 	}
 }
 

@@ -2,7 +2,10 @@ module github.com/abitofhelp/family-service
 
 go 1.24
 
-replace github.com/abitofhelp/servicelib => ../servicelib
+// The replace is not required for local vs CI/CD builds.
+// Go tooling will automatically resolve imports for local modules
+// without needing 'replace' directives in go.mod.
+//// replace github.com/abitofhelp/servicelib => ../servicelib
 
 require (
 	github.com/99designs/gqlgen v0.17.75

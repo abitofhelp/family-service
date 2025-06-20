@@ -55,7 +55,7 @@ func InitPostgresRepository(ctx context.Context, dsn string, zapLogger *zap.Logg
 	db.LogDatabaseConnection(ctx, logger, "PostgreSQL")
 
 	// Create repository
-	return postgres.NewPostgresFamilyRepository(pool), nil
+	return postgres.NewPostgresFamilyRepository(pool, logger), nil
 }
 
 // InitSQLiteRepository initializes a SQLite repository

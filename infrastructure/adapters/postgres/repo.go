@@ -10,30 +10,109 @@ import (
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
 	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/servicelib/logging"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 // PostgresFamilyRepository implements the ports.FamilyRepository interface for PostgreSQL
 type PostgresFamilyRepository struct {
-	DB *pgxpool.Pool
+	DB     *pgxpool.Pool
+	logger *logging.ContextLogger
 }
 
 // Ensure PostgresFamilyRepository implements ports.FamilyRepository
 var _ ports.FamilyRepository = (*PostgresFamilyRepository)(nil)
 
 // NewPostgresFamilyRepository creates a new PostgresFamilyRepository
-func NewPostgresFamilyRepository(db *pgxpool.Pool) *PostgresFamilyRepository {
+func NewPostgresFamilyRepository(db *pgxpool.Pool, logger *logging.ContextLogger) *PostgresFamilyRepository {
 	if db == nil {
 		panic("database connection cannot be nil")
 	}
-	return &PostgresFamilyRepository{DB: db}
+	if logger == nil {
+		panic("logger cannot be nil")
+	}
+	return &PostgresFamilyRepository{
+		DB:     db,
+		logger: logger,
+	}
+}
+
+// ensureTableExists creates the families table if it doesn't exist
+func (r *PostgresFamilyRepository) ensureTableExists(ctx context.Context) error {
+	r.logger.Debug(ctx, "Ensuring families table exists in PostgreSQL")
+
+	query := `
+	CREATE TABLE IF NOT EXISTS families (
+		id VARCHAR(36) PRIMARY KEY,
+		status VARCHAR(20) NOT NULL,
+		parents JSONB NOT NULL,
+		children JSONB NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	-- Create indexes if they don't exist
+	DO $$
+	BEGIN
+		IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_families_status') THEN
+			CREATE INDEX idx_families_status ON families(status);
+		END IF;
+
+		IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_families_parents') THEN
+			CREATE INDEX idx_families_parents ON families USING GIN (parents);
+		END IF;
+
+		IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_families_children') THEN
+			CREATE INDEX idx_families_children ON families USING GIN (children);
+		END IF;
+	END
+	$$;
+
+	-- Create update trigger function if it doesn't exist
+	CREATE OR REPLACE FUNCTION update_updated_at_column()
+	RETURNS TRIGGER AS $$
+	BEGIN
+		NEW.updated_at = CURRENT_TIMESTAMP;
+		RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
+
+	-- Create trigger if it doesn't exist
+	DO $$
+	BEGIN
+		IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_families_updated_at') THEN
+			CREATE TRIGGER update_families_updated_at
+			BEFORE UPDATE ON families
+			FOR EACH ROW
+			EXECUTE FUNCTION update_updated_at_column();
+		END IF;
+	END
+	$$;
+	`
+	_, err := r.DB.Exec(ctx, query)
+	if err != nil {
+		r.logger.Error(ctx, "Failed to create families table in PostgreSQL", zap.Error(err))
+		return errors.NewRepositoryError(err, "failed to create families table", "POSTGRES_ERROR")
+	}
+
+	r.logger.Debug(ctx, "Families table exists in PostgreSQL")
+	return nil
 }
 
 // GetByID retrieves a family by its ID
 func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*entity.Family, error) {
+	r.logger.Debug(ctx, "Getting family by ID from PostgreSQL", zap.String("family_id", id))
+
 	if id == "" {
+		r.logger.Warn(ctx, "Family ID is required for GetByID")
 		return nil, errors.NewValidationError("id is required")
+	}
+
+	// Ensure table exists
+	if err := r.ensureTableExists(ctx); err != nil {
+		return nil, err
 	}
 
 	var famID string
@@ -188,16 +267,26 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 // Save persists a family
 func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family) error {
+	r.logger.Debug(ctx, "Saving family to PostgreSQL", zap.String("family_id", fam.ID()))
+
 	if fam == nil {
+		r.logger.Warn(ctx, "Family cannot be nil for Save")
 		return errors.NewValidationError("family cannot be nil")
 	}
 
 	if err := fam.Validate(); err != nil {
+		r.logger.Error(ctx, "Family validation failed", zap.Error(err), zap.String("family_id", fam.ID()))
+		return err
+	}
+
+	// Ensure table exists
+	if err := r.ensureTableExists(ctx); err != nil {
 		return err
 	}
 
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
+		r.logger.Error(ctx, "Failed to begin transaction", zap.Error(err), zap.String("family_id", fam.ID()))
 		return errors.NewRepositoryError(err, "failed to begin transaction", "POSTGRES_ERROR")
 	}
 
@@ -309,8 +398,16 @@ func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family)
 
 // FindByParentID finds families that contain a specific parent
 func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID string) ([]*entity.Family, error) {
+	r.logger.Debug(ctx, "Finding families by parent ID in PostgreSQL", zap.String("parent_id", parentID))
+
 	if parentID == "" {
+		r.logger.Warn(ctx, "Parent ID is required for FindByParentID")
 		return nil, errors.NewValidationError("parent ID is required")
+	}
+
+	// Ensure table exists
+	if err := r.ensureTableExists(ctx); err != nil {
+		return nil, err
 	}
 
 	// Query for both uppercase and lowercase ID fields
@@ -485,8 +582,16 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 
 // FindByChildID finds the family that contains a specific child
 func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID string) (*entity.Family, error) {
+	r.logger.Debug(ctx, "Finding family by child ID in PostgreSQL", zap.String("child_id", childID))
+
 	if childID == "" {
+		r.logger.Warn(ctx, "Child ID is required for FindByChildID")
 		return nil, errors.NewValidationError("child ID is required")
+	}
+
+	// Ensure table exists
+	if err := r.ensureTableExists(ctx); err != nil {
+		return nil, err
 	}
 
 	var famID string
@@ -644,6 +749,13 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 
 // GetAll retrieves all families
 func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, error) {
+	r.logger.Debug(ctx, "Getting all families from PostgreSQL")
+
+	// Ensure table exists
+	if err := r.ensureTableExists(ctx); err != nil {
+		return nil, err
+	}
+
 	rows, err := r.DB.Query(ctx, `
         SELECT id, status, parents, children FROM families
     `)
