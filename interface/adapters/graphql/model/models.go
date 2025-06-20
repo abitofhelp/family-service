@@ -3,7 +3,7 @@
 package model
 
 import (
-	"github.com/abitofhelp/family-service/core/domain/valueobject"
+	"github.com/abitofhelp/servicelib/valueobject"
 )
 
 // Parent represents a parent in a family

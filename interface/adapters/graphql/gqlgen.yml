@@ -48,7 +48,7 @@ autobind:
 models:
   ID:
     model:
-      - github.com/abitofhelp/family-service/core/domain/valueobject.ID
+      - github.com/abitofhelp/servicelib/valueobject.ID
   Int:
     model:
       - github.com/99designs/gqlgen/graphql.Int
@@ -56,10 +56,10 @@ models:
       - github.com/99designs/gqlgen/graphql.Int32
   ParentID:
     model:
-      - github.com/abitofhelp/family-service/core/domain/valueobject.ID
+      - github.com/abitofhelp/servicelib/valueobject.ID
   ChildID:
     model:
-      - github.com/abitofhelp/family-service/core/domain/valueobject.ID
+      - github.com/abitofhelp/servicelib/valueobject.ID
   Parent:
     model:
       - github.com/abitofhelp/family-service/interface/adapters/graphql/model.Parent

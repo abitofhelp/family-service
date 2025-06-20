@@ -9,7 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/abitofhelp/family-service/core/application/ports"
 	"github.com/abitofhelp/family-service/core/domain/entity"
-	"github.com/abitofhelp/family-service/core/domain/valueobject"
+	"github.com/abitofhelp/servicelib/valueobject"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/model"
 	mygraphql "github.com/abitofhelp/servicelib/graphql"
 	"github.com/abitofhelp/servicelib/logging"

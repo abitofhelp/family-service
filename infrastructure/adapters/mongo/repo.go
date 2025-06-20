@@ -10,16 +10,18 @@ import (
 	"github.com/abitofhelp/family-service/core/domain/ports"
 	"github.com/abitofhelp/servicelib/errors"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // FamilyDocument represents how a family is stored in MongoDB
 type FamilyDocument struct {
-	ID       string           `bson:"_id"`
-	Status   string           `bson:"status"`
-	Parents  []ParentDocument `bson:"parents"`
-	Children []ChildDocument  `bson:"children"`
+	ID       primitive.ObjectID `bson:"_id,omitempty"`
+	FamilyID string             `bson:"family_id"`
+	Status   string             `bson:"status"`
+	Parents  []ParentDocument   `bson:"parents"`
+	Children []ChildDocument    `bson:"children"`
 }
 
 // ParentDocument represents how a parent is stored in MongoDB
@@ -63,7 +65,7 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 	}
 
 	var doc FamilyDocument
-	err := r.Collection.FindOne(ctx, bson.M{"_id": id}).Decode(&doc)
+	err := r.Collection.FindOne(ctx, bson.M{"family_id": id}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.NewNotFoundError("Family", id)
@@ -89,9 +91,10 @@ func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) er
 	doc := r.entityToDocument(fam)
 
 	// Use ReplaceOne with upsert to handle both insert and update
+	// Query by family_id instead of _id
 	_, err := r.Collection.ReplaceOne(
 		ctx,
-		bson.M{"_id": doc.ID},
+		bson.M{"family_id": doc.FamilyID},
 		doc,
 		options.Replace().SetUpsert(true),
 	)
@@ -109,6 +112,7 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 		return nil, errors.NewValidationError("parent ID is required")
 	}
 
+	// No change needed here, as parents.id is still the same field
 	cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID})
 	if err != nil {
 		return nil, errors.NewRepositoryError(err, "failed to find families by parent ID", "MONGO_ERROR")
@@ -139,6 +143,7 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 		return nil, errors.NewValidationError("child ID is required")
 	}
 
+	// No change needed here, as children.id is still the same field
 	var doc FamilyDocument
 	err := r.Collection.FindOne(ctx, bson.M{"children.id": childID}).Decode(&doc)
 	if err != nil {
@@ -155,6 +160,7 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 // GetAll retrieves all families
 func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, error) {
 	// Find all documents in the collection
+	// No change needed here, as we want all documents
 	cursor, err := r.Collection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, errors.NewRepositoryError(err, "failed to get all families", "MONGO_ERROR")
@@ -234,7 +240,8 @@ func (r *MongoFamilyRepository) documentToEntity(doc FamilyDocument) (*entity.Fa
 	}
 
 	// Create family entity
-	return entity.NewFamily(doc.ID, entity.Status(doc.Status), parents, children)
+	// Use FamilyID field which contains the string ID
+	return entity.NewFamily(doc.FamilyID, entity.Status(doc.Status), parents, children)
 }
 
 // entityToDocument converts a Family entity to a FamilyDocument
@@ -275,9 +282,13 @@ func (r *MongoFamilyRepository) entityToDocument(fam *entity.Family) FamilyDocum
 		})
 	}
 
+	// Create a new ObjectID for MongoDB
+	objectID := primitive.NewObjectID()
+
 	// Create document
 	return FamilyDocument{
-		ID:       fam.ID(),
+		ID:       objectID,
+		FamilyID: fam.ID(),
 		Status:   string(fam.Status()),
 		Parents:  parents,
 		Children: children,
