@@ -9,7 +9,7 @@ go 1.24
 
 require (
 	github.com/99designs/gqlgen v0.17.75
-	github.com/abitofhelp/servicelib v1.1.0
+	github.com/abitofhelp/servicelib v1.4.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/prometheus/client_golang v1.22.0

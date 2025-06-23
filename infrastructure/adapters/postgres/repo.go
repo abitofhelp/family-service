@@ -5,6 +5,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"github.com/abitofhelp/servicelib/db"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
@@ -107,7 +108,7 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 	if id == "" {
 		r.logger.Warn(ctx, "Family ID is required for GetByID")
-		return nil, errors.NewValidationError("id is required")
+		return nil, errors.NewValidationError("id is required", "id", nil)
 	}
 
 	// Ensure table exists
