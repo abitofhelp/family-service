@@ -26,7 +26,7 @@ const (
 
 // Family is the root aggregate that represents a family unit
 type Family struct {
-	id       string
+	id       string //FIXME: We'll keep this as a string for now since it's using a custom generation function
 	status   Status
 	parents  []*Parent
 	children []*Child
@@ -162,24 +162,24 @@ func (f *Family) CountChildren() int {
 // AddParent adds a parent to the family
 func (f *Family) AddParent(p *Parent) error {
 	if p == nil {
-		return errors.NewValidationError("parent cannot be nil")
+		return errors.NewValidationError("parent cannot be nil", "Parent", nil)
 	}
 
 	if len(f.parents) >= 2 {
-		return errors.NewDomainError(nil, "family cannot have more than two parents", "MAX_PARENTS_EXCEEDED")
+		return errors.NewDomainError(errors.BusinessRuleViolationCode, "family cannot have more than two parents", nil)
 	}
 
 	// Check for duplicate parent
 	for _, existingParent := range f.parents {
 		if existingParent.Equals(p) {
-			return errors.NewDomainError(nil, "parent already exists in family", "DUPLICATE_PARENT")
+			return errors.NewDomainError(errors.BusinessRuleViolationCode, "parent already exists in family", nil)
 		}
 
 		// Check for duplicate based on name and birthdate
 		if existingParent.FirstName() == p.FirstName() &&
 			existingParent.LastName() == p.LastName() &&
 			existingParent.BirthDate().Equal(p.BirthDate()) {
-			return errors.NewDomainError(nil, "parent with same name and birthdate already exists in family", "DUPLICATE_PARENT")
+			return errors.NewDomainError(errors.BusinessRuleViolationCode, "parent with same name and birthdate already exists in family", nil)
 		}
 	}
 
@@ -194,13 +194,13 @@ func (f *Family) AddParent(p *Parent) error {
 // AddChild adds a child to the family
 func (f *Family) AddChild(c *Child) error {
 	if c == nil {
-		return errors.NewValidationError("child cannot be nil")
+		return errors.NewValidationError("child cannot be nil", "Child", nil)
 	}
 
 	// Check for duplicate child
 	for _, existingChild := range f.children {
 		if existingChild.Equals(c) {
-			return errors.NewDomainError(nil, "child already exists in family", "DUPLICATE_CHILD")
+			return errors.NewDomainError(errors.BusinessRuleViolationCode, "child already exists in family", nil)
 		}
 	}
 
@@ -217,13 +217,13 @@ func (f *Family) RemoveChild(childID string) error {
 			return nil
 		}
 	}
-	return errors.NewNotFoundError("Child", childID)
+	return errors.NewNotFoundError("Child", childID, nil)
 }
 
 // RemoveParent removes a parent from the family
 func (f *Family) RemoveParent(parentID string) error {
 	if len(f.parents) <= 1 {
-		return errors.NewDomainError(nil, "cannot remove the only parent from a family", "MIN_PARENTS_VIOLATED")
+		return errors.NewDomainError(errors.BusinessRuleViolationCode, "cannot remove the only parent from a family", nil)
 	}
 
 	for i, p := range f.parents {
@@ -239,7 +239,7 @@ func (f *Family) RemoveParent(parentID string) error {
 			return nil
 		}
 	}
-	return errors.NewNotFoundError("Parent", parentID)
+	return errors.NewNotFoundError("Parent", parentID, nil)
 }
 
 // MarkParentDeceased marks a parent as deceased and updates family status if needed
@@ -254,7 +254,7 @@ func (f *Family) MarkParentDeceased(parentID string, deathDate time.Time) error 
 	}
 
 	if foundParent == nil {
-		return errors.NewNotFoundError("Parent", parentID)
+		return errors.NewNotFoundError("Parent", parentID, nil)
 	}
 
 	if err := foundParent.MarkDeceased(deathDate); err != nil {
@@ -273,11 +273,11 @@ func (f *Family) MarkParentDeceased(parentID string, deathDate time.Time) error 
 // The original family keeps the custodial parent and children
 func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	if f.status != Married {
-		return nil, errors.NewDomainError(nil, "only married families can divorce", "INVALID_STATUS_TRANSITION")
+		return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "only married families can divorce", nil)
 	}
 
 	if len(f.parents) != 2 {
-		return nil, errors.NewDomainError(nil, "divorce requires exactly two parents", "INVALID_FAMILY_STRUCTURE")
+		return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "divorce requires exactly two parents", nil)
 	}
 
 	var custodialParent *Parent
@@ -292,7 +292,7 @@ func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	}
 
 	if custodialParent == nil {
-		return nil, errors.NewNotFoundError("Parent", custodialParentID)
+		return nil, errors.NewNotFoundError("Parent", custodialParentID, nil)
 	}
 
 	// Create a new family for the remaining parent (this will get a new ID)
@@ -305,7 +305,7 @@ func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	)
 
 	if err != nil {
-		return nil, errors.NewDomainError(err, "failed to create new family for remaining parent", "DIVORCE_FAILED")
+		return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "failed to create new family for remaining parent", err)
 	}
 
 	// Update the original family to keep only the custodial parent

@@ -4,6 +4,7 @@ package application
 
 import (
 	"context"
+	"github.com/abitofhelp/servicelib/di"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
@@ -31,6 +32,9 @@ type FamilyApplicationService struct {
 	familyRepo    domainports.FamilyRepository
 	logger        *logging.ContextLogger
 }
+
+// Ensure FamilyApplicationService implements di.ApplicationService
+var _ di.ApplicationService = (*FamilyApplicationService)(nil)
 
 // NewFamilyApplicationService creates a new FamilyApplicationService
 func NewFamilyApplicationService(
@@ -92,7 +96,7 @@ func (s *FamilyApplicationService) GetAll(ctx context.Context) ([]*entity.Family
 	families, err := s.familyRepo.GetAll(ctx)
 	if err != nil {
 		s.logger.Error(ctx, "Failed to retrieve all families", zap.Error(err))
-		return nil, errors.NewApplicationError(err, "failed to get all families", "REPOSITORY_ERROR")
+		return nil, errors.NewApplicationError(errors.DatabaseErrorCode, "failed to get all families", err)
 	}
 
 	// Convert domain entities to DTOs
@@ -227,7 +231,7 @@ func (s *FamilyApplicationService) FindFamiliesByParent(ctx context.Context, par
 
 	if parentID == "" {
 		s.logger.Warn(ctx, "Parent ID is required for FindFamiliesByParent")
-		return nil, errors.NewValidationError("parent ID is required")
+		return nil, errors.NewValidationError("parent ID is required", "parentID", nil)
 	}
 
 	// Use repository to find families by parent ID
@@ -236,7 +240,7 @@ func (s *FamilyApplicationService) FindFamiliesByParent(ctx context.Context, par
 		s.logger.Error(ctx, "Failed to find families by parent ID", 
 			zap.Error(err), 
 			zap.String("parent_id", parentID))
-		return nil, errors.NewApplicationError(err, "failed to find families by parent ID", "REPOSITORY_ERROR")
+		return nil, errors.NewApplicationError(errors.DatabaseErrorCode, "failed to find families by parent ID", err)
 	}
 
 	// Convert domain entities to DTOs
@@ -258,7 +262,7 @@ func (s *FamilyApplicationService) FindFamilyByChild(ctx context.Context, childI
 
 	if childID == "" {
 		s.logger.Warn(ctx, "Child ID is required for FindFamilyByChild")
-		return nil, errors.NewValidationError("child ID is required")
+		return nil, errors.NewValidationError("child ID is required", "childID", nil)
 	}
 
 	// Use repository to find family by child ID
@@ -271,7 +275,7 @@ func (s *FamilyApplicationService) FindFamilyByChild(ctx context.Context, childI
 		s.logger.Error(ctx, "Failed to find family by child ID", 
 			zap.Error(err), 
 			zap.String("child_id", childID))
-		return nil, errors.NewApplicationError(err, "failed to find family by child ID", "REPOSITORY_ERROR")
+		return nil, errors.NewApplicationError(errors.DatabaseErrorCode, "failed to find family by child ID", err)
 	}
 
 	// Convert domain entity to DTO
@@ -298,4 +302,9 @@ func (s *FamilyApplicationService) GetFamily(ctx context.Context, id string) (*e
 func (s *FamilyApplicationService) GetAllFamilies(ctx context.Context) ([]*entity.FamilyDTO, error) {
 	s.logger.Info(ctx, "GetAllFamilies called (alias for GetAll)")
 	return s.GetAll(ctx)
+}
+
+// GetID returns the service ID (implements di.ApplicationService)
+func (s *FamilyApplicationService) GetID() string {
+	return "family-application-service"
 }

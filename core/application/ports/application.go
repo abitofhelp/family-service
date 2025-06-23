@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
+	"github.com/abitofhelp/servicelib/di"
 )
 
 // ApplicationService is a generic interface for application services
@@ -31,6 +32,9 @@ type ApplicationService[T any, D any] interface {
 type FamilyApplicationService interface {
 	// Embed the generic ApplicationService interface with Family entity and DTO
 	ApplicationService[*entity.Family, *entity.FamilyDTO]
+
+	// Embed the servicelib ApplicationService interface
+	di.ApplicationService
 
 	// CreateFamily creates a new family (alias for Create)
 	CreateFamily(ctx context.Context, dto entity.FamilyDTO) (*entity.FamilyDTO, error)

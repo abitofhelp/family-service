@@ -7,25 +7,62 @@ import (
 
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/validation"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 )
 
 // Child represents a child entity in the family domain
 type Child struct {
-	id        string
-	firstName string
-	lastName  string
-	birthDate time.Time
-	deathDate *time.Time
+	id        identification.ID
+	firstName identification.Name
+	lastName  identification.Name
+	birthDate identification.DateOfBirth
+	deathDate *identification.DateOfDeath
 }
 
 // NewChild creates a new Child entity with validation
 func NewChild(id, firstName, lastName string, birthDate time.Time, deathDate *time.Time) (*Child, error) {
+	// Create ID value object
+	idVO, err := identification.NewID(id)
+	if err != nil {
+		return nil, errors.NewValidationError("invalid ID: "+err.Error(), "ID", err)
+	}
+
+	// Create FirstName value object
+	firstNameVO, err := identification.NewName(firstName)
+	if err != nil {
+		return nil, errors.NewValidationError("invalid FirstName: "+err.Error(), "FirstName", err)
+	}
+
+	// Create LastName value object
+	lastNameVO, err := identification.NewName(lastName)
+	if err != nil {
+		return nil, errors.NewValidationError("invalid LastName: "+err.Error(), "LastName", err)
+	}
+
+	// Create BirthDate value object
+	year, month, day := birthDate.Date()
+	birthDateVO, err := identification.NewDateOfBirth(year, int(month), day)
+	if err != nil {
+		return nil, errors.NewValidationError("invalid BirthDate: "+err.Error(), "BirthDate", err)
+	}
+
+	// Create DeathDate value object if provided
+	var deathDateVO *identification.DateOfDeath
+	if deathDate != nil {
+		year, month, day := deathDate.Date()
+		dod, err := identification.NewDateOfDeath(year, int(month), day)
+		if err != nil {
+			return nil, errors.NewValidationError("invalid DeathDate: "+err.Error(), "DeathDate", err)
+		}
+		deathDateVO = &dod
+	}
+
 	c := &Child{
-		id:        id,
-		firstName: firstName,
-		lastName:  lastName,
-		birthDate: birthDate,
-		deathDate: deathDate,
+		id:        idVO,
+		firstName: firstNameVO,
+		lastName:  lastNameVO,
+		birthDate: birthDateVO,
+		deathDate: deathDateVO,
 	}
 
 	if err := c.Validate(); err != nil {
@@ -39,16 +76,19 @@ func NewChild(id, firstName, lastName string, birthDate time.Time, deathDate *ti
 func (c *Child) Validate() error {
 	result := validation.NewValidationResult()
 
-	validation.ValidateID(c.id, "ID", result)
-	validation.Required(c.firstName, "FirstName", result)
-	validation.Required(c.lastName, "LastName", result)
-	validation.MinLength(c.firstName, 2, "FirstName", result)
-	validation.MinLength(c.lastName, 2, "LastName", result)
-	validation.PastDate(c.birthDate, "BirthDate", result)
+	// Value objects already have their own validation, but we can add additional validation here
+	// For example, we can validate that the death date is after the birth date
+	if c.deathDate != nil && !c.deathDate.Date().After(c.birthDate.Date()) {
+		result.AddError("death date must be after birth date", "DeathDate")
+	}
 
-	if c.deathDate != nil {
-		validation.PastDate(*c.deathDate, "DeathDate", result)
-		validation.ValidDateRange(c.birthDate, *c.deathDate, "BirthDate", "DeathDate", result)
+	// Validate minimum length for names (value objects only validate that they're not empty)
+	if len(c.firstName.String()) < 2 {
+		result.AddError("must be at least 2 characters long", "FirstName")
+	}
+
+	if len(c.lastName.String()) < 2 {
+		result.AddError("must be at least 2 characters long", "LastName")
 	}
 
 	return result.Error()
@@ -56,22 +96,22 @@ func (c *Child) Validate() error {
 
 // ID returns the child's ID
 func (c *Child) ID() string {
-	return c.id
+	return c.id.String()
 }
 
 // FirstName returns the child's first name
 func (c *Child) FirstName() string {
-	return c.firstName
+	return c.firstName.String()
 }
 
 // LastName returns the child's last name
 func (c *Child) LastName() string {
-	return c.lastName
+	return c.lastName.String()
 }
 
 // BirthDate returns the child's birth date
 func (c *Child) BirthDate() time.Time {
-	return c.birthDate
+	return c.birthDate.Date()
 }
 
 // DeathDate returns the child's death date
@@ -80,13 +120,13 @@ func (c *Child) DeathDate() *time.Time {
 		return nil
 	}
 	// Return a copy to prevent modification
-	copy := *c.deathDate
-	return &copy
+	date := c.deathDate.Date()
+	return &date
 }
 
 // FullName returns the child's full name
 func (c *Child) FullName() string {
-	return c.firstName + " " + c.lastName
+	return c.firstName.String() + " " + c.lastName.String()
 }
 
 // IsDeceased returns true if the child is deceased
@@ -97,18 +137,22 @@ func (c *Child) IsDeceased() bool {
 // MarkDeceased marks the child as deceased with the given death date
 func (c *Child) MarkDeceased(deathDate time.Time) error {
 	if c.deathDate != nil {
-		return errors.NewDomainError(nil, "child is already marked as deceased", "ALREADY_DECEASED")
+		return errors.NewDomainError(errors.BusinessRuleViolationCode, "child is already marked as deceased", nil)
 	}
 
-	if !deathDate.After(c.birthDate) {
-		return errors.NewValidationError("death date must be after birth date")
+	// Validate death date is after birth date
+	if !deathDate.After(c.birthDate.Date()) {
+		return errors.NewValidationError("death date must be after birth date", "DeathDate", nil)
 	}
 
-	if deathDate.After(time.Now()) {
-		return errors.NewValidationError("death date cannot be in the future")
+	// Create DateOfDeath value object
+	year, month, day := deathDate.Date()
+	dod, err := identification.NewDateOfDeath(year, int(month), day)
+	if err != nil {
+		return errors.NewValidationError("invalid death date: "+err.Error(), "DeathDate", err)
 	}
 
-	c.deathDate = &deathDate
+	c.deathDate = &dod
 	return nil
 }
 
@@ -117,17 +161,23 @@ func (c *Child) Equals(other *Child) bool {
 	if other == nil {
 		return false
 	}
-	return c.id == other.id
+	return c.id.Equals(other.id)
 }
 
 // ToDTO converts the Child entity to a data transfer object for external use
 func (c *Child) ToDTO() ChildDTO {
+	var deathDate *time.Time
+	if c.deathDate != nil {
+		date := c.deathDate.Date()
+		deathDate = &date
+	}
+
 	dto := ChildDTO{
-		ID:        c.id,
-		FirstName: c.firstName,
-		LastName:  c.lastName,
-		BirthDate: c.birthDate,
-		DeathDate: c.deathDate,
+		ID:        c.id.String(),
+		FirstName: c.firstName.String(),
+		LastName:  c.lastName.String(),
+		BirthDate: c.birthDate.Date(),
+		DeathDate: deathDate,
 	}
 	return dto
 }

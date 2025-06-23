@@ -5,7 +5,6 @@ package postgres
 import (
 	"context"
 	"encoding/json"
-	"github.com/abitofhelp/servicelib/db"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
@@ -16,6 +15,28 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
+
+// NewRepositoryError is a helper function that wraps errors.NewDatabaseError
+// to maintain compatibility with the old errors.NewDatabaseError function.
+func NewRepositoryError(err error, message string, code string) error {
+	// Map the code to an appropriate operation and table
+	operation := "operation"
+	table := "families"
+
+	// Map common codes to operations
+	switch code {
+	case "POSTGRES_ERROR":
+		operation = "query"
+	case "JSON_ERROR":
+		operation = "unmarshal"
+	case "DATA_FORMAT_ERROR":
+		operation = "parse"
+	case "CONVERSION_ERROR":
+		operation = "convert"
+	}
+
+	return errors.NewDatabaseError(message, operation, table, err)
+}
 
 // PostgresFamilyRepository implements the ports.FamilyRepository interface for PostgreSQL
 type PostgresFamilyRepository struct {
@@ -95,7 +116,7 @@ func (r *PostgresFamilyRepository) ensureTableExists(ctx context.Context) error 
 	_, err := r.DB.Exec(ctx, query)
 	if err != nil {
 		r.logger.Error(ctx, "Failed to create families table in PostgreSQL", zap.Error(err))
-		return errors.NewRepositoryError(err, "failed to create families table", "POSTGRES_ERROR")
+		return errors.NewDatabaseError("failed to create families table", "create", "families", err)
 	}
 
 	r.logger.Debug(ctx, "Families table exists in PostgreSQL")
@@ -126,9 +147,9 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, errors.NewNotFoundError("Family", id)
+			return nil, errors.NewNotFoundError("Family", id, nil)
 		}
-		return nil, errors.NewRepositoryError(err, "failed to get family from PostgreSQL", "POSTGRES_ERROR")
+		return nil, errors.NewDatabaseError("failed to get family from PostgreSQL", "query", "families", err)
 	}
 
 	// Define custom structs for JSON unmarshaling to handle both uppercase and lowercase field names
@@ -161,7 +182,7 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 	// Parse parents JSON
 	var jsonParents []jsonParent
 	if err := json.Unmarshal(parentsData, &jsonParents); err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
 	}
 
 	// Convert JSON parents to domain entities
@@ -187,7 +208,7 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 		birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
 		}
 
 		var deathDate *time.Time
@@ -198,14 +219,14 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 		if deathDateStr != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
 			}
 			deathDate = &parsedDeathDate
 		}
 
 		p, err := entity.NewParent(id, firstName, lastName, birthDate, deathDate)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to create parent entity", "CONVERSION_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to create parent entity", "CONVERSION_ERROR")
 		}
 		parents = append(parents, p)
 	}
@@ -213,7 +234,7 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 	// Parse children JSON
 	var jsonChildren []jsonChild
 	if err := json.Unmarshal(childrenData, &jsonChildren); err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
 	}
 
 	// Convert JSON children to domain entities
@@ -239,7 +260,7 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 		birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
 		}
 
 		var deathDate *time.Time
@@ -250,14 +271,14 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 		if deathDateStr != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
 			}
 			deathDate = &parsedDeathDate
 		}
 
 		c, err := entity.NewChild(id, firstName, lastName, birthDate, deathDate)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to create child entity", "CONVERSION_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to create child entity", "CONVERSION_ERROR")
 		}
 		children = append(children, c)
 	}
@@ -272,7 +293,7 @@ func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family)
 
 	if fam == nil {
 		r.logger.Warn(ctx, "Family cannot be nil for Save")
-		return errors.NewValidationError("family cannot be nil")
+		return errors.NewValidationError("family cannot be nil", "family", nil)
 	}
 
 	if err := fam.Validate(); err != nil {
@@ -288,7 +309,7 @@ func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family)
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		r.logger.Error(ctx, "Failed to begin transaction", zap.Error(err), zap.String("family_id", fam.ID()))
-		return errors.NewRepositoryError(err, "failed to begin transaction", "POSTGRES_ERROR")
+		return errors.NewDatabaseError(err, "failed to begin transaction", "POSTGRES_ERROR")
 	}
 
 	var txErr error
@@ -358,21 +379,21 @@ func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family)
 	// Marshal to JSON
 	parentsJSON, err := json.Marshal(jsonParents)
 	if err != nil {
-		return errors.NewRepositoryError(err, "failed to marshal parents to JSON", "JSON_ERROR")
+		return errors.NewDatabaseError(err, "failed to marshal parents to JSON", "JSON_ERROR")
 	}
 
 	childrenJSON, err := json.Marshal(jsonChildren)
 	if err != nil {
-		return errors.NewRepositoryError(err, "failed to marshal children to JSON", "JSON_ERROR")
+		return errors.NewDatabaseError(err, "failed to marshal children to JSON", "JSON_ERROR")
 	}
 
 	// Validate that the JSON is valid
 	if !json.Valid(parentsJSON) {
-		return errors.NewRepositoryError(nil, "invalid parents JSON", "JSON_ERROR")
+		return errors.NewDatabaseError(nil, "invalid parents JSON", "JSON_ERROR")
 	}
 
 	if !json.Valid(childrenJSON) {
-		return errors.NewRepositoryError(nil, "invalid children JSON", "JSON_ERROR")
+		return errors.NewDatabaseError(nil, "invalid children JSON", "JSON_ERROR")
 	}
 
 	// Execute SQL
@@ -386,12 +407,12 @@ func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family)
     `, fam.ID(), string(fam.Status()), parentsJSON, childrenJSON)
 
 	if txErr != nil {
-		return errors.NewRepositoryError(txErr, "failed to save family to PostgreSQL", "POSTGRES_ERROR")
+		return errors.NewDatabaseError(txErr, "failed to save family to PostgreSQL", "POSTGRES_ERROR")
 	}
 
 	// Commit transaction
 	if txErr = tx.Commit(ctx); txErr != nil {
-		return errors.NewRepositoryError(txErr, "failed to commit transaction", "POSTGRES_ERROR")
+		return errors.NewDatabaseError(txErr, "failed to commit transaction", "POSTGRES_ERROR")
 	}
 
 	return nil
@@ -403,7 +424,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 
 	if parentID == "" {
 		r.logger.Warn(ctx, "Parent ID is required for FindByParentID")
-		return nil, errors.NewValidationError("parent ID is required")
+		return nil, errors.NewValidationError("parent ID is required", "parentID", nil)
 	}
 
 	// Ensure table exists
@@ -419,7 +440,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
     `, parentID)
 
 	if err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to find families by parent ID", "POSTGRES_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to find families by parent ID", "POSTGRES_ERROR")
 	}
 	defer rows.Close()
 
@@ -431,7 +452,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 		var parentsData, childrenData []byte
 
 		if err := rows.Scan(&famID, &statusStr, &parentsData, &childrenData); err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to scan family row", "POSTGRES_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to scan family row", "POSTGRES_ERROR")
 		}
 
 		// Define custom structs for JSON unmarshaling to handle both uppercase and lowercase field names
@@ -464,7 +485,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 		// Parse parents JSON
 		var jsonParents []jsonParent
 		if err := json.Unmarshal(parentsData, &jsonParents); err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
 		}
 
 		// Convert JSON parents to domain entities
@@ -490,7 +511,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 
 			birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
 			}
 
 			var deathDate *time.Time
@@ -501,14 +522,14 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 			if deathDateStr != nil {
 				parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 				if err != nil {
-					return nil, errors.NewRepositoryError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
+					return nil, errors.NewDatabaseError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
 				}
 				deathDate = &parsedDeathDate
 			}
 
 			p, err := entity.NewParent(id, firstName, lastName, birthDate, deathDate)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "failed to create parent entity", "CONVERSION_ERROR")
+				return nil, errors.NewDatabaseError(err, "failed to create parent entity", "CONVERSION_ERROR")
 			}
 			parents = append(parents, p)
 		}
@@ -516,7 +537,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 		// Parse children JSON
 		var jsonChildren []jsonChild
 		if err := json.Unmarshal(childrenData, &jsonChildren); err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
 		}
 
 		// Convert JSON children to domain entities
@@ -542,7 +563,7 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 
 			birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
 			}
 
 			var deathDate *time.Time
@@ -553,14 +574,14 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 			if deathDateStr != nil {
 				parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 				if err != nil {
-					return nil, errors.NewRepositoryError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
+					return nil, errors.NewDatabaseError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
 				}
 				deathDate = &parsedDeathDate
 			}
 
 			c, err := entity.NewChild(id, firstName, lastName, birthDate, deathDate)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "failed to create child entity", "CONVERSION_ERROR")
+				return nil, errors.NewDatabaseError(err, "failed to create child entity", "CONVERSION_ERROR")
 			}
 			children = append(children, c)
 		}
@@ -568,14 +589,14 @@ func (r *PostgresFamilyRepository) FindByParentID(ctx context.Context, parentID 
 		// Create family entity
 		fam, err := entity.NewFamily(famID, entity.Status(statusStr), parents, children)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to create family entity", "CONVERSION_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to create family entity", "CONVERSION_ERROR")
 		}
 
 		families = append(families, fam)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, errors.NewRepositoryError(err, "error iterating over family rows", "POSTGRES_ERROR")
+		return nil, errors.NewDatabaseError(err, "error iterating over family rows", "POSTGRES_ERROR")
 	}
 
 	return families, nil
@@ -587,7 +608,7 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 
 	if childID == "" {
 		r.logger.Warn(ctx, "Child ID is required for FindByChildID")
-		return nil, errors.NewValidationError("child ID is required")
+		return nil, errors.NewValidationError("child ID is required", "childID", nil)
 	}
 
 	// Ensure table exists
@@ -608,9 +629,9 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, errors.NewNotFoundError("Family with Child", childID)
+			return nil, errors.NewNotFoundError("Family with Child", childID, nil)
 		}
-		return nil, errors.NewRepositoryError(err, "failed to find family by child ID", "POSTGRES_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to find family by child ID", "POSTGRES_ERROR")
 	}
 
 	// Define custom structs for JSON unmarshaling to handle both uppercase and lowercase field names
@@ -643,7 +664,7 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 	// Parse parents JSON
 	var jsonParents []jsonParent
 	if err := json.Unmarshal(parentsData, &jsonParents); err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
 	}
 
 	// Convert JSON parents to domain entities
@@ -669,7 +690,7 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 
 		birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
 		}
 
 		var deathDate *time.Time
@@ -680,14 +701,14 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 		if deathDateStr != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
 			}
 			deathDate = &parsedDeathDate
 		}
 
 		p, err := entity.NewParent(id, firstName, lastName, birthDate, deathDate)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to create parent entity", "CONVERSION_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to create parent entity", "CONVERSION_ERROR")
 		}
 		parents = append(parents, p)
 	}
@@ -695,7 +716,7 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 	// Parse children JSON
 	var jsonChildren []jsonChild
 	if err := json.Unmarshal(childrenData, &jsonChildren); err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
 	}
 
 	// Convert JSON children to domain entities
@@ -721,7 +742,7 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 
 		birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
 		}
 
 		var deathDate *time.Time
@@ -732,14 +753,14 @@ func (r *PostgresFamilyRepository) FindByChildID(ctx context.Context, childID st
 		if deathDateStr != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
 			}
 			deathDate = &parsedDeathDate
 		}
 
 		c, err := entity.NewChild(id, firstName, lastName, birthDate, deathDate)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to create child entity", "CONVERSION_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to create child entity", "CONVERSION_ERROR")
 		}
 		children = append(children, c)
 	}
@@ -762,7 +783,7 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
     `)
 
 	if err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to get all families", "POSTGRES_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to get all families", "POSTGRES_ERROR")
 	}
 	defer rows.Close()
 
@@ -774,7 +795,7 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 		var parentsData, childrenData []byte
 
 		if err := rows.Scan(&famID, &statusStr, &parentsData, &childrenData); err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to scan family row", "POSTGRES_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to scan family row", "POSTGRES_ERROR")
 		}
 
 		// Define custom structs for JSON unmarshaling to handle both uppercase and lowercase field names
@@ -807,7 +828,7 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 		// Parse parents JSON
 		var jsonParents []jsonParent
 		if err := json.Unmarshal(parentsData, &jsonParents); err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
 		}
 
 		// Convert JSON parents to domain entities
@@ -833,7 +854,7 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 
 			birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
 			}
 
 			var deathDate *time.Time
@@ -844,14 +865,14 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 			if deathDateStr != nil {
 				parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 				if err != nil {
-					return nil, errors.NewRepositoryError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
+					return nil, errors.NewDatabaseError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
 				}
 				deathDate = &parsedDeathDate
 			}
 
 			p, err := entity.NewParent(id, firstName, lastName, birthDate, deathDate)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "failed to create parent entity", "CONVERSION_ERROR")
+				return nil, errors.NewDatabaseError(err, "failed to create parent entity", "CONVERSION_ERROR")
 			}
 			parents = append(parents, p)
 		}
@@ -859,7 +880,7 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 		// Parse children JSON
 		var jsonChildren []jsonChild
 		if err := json.Unmarshal(childrenData, &jsonChildren); err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
 		}
 
 		// Convert JSON children to domain entities
@@ -885,7 +906,7 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 
 			birthDate, err := time.Parse(time.RFC3339, birthDateStr)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
 			}
 
 			var deathDate *time.Time
@@ -896,14 +917,14 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 			if deathDateStr != nil {
 				parsedDeathDate, err := time.Parse(time.RFC3339, *deathDateStr)
 				if err != nil {
-					return nil, errors.NewRepositoryError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
+					return nil, errors.NewDatabaseError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
 				}
 				deathDate = &parsedDeathDate
 			}
 
 			c, err := entity.NewChild(id, firstName, lastName, birthDate, deathDate)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "failed to create child entity", "CONVERSION_ERROR")
+				return nil, errors.NewDatabaseError(err, "failed to create child entity", "CONVERSION_ERROR")
 			}
 			children = append(children, c)
 		}
@@ -911,14 +932,14 @@ func (r *PostgresFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family
 		// Create family entity
 		fam, err := entity.NewFamily(famID, entity.Status(statusStr), parents, children)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "failed to create family entity", "CONVERSION_ERROR")
+			return nil, errors.NewDatabaseError(err, "failed to create family entity", "CONVERSION_ERROR")
 		}
 
 		families = append(families, fam)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, errors.NewRepositoryError(err, "error iterating over family rows", "POSTGRES_ERROR")
+		return nil, errors.NewDatabaseError(err, "error iterating over family rows", "POSTGRES_ERROR")
 	}
 
 	return families, nil

@@ -8,16 +8,16 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/abitofhelp/servicelib/valueobject"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 )
 
 // Input for creating a child
 type ChildInput struct {
-	ID        valueobject.ID `json:"id"`
-	FirstName string         `json:"firstName"`
-	LastName  string         `json:"lastName"`
-	BirthDate string         `json:"birthDate"`
-	DeathDate *string        `json:"deathDate,omitempty"`
+	ID        identification.ID `json:"id"`
+	FirstName string            `json:"firstName"`
+	LastName  string            `json:"lastName"`
+	BirthDate string            `json:"birthDate"`
+	DeathDate *string           `json:"deathDate,omitempty"`
 }
 
 // Error represents an error that occurred during a GraphQL operation
@@ -29,20 +29,20 @@ type Error struct {
 
 // Family represents a family unit with parents and children
 type Family struct {
-	ID            valueobject.ID `json:"id"`
-	Status        FamilyStatus   `json:"status"`
-	Parents       []*Parent      `json:"parents"`
-	Children      []*Child       `json:"children"`
-	ParentCount   int            `json:"parentCount"`
-	ChildrenCount int            `json:"childrenCount"`
+	ID            identification.ID `json:"id"`
+	Status        FamilyStatus      `json:"status"`
+	Parents       []*Parent         `json:"parents"`
+	Children      []*Child          `json:"children"`
+	ParentCount   int               `json:"parentCount"`
+	ChildrenCount int               `json:"childrenCount"`
 }
 
 // Input for creating a family
 type FamilyInput struct {
-	ID       valueobject.ID `json:"id"`
-	Status   FamilyStatus   `json:"status"`
-	Parents  []*ParentInput `json:"parents"`
-	Children []*ChildInput  `json:"children"`
+	ID       identification.ID `json:"id"`
+	Status   FamilyStatus      `json:"status"`
+	Parents  []*ParentInput    `json:"parents"`
+	Children []*ChildInput     `json:"children"`
 }
 
 // Mutations for modifying family data
@@ -51,11 +51,11 @@ type Mutation struct {
 
 // Input for creating a parent
 type ParentInput struct {
-	ID        valueobject.ID `json:"id"`
-	FirstName string         `json:"firstName"`
-	LastName  string         `json:"lastName"`
-	BirthDate string         `json:"birthDate"`
-	DeathDate *string        `json:"deathDate,omitempty"`
+	ID        identification.ID `json:"id"`
+	FirstName string            `json:"firstName"`
+	LastName  string            `json:"lastName"`
+	BirthDate string            `json:"birthDate"`
+	DeathDate *string           `json:"deathDate,omitempty"`
 }
 
 // Queries for retrieving family data

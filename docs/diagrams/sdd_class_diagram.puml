@@ -6,6 +6,97 @@ skinparam class {
   BorderColor black
 }
 
+package "ServiceLib" {
+  package "ValueObjects" {
+    class "identification.ID" as ID {
+      -value: string
+      +NewID(id: string): (ID, error)
+      +GenerateID(): ID
+      +String(): string
+      +Equals(other: ID): bool
+      +IsEmpty(): bool
+    }
+
+    class "identification.Name" as Name {
+      -value: string
+      +NewName(name: string): (Name, error)
+      +String(): string
+      +Equals(other: Name): bool
+      +IsEmpty(): bool
+    }
+
+    class "identification.DateOfBirth" as DateOfBirth {
+      -date: time.Time
+      +NewDateOfBirth(year, month, day: int): (DateOfBirth, error)
+      +String(): string
+      +Equals(other: DateOfBirth): bool
+      +IsEmpty(): bool
+      +Date(): time.Time
+    }
+
+    class "identification.DateOfDeath" as DateOfDeath {
+      -date: time.Time
+      +NewDateOfDeath(year, month, day: int): (DateOfDeath, error)
+      +String(): string
+      +Equals(other: DateOfDeath): bool
+      +IsEmpty(): bool
+      +Date(): time.Time
+    }
+  }
+
+  package "Repository" {
+    interface "repository.Repository<T>" as ServiceLibRepository {
+      +GetByID(ctx: context.Context, id: string): (T, error)
+      +GetAll(ctx: context.Context): ([]T, error)
+      +Save(ctx: context.Context, entity: T): error
+    }
+  }
+
+  package "DI" {
+    interface "di.ApplicationService" as ServiceLibApplicationService {
+      +GetID(): string
+    }
+  }
+
+  package "Validation" {
+    class "validation.ValidationResult" as ValidationResult {
+      -errors: *errors.ValidationErrors
+      +NewValidationResult(): *ValidationResult
+      +AddError(msg, field: string)
+      +IsValid(): bool
+      +Error(): error
+    }
+  }
+
+  package "Errors" {
+    class "errors.ValidationError" as ValidationError {
+      -message: string
+      -field: string
+      -cause: error
+      +NewValidationError(message, field: string, cause: error): *ValidationError
+    }
+
+    class "errors.DomainError" as DomainError {
+      -code: ErrorCode
+      -message: string
+      -cause: error
+      +NewDomainError(code: ErrorCode, message: string, cause: error): *DomainError
+    }
+  }
+
+  package "Logging" {
+    class "logging.ContextLogger" as ContextLogger {
+      -base: *zap.Logger
+      +NewContextLogger(base: *zap.Logger): *ContextLogger
+      +With(ctx: context.Context): *zap.Logger
+      +Debug(ctx: context.Context, msg: string, fields: ...zap.Field)
+      +Info(ctx: context.Context, msg: string, fields: ...zap.Field)
+      +Warn(ctx: context.Context, msg: string, fields: ...zap.Field)
+      +Error(ctx: context.Context, msg: string, fields: ...zap.Field)
+    }
+  }
+}
+
 package "Domain Layer" {
   package "Family Aggregate" {
     class Family {
@@ -13,7 +104,8 @@ package "Domain Layer" {
       -status: Status
       -parents: []*Parent
       -children: []*Child
-      +NewFamily(id: string, status: Status, parents: []*Parent, children: []*Child): *Family
+      +NewFamily(id: string, status: Status, parents: []*Parent, children: []*Child): (*Family, error)
+      +Validate(): error
       +ID(): string
       +Status(): Status
       +Parents(): []*Parent
@@ -23,36 +115,43 @@ package "Domain Layer" {
       +RemoveChild(childID: string): error
       +MarkParentDeceased(parentID: string, deathDate: time.Time): error
       +Divorce(custodialParentID: string): (*Family, error)
+      +ToDTO(): FamilyDTO
     }
 
     class Parent {
-      -id: string
-      -firstName: string
-      -lastName: string
-      -birthDate: time.Time
-      -deathDate: *time.Time
-      +NewParent(id: string, firstName: string, lastName: string, birthDate: time.Time): *Parent
+      -id: identification.ID
+      -firstName: identification.Name
+      -lastName: identification.Name
+      -birthDate: identification.DateOfBirth
+      -deathDate: *identification.DateOfDeath
+      +NewParent(id, firstName, lastName: string, birthDate: time.Time, deathDate: *time.Time): (*Parent, error)
+      +Validate(): error
       +ID(): string
       +FirstName(): string
       +LastName(): string
       +BirthDate(): time.Time
       +DeathDate(): *time.Time
       +MarkDeceased(deathDate: time.Time): error
+      +Equals(other: *Parent): bool
+      +ToDTO(): ParentDTO
     }
 
     class Child {
-      -id: string
-      -firstName: string
-      -lastName: string
-      -birthDate: time.Time
-      -deathDate: *time.Time
-      +NewChild(id: string, firstName: string, lastName: string, birthDate: time.Time): *Child
+      -id: identification.ID
+      -firstName: identification.Name
+      -lastName: identification.Name
+      -birthDate: identification.DateOfBirth
+      -deathDate: *identification.DateOfDeath
+      +NewChild(id, firstName, lastName: string, birthDate: time.Time, deathDate: *time.Time): (*Child, error)
+      +Validate(): error
       +ID(): string
       +FirstName(): string
       +LastName(): string
       +BirthDate(): time.Time
       +DeathDate(): *time.Time
       +MarkDeceased(deathDate: time.Time): error
+      +Equals(other: *Child): bool
+      +ToDTO(): ChildDTO
     }
 
     enum Status {
@@ -63,21 +162,40 @@ package "Domain Layer" {
       ABANDONED
     }
   }
+
+  package "Domain Services" {
+    class FamilyDomainService {
+      -repo: FamilyRepository
+      -logger: *logging.ContextLogger
+      +NewFamilyDomainService(repo: FamilyRepository, logger: *logging.ContextLogger): *FamilyDomainService
+      +CreateFamily(ctx: context.Context, dto: entity.FamilyDTO): (*entity.FamilyDTO, error)
+      +GetFamily(ctx: context.Context, id: string): (*entity.FamilyDTO, error)
+      +AddParent(ctx: context.Context, familyID: string, parentDTO: entity.ParentDTO): (*entity.FamilyDTO, error)
+      +AddChild(ctx: context.Context, familyID: string, childDTO: entity.ChildDTO): (*entity.FamilyDTO, error)
+      +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*entity.FamilyDTO, error)
+      +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*entity.FamilyDTO, error)
+      +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*entity.FamilyDTO, error)
+    }
+  }
 }
 
-package "Service Layer" {
-  class FamilyService {
-    -repo: FamilyRepository
-    +NewFamilyService(repo: FamilyRepository): *FamilyService
-    +CreateFamily(ctx: context.Context, dto: FamilyDTO): (*Family, error)
-    +GetFamily(ctx: context.Context, id: string): (*Family, error)
-    +AddParent(ctx: context.Context, familyID: string, dto: ParentDTO): (*Family, error)
-    +AddChild(ctx: context.Context, familyID: string, dto: ChildDTO): (*Family, error)
-    +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*Family, error)
-    +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*Family, error)
-    +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*Family, error)
-    +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*Family, error)
-    +FindFamilyByChild(ctx: context.Context, childID: string): (*Family, error)
+package "Application Layer" {
+  class FamilyApplicationService {
+    -familyService: *domainservices.FamilyDomainService
+    -familyRepo: domainports.FamilyRepository
+    -logger: *logging.ContextLogger
+    +NewFamilyApplicationService(familyService: *domainservices.FamilyDomainService, familyRepo: domainports.FamilyRepository, logger: *logging.ContextLogger): *FamilyApplicationService
+    +Create(ctx: context.Context, dto: *entity.FamilyDTO): (*entity.FamilyDTO, error)
+    +GetByID(ctx: context.Context, id: string): (*entity.FamilyDTO, error)
+    +GetAll(ctx: context.Context): ([]*entity.FamilyDTO, error)
+    +AddParent(ctx: context.Context, familyID: string, parentDTO: entity.ParentDTO): (*entity.FamilyDTO, error)
+    +AddChild(ctx: context.Context, familyID: string, childDTO: entity.ChildDTO): (*entity.FamilyDTO, error)
+    +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*entity.FamilyDTO, error)
+    +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*entity.FamilyDTO, error)
+    +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*entity.FamilyDTO, error)
+    +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*entity.FamilyDTO, error)
+    +FindFamilyByChild(ctx: context.Context, childID: string): (*entity.FamilyDTO, error)
+    +GetID(): string
   }
 
   class FamilyDTO {
@@ -85,61 +203,55 @@ package "Service Layer" {
     +Status: string
     +Parents: []ParentDTO
     +Children: []ChildDTO
+    +ParentCount: int
+    +ChildrenCount: int
   }
 
   class ParentDTO {
     +ID: string
     +FirstName: string
     +LastName: string
-    +BirthDate: string
-    +DeathDate: string
+    +BirthDate: time.Time
+    +DeathDate: *time.Time
   }
 
   class ChildDTO {
     +ID: string
     +FirstName: string
     +LastName: string
-    +BirthDate: string
-    +DeathDate: string
+    +BirthDate: time.Time
+    +DeathDate: *time.Time
   }
 }
 
 package "Ports Layer" {
-  interface Repository<T> {
-    +GetByID(ctx: context.Context, id: string): (T, error)
-    +GetAll(ctx: context.Context): ([]T, error)
-    +Save(ctx: context.Context, entity: T): error
-  }
-
   interface FamilyRepository {
-    +Repository<*Family>
-    +FindByParentID(ctx: context.Context, parentID: string): ([]*Family, error)
-    +FindByChildID(ctx: context.Context, childID: string): (*Family, error)
+    +repository.Repository<*entity.Family>
+    +FindByParentID(ctx: context.Context, parentID: string): ([]*entity.Family, error)
+    +FindByChildID(ctx: context.Context, childID: string): (*entity.Family, error)
   }
 
-  interface ApplicationService<T, D> {
-    +Create(ctx: context.Context, dto: D): (D, error)
-    +GetByID(ctx: context.Context, id: string): (D, error)
-    +GetAll(ctx: context.Context): ([]D, error)
-  }
-
-  interface FamilyApplicationService {
-    +ApplicationService<*Family, *FamilyDTO>
-    +AddParent(ctx: context.Context, familyID: string, parentDTO: ParentDTO): (*FamilyDTO, error)
-    +AddChild(ctx: context.Context, familyID: string, childDTO: ChildDTO): (*FamilyDTO, error)
-    +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*FamilyDTO, error)
-    +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*FamilyDTO, error)
-    +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*FamilyDTO, error)
-    +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*FamilyDTO, error)
-    +FindFamilyByChild(ctx: context.Context, childID: string): (*FamilyDTO, error)
+  interface FamilyApplicationServicePort {
+    +di.ApplicationService
+    +Create(ctx: context.Context, dto: *entity.FamilyDTO): (*entity.FamilyDTO, error)
+    +GetByID(ctx: context.Context, id: string): (*entity.FamilyDTO, error)
+    +GetAll(ctx: context.Context): ([]*entity.FamilyDTO, error)
+    +AddParent(ctx: context.Context, familyID: string, parentDTO: entity.ParentDTO): (*entity.FamilyDTO, error)
+    +AddChild(ctx: context.Context, familyID: string, childDTO: entity.ChildDTO): (*entity.FamilyDTO, error)
+    +RemoveChild(ctx: context.Context, familyID: string, childID: string): (*entity.FamilyDTO, error)
+    +MarkParentDeceased(ctx: context.Context, familyID: string, parentID: string, deathDate: time.Time): (*entity.FamilyDTO, error)
+    +Divorce(ctx: context.Context, familyID: string, custodialParentID: string): (*entity.FamilyDTO, error)
+    +FindFamiliesByParent(ctx: context.Context, parentID: string): ([]*entity.FamilyDTO, error)
+    +FindFamilyByChild(ctx: context.Context, childID: string): (*entity.FamilyDTO, error)
   }
 }
 
 package "Adapters Layer" {
   package "GraphQL Adapter" {
     class Resolver {
-      -familySvc: *FamilyService
-      +NewResolver(familySvc: *FamilyService): *Resolver
+      -familySvc: FamilyApplicationServicePort
+      -logger: *logging.ContextLogger
+      +NewResolver(familySvc: FamilyApplicationServicePort, logger: *logging.ContextLogger): *Resolver
       +CreateFamily(ctx: context.Context, input: FamilyInput): (*Family, error)
       +GetFamily(ctx: context.Context, id: string): (*Family, error)
       +AddParent(ctx: context.Context, familyID: string, input: ParentInput): (*Family, error)
@@ -156,21 +268,37 @@ package "Adapters Layer" {
     class MongoFamilyRepository {
       -collection: *mongo.Collection
       +NewMongoFamilyRepository(collection: *mongo.Collection): *MongoFamilyRepository
-      +GetByID(ctx: context.Context, id: string): (*Family, error)
-      +Save(ctx: context.Context, family: *Family): error
-      +FindByParentID(ctx: context.Context, parentID: string): ([]*Family, error)
-      +FindByChildID(ctx: context.Context, childID: string): (*Family, error)
+      +GetByID(ctx: context.Context, id: string): (*entity.Family, error)
+      +GetAll(ctx: context.Context): ([]*entity.Family, error)
+      +Save(ctx: context.Context, family: *entity.Family): error
+      +FindByParentID(ctx: context.Context, parentID: string): ([]*entity.Family, error)
+      +FindByChildID(ctx: context.Context, childID: string): (*entity.Family, error)
     }
   }
 
   package "PostgreSQL Adapter" {
     class PostgresFamilyRepository {
-      -db: *pgxpool.Pool
-      +NewPostgresFamilyRepository(db: *pgxpool.Pool): *PostgresFamilyRepository
-      +GetByID(ctx: context.Context, id: string): (*Family, error)
-      +Save(ctx: context.Context, family: *Family): error
-      +FindByParentID(ctx: context.Context, parentID: string): ([]*Family, error)
-      +FindByChildID(ctx: context.Context, childID: string): (*Family, error)
+      -DB: *pgxpool.Pool
+      -logger: *logging.ContextLogger
+      +NewPostgresFamilyRepository(db: *pgxpool.Pool, logger: *logging.ContextLogger): *PostgresFamilyRepository
+      +GetByID(ctx: context.Context, id: string): (*entity.Family, error)
+      +GetAll(ctx: context.Context): ([]*entity.Family, error)
+      +Save(ctx: context.Context, family: *entity.Family): error
+      +FindByParentID(ctx: context.Context, parentID: string): ([]*entity.Family, error)
+      +FindByChildID(ctx: context.Context, childID: string): (*entity.Family, error)
+    }
+  }
+
+  package "SQLite Adapter" {
+    class SQLiteFamilyRepository {
+      -DB: *sql.DB
+      -logger: *logging.ContextLogger
+      +NewSQLiteFamilyRepository(db: *sql.DB, logger: *logging.ContextLogger): *SQLiteFamilyRepository
+      +GetByID(ctx: context.Context, id: string): (*entity.Family, error)
+      +GetAll(ctx: context.Context): ([]*entity.Family, error)
+      +Save(ctx: context.Context, family: *entity.Family): error
+      +FindByParentID(ctx: context.Context, parentID: string): ([]*entity.Family, error)
+      +FindByChildID(ctx: context.Context, childID: string): (*entity.Family, error)
     }
   }
 }
@@ -180,15 +308,36 @@ Family "1" *-- "1..2" Parent
 Family "1" *-- "0..*" Child
 Family -- Status
 
-FamilyService --> FamilyRepository : uses
-Resolver --> FamilyService : uses
+Parent -- ID
+Parent -- Name
+Parent -- DateOfBirth
+Parent -- DateOfDeath
+
+Child -- ID
+Child -- Name
+Child -- DateOfBirth
+Child -- DateOfDeath
+
+FamilyDomainService --> FamilyRepository : uses
+FamilyDomainService --> ContextLogger : uses
+
+FamilyApplicationService --> FamilyDomainService : uses
+FamilyApplicationService --> FamilyRepository : uses
+FamilyApplicationService --> ContextLogger : uses
+FamilyApplicationService ..|> FamilyApplicationServicePort : implements
+FamilyApplicationService ..|> ServiceLibApplicationService : implements
+
+Resolver --> FamilyApplicationServicePort : uses
+Resolver --> ContextLogger : uses
 
 MongoFamilyRepository ..|> FamilyRepository : implements
 PostgresFamilyRepository ..|> FamilyRepository : implements
+SQLiteFamilyRepository ..|> FamilyRepository : implements
 
-FamilyService ..> Family : creates/manipulates
-FamilyService ..> FamilyDTO : converts
-FamilyService ..> ParentDTO : converts
-FamilyService ..> ChildDTO : converts
+FamilyRepository --|> ServiceLibRepository : extends
 
+FamilyDomainService ..> Family : creates/manipulates
+FamilyDomainService ..> FamilyDTO : converts
+FamilyDomainService ..> ParentDTO : converts
+FamilyDomainService ..> ChildDTO : converts
 @enduml

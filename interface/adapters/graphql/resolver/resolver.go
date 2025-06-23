@@ -9,7 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/abitofhelp/family-service/core/application/ports"
 	"github.com/abitofhelp/family-service/core/domain/entity"
-	"github.com/abitofhelp/servicelib/valueobject"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/model"
 	mygraphql "github.com/abitofhelp/servicelib/graphql"
 	"github.com/abitofhelp/servicelib/logging"
@@ -104,7 +104,7 @@ func (r *Resolver) dtoToModelFamily(dto entity.FamilyDTO) *model.Family {
 		}
 
 		modelParent := &model.Parent{
-			ID:        valueobject.ID(parent.ID()),
+			ID:        identification.ID(parent.ID()),
 			FirstName: parent.FirstName(),
 			LastName:  parent.LastName(),
 			BirthDate: parent.BirthDate().Format(time.RFC3339),
@@ -136,7 +136,7 @@ func (r *Resolver) dtoToModelFamily(dto entity.FamilyDTO) *model.Family {
 		}
 
 		modelChild := &model.Child{
-			ID:        valueobject.ID(child.ID()),
+			ID:        identification.ID(child.ID()),
 			FirstName: child.FirstName(),
 			LastName:  child.LastName(),
 			BirthDate: child.BirthDate().Format(time.RFC3339),
@@ -148,7 +148,7 @@ func (r *Resolver) dtoToModelFamily(dto entity.FamilyDTO) *model.Family {
 
 	// Create and return the GraphQL model
 	return &model.Family{
-		ID:       valueobject.ID(dto.ID),
+		ID:       identification.ID(dto.ID),
 		Status:   status,
 		Parents:  parents,
 		Children: children,

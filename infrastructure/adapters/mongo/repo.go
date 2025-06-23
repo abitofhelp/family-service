@@ -70,7 +70,7 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.NewNotFoundError("Family", id)
 		}
-		return nil, errors.NewRepositoryError(err, "failed to get family from MongoDB", "MONGO_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to get family from MongoDB", "MONGO_ERROR")
 	}
 
 	// Convert document to domain entity
@@ -100,7 +100,7 @@ func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) er
 	)
 
 	if err != nil {
-		return errors.NewRepositoryError(err, "failed to save family to MongoDB", "MONGO_ERROR")
+		return errors.NewDatabaseError(err, "failed to save family to MongoDB", "MONGO_ERROR")
 	}
 
 	return nil
@@ -115,13 +115,13 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 	// No change needed here, as parents.id is still the same field
 	cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID})
 	if err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to find families by parent ID", "MONGO_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to find families by parent ID", "MONGO_ERROR")
 	}
 	defer cursor.Close(ctx)
 
 	var docs []FamilyDocument
 	if err := cursor.All(ctx, &docs); err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to decode families", "MONGO_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to decode families", "MONGO_ERROR")
 	}
 
 	// Convert documents to domain entities
@@ -150,7 +150,7 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.NewNotFoundError("Family with Child", childID)
 		}
-		return nil, errors.NewRepositoryError(err, "failed to find family by child ID", "MONGO_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to find family by child ID", "MONGO_ERROR")
 	}
 
 	// Convert document to domain entity
@@ -163,13 +163,13 @@ func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, e
 	// No change needed here, as we want all documents
 	cursor, err := r.Collection.Find(ctx, bson.M{})
 	if err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to get all families", "MONGO_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to get all families", "MONGO_ERROR")
 	}
 	defer cursor.Close(ctx)
 
 	var docs []FamilyDocument
 	if err := cursor.All(ctx, &docs); err != nil {
-		return nil, errors.NewRepositoryError(err, "failed to decode families", "MONGO_ERROR")
+		return nil, errors.NewDatabaseError(err, "failed to decode families", "MONGO_ERROR")
 	}
 
 	// Convert documents to domain entities
@@ -193,14 +193,14 @@ func (r *MongoFamilyRepository) documentToEntity(doc FamilyDocument) (*entity.Fa
 		// Parse dates
 		birthDate, err := time.Parse(time.RFC3339, p.BirthDate)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
 		}
 
 		var deathDate *time.Time
 		if p.DeathDate != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *p.DeathDate)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
 			}
 			deathDate = &parsedDeathDate
 		}
@@ -219,14 +219,14 @@ func (r *MongoFamilyRepository) documentToEntity(doc FamilyDocument) (*entity.Fa
 		// Parse dates
 		birthDate, err := time.Parse(time.RFC3339, c.BirthDate)
 		if err != nil {
-			return nil, errors.NewRepositoryError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
 		}
 
 		var deathDate *time.Time
 		if c.DeathDate != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *c.DeathDate)
 			if err != nil {
-				return nil, errors.NewRepositoryError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
 			}
 			deathDate = &parsedDeathDate
 		}

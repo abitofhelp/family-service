@@ -41,13 +41,13 @@ func (s *FamilyDomainService) CreateFamily(ctx context.Context, dto entity.Famil
 	fam, err := entity.FamilyFromDTO(dto)
 	if err != nil {
 		s.logger.Error(ctx, "Invalid family data", zap.Error(err), zap.String("family_id", dto.ID))
-		return nil, errors.NewApplicationError(err, "invalid family data", "INVALID_INPUT")
+		return nil, errors.NewValidationError("invalid family data", "family", err)
 	}
 
 	// Save to repository
 	if err := s.repo.Save(ctx, fam); err != nil {
 		s.logger.Error(ctx, "Failed to save family to repository", zap.Error(err), zap.String("family_id", fam.ID()))
-		return nil, errors.NewApplicationError(err, "failed to create family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to create family", "save", "families", err)
 	}
 
 	// Return the created family as DTO
@@ -65,7 +65,7 @@ func (s *FamilyDomainService) GetFamily(ctx context.Context, id string) (*entity
 
 	if id == "" {
 		s.logger.Warn(ctx, "Family ID is required")
-		return nil, errors.NewValidationError("family ID is required")
+		return nil, errors.NewValidationError("family ID is required", "id", nil)
 	}
 
 	fam, err := s.repo.GetByID(ctx, id)
@@ -75,7 +75,7 @@ func (s *FamilyDomainService) GetFamily(ctx context.Context, id string) (*entity
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family from repository", zap.Error(err), zap.String("family_id", id))
-		return nil, errors.NewApplicationError(err, "failed to retrieve family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	dto := fam.ToDTO()
@@ -95,7 +95,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 
 	if familyID == "" {
 		s.logger.Warn(ctx, "Family ID is required for AddParent")
-		return nil, errors.NewValidationError("family ID is required")
+		return nil, errors.NewValidationError("family ID is required", "familyID", nil)
 	}
 
 	// Get the family
@@ -108,7 +108,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		s.logger.Error(ctx, "Failed to retrieve family for AddParent", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to retrieve family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Create parent entity from DTO
@@ -117,7 +117,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		s.logger.Error(ctx, "Invalid parent data for AddParent", 
 			zap.Error(err), 
 			zap.String("parent_id", parentDTO.ID))
-		return nil, errors.NewApplicationError(err, "invalid parent data", "INVALID_INPUT")
+		return nil, errors.NewValidationError("invalid parent data", "parent", err)
 	}
 
  	// Add parent to family
@@ -139,7 +139,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 			s.logger.Error(ctx, "Failed to update family status", 
 				zap.Error(err), 
 				zap.String("family_id", familyID))
-			return nil, errors.NewApplicationError(err, "failed to update family status", "DOMAIN_ERROR")
+			return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "failed to update family status", err)
 		}
 		fam = updatedFam
 	}
@@ -149,7 +149,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		s.logger.Error(ctx, "Failed to save family after adding parent", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to save family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Return updated family as DTO
@@ -171,7 +171,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 
 	if familyID == "" {
 		s.logger.Warn(ctx, "Family ID is required for AddChild")
-		return nil, errors.NewValidationError("family ID is required")
+		return nil, errors.NewValidationError("family ID is required", "familyID", nil)
 	}
 
 	// Get the family
@@ -184,7 +184,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		s.logger.Error(ctx, "Failed to retrieve family for AddChild", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to retrieve family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Create child entity from DTO
@@ -193,7 +193,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		s.logger.Error(ctx, "Invalid child data for AddChild", 
 			zap.Error(err), 
 			zap.String("child_id", childDTO.ID))
-		return nil, errors.NewApplicationError(err, "invalid child data", "INVALID_INPUT")
+		return nil, errors.NewValidationError("invalid child data", "child", err)
 	}
 
 	// Add child to family
@@ -210,7 +210,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		s.logger.Error(ctx, "Failed to save family after adding child", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to save family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Return updated family as DTO
@@ -231,7 +231,7 @@ func (s *FamilyDomainService) RemoveChild(ctx context.Context, familyID string, 
 		s.logger.Warn(ctx, "Family ID and child ID are required for RemoveChild", 
 			zap.String("family_id", familyID), 
 			zap.String("child_id", childID))
-		return nil, errors.NewValidationError("family ID and child ID are required")
+		return nil, errors.NewValidationError("family ID and child ID are required", "familyID/childID", nil)
 	}
 
 	// Get the family
@@ -244,7 +244,7 @@ func (s *FamilyDomainService) RemoveChild(ctx context.Context, familyID string, 
 		s.logger.Error(ctx, "Failed to retrieve family for RemoveChild", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to retrieve family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Remove child from family
@@ -261,7 +261,7 @@ func (s *FamilyDomainService) RemoveChild(ctx context.Context, familyID string, 
 		s.logger.Error(ctx, "Failed to save family after removing child", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to save family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Return updated family as DTO
@@ -283,7 +283,7 @@ func (s *FamilyDomainService) MarkParentDeceased(ctx context.Context, familyID s
 		s.logger.Warn(ctx, "Family ID and parent ID are required for MarkParentDeceased", 
 			zap.String("family_id", familyID), 
 			zap.String("parent_id", parentID))
-		return nil, errors.NewValidationError("family ID and parent ID are required")
+		return nil, errors.NewValidationError("family ID and parent ID are required", "familyID/parentID", nil)
 	}
 
 	// Get the family
@@ -296,7 +296,7 @@ func (s *FamilyDomainService) MarkParentDeceased(ctx context.Context, familyID s
 		s.logger.Error(ctx, "Failed to retrieve family for MarkParentDeceased", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to retrieve family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Mark parent as deceased
@@ -313,7 +313,7 @@ func (s *FamilyDomainService) MarkParentDeceased(ctx context.Context, familyID s
 		s.logger.Error(ctx, "Failed to save family after marking parent as deceased", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to save family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Return updated family as DTO
@@ -334,7 +334,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 		s.logger.Warn(ctx, "Family ID and custodial parent ID are required for Divorce", 
 			zap.String("family_id", familyID), 
 			zap.String("custodial_parent_id", custodialParentID))
-		return nil, errors.NewValidationError("family ID and custodial parent ID are required")
+		return nil, errors.NewValidationError("family ID and custodial parent ID are required", "familyID/custodialParentID", nil)
 	}
 
 	// Get the family
@@ -347,7 +347,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 		s.logger.Error(ctx, "Failed to retrieve family for Divorce", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewApplicationError(err, "failed to retrieve family", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Process divorce
@@ -372,7 +372,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 		s.logger.Error(ctx, "Failed to save family with custodial parent after divorce", 
 			zap.Error(err), 
 			zap.String("family_id", fam.ID()))
-		return nil, errors.NewApplicationError(err, "failed to save family with custodial parent", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to save family with custodial parent", "save", "families", err)
 	}
 
 	s.logger.Info(ctx, "Family with custodial parent saved, saving family with remaining parent", 
@@ -386,7 +386,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 			zap.Error(err), 
 			zap.String("family_id", remainingFam.ID()),
 			zap.String("custodial_parent_family_id", fam.ID()))
-		return nil, errors.NewApplicationError(err, "failed to save family with remaining parent", "REPOSITORY_ERROR")
+		return nil, errors.NewDatabaseError("failed to save family with remaining parent", "save", "families", err)
 	}
 
 	// Return the original family (now with custodial parent and children) as DTO

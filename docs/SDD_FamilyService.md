@@ -26,34 +26,44 @@ The Family Service GraphQL application follows a combination of three architectu
 
 #### 2.2 High-Level Architecture Diagram
 
-    ┌─────────────────────────────────────────────────────────────┐
-    │                                                             │
-    │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
-    │  │             │     │             │     │             │   │
-    │  │  GraphQL    │     │  Services   │     │  Domain     │   │
-    │  │  API        │────▶│  Layer      │────▶│  Layer      │   │
-    │  │  (Adapters) │     │             │     │             │   │
-    │  │             │     │             │     │             │   │
-    │  └─────────────┘     └─────────────┘     └─────────────┘   │
-    │         │                   │                   │           │
-    │         │                   │                   │           │
-    │         ▼                   ▼                   ▼           │
-    │  ┌─────────────────────────────────────────────────────┐   │
-    │  │                                                     │   │
-    │  │                    Ports                            │   │
-    │  │                                                     │   │
-    │  └─────────────────────────────────────────────────────┘   │
-    │         │                                   │               │
-    │         │                                   │               │
-    │         ▼                                   ▼               │
-    │  ┌─────────────┐                    ┌─────────────┐        │
-    │  │             │                    │             │        │
-    │  │  MongoDB    │                    │  PostgreSQL │        │
-    │  │  Adapter    │                    │  Adapter    │        │
-    │  │             │                    │             │        │
-    │  └─────────────┘                    └─────────────┘        │
-    │                                                             │
-    └─────────────────────────────────────────────────────────────┘
+    ┌─────────────────────────────────────────────────────────────────────────────┐
+    │                                                                             │
+    │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌───────────┐ │
+    │  │             │     │             │     │             │     │           │ │
+    │  │  GraphQL    │     │ Application │     │  Domain     │     │           │ │
+    │  │  API        │────▶│  Services   │────▶│  Services   │────▶│  Domain   │ │
+    │  │  (Adapters) │     │  Layer      │     │  Layer      │     │  Entities │ │
+    │  │             │     │             │     │             │     │           │ │
+    │  └─────────────┘     └─────────────┘     └─────────────┘     └───────────┘ │
+    │         │                   │                   │                   │       │
+    │         │                   │                   │                   │       │
+    │         │                   │                   │                   │       │
+    │         │                   │                   │                   ▼       │
+    │         │                   │                   │           ┌───────────┐   │
+    │         │                   │                   │           │           │   │
+    │         │                   │                   │           │ ServiceLib│   │
+    │         │                   │                   │           │ Value     │   │
+    │         │                   │                   │           │ Objects   │   │
+    │         │                   │                   │           │           │   │
+    │         │                   │                   │           └───────────┘   │
+    │         │                   │                   │                           │
+    │         ▼                   ▼                   ▼                           │
+    │  ┌─────────────────────────────────────────────────────────────────────┐   │
+    │  │                                                                     │   │
+    │  │                    Ports (ServiceLib Interfaces)                    │   │
+    │  │                                                                     │   │
+    │  └─────────────────────────────────────────────────────────────────────┘   │
+    │         │                   │                   │                           │
+    │         │                   │                   │                           │
+    │         ▼                   ▼                   ▼                           │
+    │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                   │
+    │  │             │     │             │     │             │                   │
+    │  │  MongoDB    │     │  PostgreSQL │     │  SQLite     │                   │
+    │  │  Adapter    │     │  Adapter    │     │  Adapter    │                   │
+    │  │             │     │             │     │             │                   │
+    │  └─────────────┘     └─────────────┘     └─────────────┘                   │
+    │                                                                             │
+    └─────────────────────────────────────────────────────────────────────────────┘
 
 #### 2.3 Design Principles
 - **Separation of Concerns**: Each component has a single responsibility
@@ -84,10 +94,21 @@ Example Family struct:
 
     // Family is the root aggregate
     type Family struct {
-        id       string
+        id       string // Will be validated using servicelib validation
         status   Status
-        parents  []*parent.Parent
-        children []*child.Child
+        parents  []*Parent
+        children []*Child
+    }
+
+Example Parent struct using ServiceLib value objects:
+
+    // Parent represents a parent entity in the family domain
+    type Parent struct {
+        id        identification.ID
+        firstName identification.Name
+        lastName  identification.Name
+        birthDate identification.DateOfBirth
+        deathDate *identification.DateOfDeath
     }
 
 ##### 3.1.2 Domain Services
@@ -101,32 +122,56 @@ Example Divorce method:
     }
 
 ##### 3.1.3 Value Objects
-Value objects are immutable and identified by their attributes rather than an identity:
+Value objects are immutable and identified by their attributes rather than an identity. The application uses ServiceLib's value objects from the `identification` package:
 
-Example Date value object:
+Example value objects from ServiceLib:
 
-    // Dates are treated as value objects
-    type Date time.Time
+    // ID represents a unique identifier value object
+    type ID string
+
+    // Name represents a person's name value object
+    type Name string
+
+    // DateOfBirth represents a date of birth value object
+    type DateOfBirth struct {
+        date time.Time
+    }
+
+    // DateOfDeath represents a date of death value object
+    type DateOfDeath struct {
+        date time.Time
+    }
 
 #### 3.2 Application Services Layer
 
 ##### 3.2.1 Application Services
-The application services layer includes generic and specific service implementations:
+The application services layer includes domain services and application services that implement ServiceLib interfaces:
 
-Example BaseApplicationService:
+Example FamilyDomainService:
 
-    // BaseApplicationService is a generic implementation of the ApplicationService interface
-    type BaseApplicationService[T any, D any] struct {
-        // Common dependencies and methods for all application services
+    // FamilyDomainService is a domain service that coordinates operations on the Family aggregate
+    type FamilyDomainService struct {
+        repo   ports.FamilyRepository
+        logger *logging.ContextLogger
     }
 
 Example FamilyApplicationService:
 
     // FamilyApplicationService implements the application service for family-related use cases
+    // It implements the appports.FamilyApplicationService interface and servicelib.di.ApplicationService
     type FamilyApplicationService struct {
         BaseApplicationService[*entity.Family, *entity.FamilyDTO]
         familyService *domainservices.FamilyDomainService
         familyRepo    domainports.FamilyRepository
+        logger        *logging.ContextLogger
+    }
+
+    // Ensure FamilyApplicationService implements di.ApplicationService
+    var _ di.ApplicationService = (*FamilyApplicationService)(nil)
+
+    // GetID returns the service ID (implements di.ApplicationService)
+    func (s *FamilyApplicationService) GetID() string {
+        return "family-application-service"
     }
 
 Key responsibilities:
@@ -151,11 +196,12 @@ Example FamilyDTO:
 #### 3.3 Ports Layer
 
 ##### 3.3.1 Repository Interfaces
-The ports layer defines interfaces for external dependencies:
+The ports layer defines interfaces for external dependencies, extending ServiceLib's repository interfaces:
 
-Example generic Repository interface:
+Example ServiceLib Repository interface:
 
     // Repository is a generic repository interface for entity persistence operations
+    // from servicelib/repository package
     type Repository[T any] interface {
         // GetByID retrieves an entity by its ID
         GetByID(ctx context.Context, id string) (T, error)
@@ -167,12 +213,14 @@ Example generic Repository interface:
         Save(ctx context.Context, entity T) error
     }
 
-Example FamilyRepository interface that embeds the generic Repository:
+Example FamilyRepository interface that embeds the ServiceLib Repository:
 
     // FamilyRepository defines the interface for family persistence operations
+    // This interface represents a port in the Hexagonal Architecture pattern
+    // It's defined in the domain layer but implemented in the infrastructure layer
     type FamilyRepository interface {
         // Embed the generic Repository interface with Family entity
-        Repository[*entity.Family]
+        repository.Repository[*entity.Family]
 
         // FindByParentID finds families that contain a specific parent
         FindByParentID(ctx context.Context, parentID string) ([]*entity.Family, error)
@@ -182,7 +230,16 @@ Example FamilyRepository interface that embeds the generic Repository:
     }
 
 ##### 3.3.2 Application Service Interfaces
-The ports layer also defines interfaces for application services:
+The ports layer also defines interfaces for application services, extending ServiceLib's application service interfaces:
+
+Example ServiceLib ApplicationService interface:
+
+    // ApplicationService is a generic interface for application services
+    // from servicelib/di package
+    type ApplicationService interface {
+        // GetID returns the service ID
+        GetID() string
+    }
 
 Example generic ApplicationService interface:
 
@@ -198,12 +255,18 @@ Example generic ApplicationService interface:
         GetAll(ctx context.Context) ([]D, error)
     }
 
-Example FamilyApplicationService interface that embeds the generic ApplicationService:
+Example FamilyApplicationService interface that embeds both interfaces:
 
     // FamilyApplicationService defines the interface for family application services
+    // This interface represents a port in the Hexagonal Architecture pattern
+    // It's defined in the application layer but implemented in the application layer
+    // and used by the interface layer
     type FamilyApplicationService interface {
         // Embed the generic ApplicationService interface with Family entity and DTO
         ApplicationService[*entity.Family, *entity.FamilyDTO]
+
+        // Embed the servicelib ApplicationService interface
+        di.ApplicationService
 
         // AddParent adds a parent to a family
         AddParent(ctx context.Context, familyID string, parentDTO entity.ParentDTO) (*entity.FamilyDTO, error)
@@ -211,77 +274,198 @@ Example FamilyApplicationService interface that embeds the generic ApplicationSe
         // AddChild adds a child to a family
         AddChild(ctx context.Context, familyID string, childDTO entity.ChildDTO) (*entity.FamilyDTO, error)
 
-        // Other family-specific methods...
+        // RemoveChild removes a child from a family
+        RemoveChild(ctx context.Context, familyID string, childID string) (*entity.FamilyDTO, error)
+
+        // MarkParentDeceased marks a parent as deceased
+        MarkParentDeceased(ctx context.Context, familyID string, parentID string, deathDate time.Time) (*entity.FamilyDTO, error)
+
+        // Divorce handles the divorce process
+        Divorce(ctx context.Context, familyID string, custodialParentID string) (*entity.FamilyDTO, error)
+
+        // FindFamiliesByParent finds families that contain a specific parent
+        FindFamiliesByParent(ctx context.Context, parentID string) ([]*entity.FamilyDTO, error)
+
+        // FindFamilyByChild finds the family that contains a specific child
+        FindFamilyByChild(ctx context.Context, childID string) (*entity.FamilyDTO, error)
     }
 
 #### 3.4 Adapters Layer
 
 ##### 3.4.1 GraphQL Adapter
-The GraphQL adapter provides the API interface:
+The GraphQL adapter provides the API interface, using the application service port:
 
 Example Resolver:
 
     // Resolver handles GraphQL queries and mutations
     type Resolver struct {
-        FamilySvc *services.FamilyService
+        familySvc appports.FamilyApplicationService
+        logger    *logging.ContextLogger
+    }
+
+    // NewResolver creates a new resolver
+    func NewResolver(familySvc appports.FamilyApplicationService, logger *logging.ContextLogger) *Resolver {
+        return &Resolver{
+            familySvc: familySvc,
+            logger:    logger,
+        }
     }
 
 ##### 3.4.2 MongoDB Adapter
-The MongoDB adapter implements the repository interface for MongoDB:
+The MongoDB adapter implements the repository interface for MongoDB, using ServiceLib's database utilities:
 
 Example MongoFamilyRepository:
 
     // MongoFamilyRepository implements the FamilyRepository interface for MongoDB
     type MongoFamilyRepository struct {
         Collection *mongo.Collection
+        logger     *logging.ContextLogger
+    }
+
+    // NewMongoFamilyRepository creates a new MongoFamilyRepository
+    func NewMongoFamilyRepository(collection *mongo.Collection) *MongoFamilyRepository {
+        if collection == nil {
+            panic("collection cannot be nil")
+        }
+        return &MongoFamilyRepository{
+            Collection: collection,
+        }
     }
 
 ##### 3.4.3 PostgreSQL Adapter
-The PostgreSQL adapter implements the repository interface for PostgreSQL:
+The PostgreSQL adapter implements the repository interface for PostgreSQL, using ServiceLib's database utilities:
 
 Example PostgresFamilyRepository:
 
     // PostgresFamilyRepository implements the FamilyRepository interface for PostgreSQL
     type PostgresFamilyRepository struct {
-        DB *pgxpool.Pool
+        DB     *pgxpool.Pool
+        logger *logging.ContextLogger
+    }
+
+    // NewPostgresFamilyRepository creates a new PostgresFamilyRepository
+    func NewPostgresFamilyRepository(db *pgxpool.Pool, logger *logging.ContextLogger) *PostgresFamilyRepository {
+        if db == nil {
+            panic("database connection cannot be nil")
+        }
+        if logger == nil {
+            panic("logger cannot be nil")
+        }
+        return &PostgresFamilyRepository{
+            DB:     db,
+            logger: logger,
+        }
+    }
+
+##### 3.4.4 SQLite Adapter
+The SQLite adapter implements the repository interface for SQLite, using ServiceLib's database utilities:
+
+Example SQLiteFamilyRepository:
+
+    // SQLiteFamilyRepository implements the FamilyRepository interface for SQLite
+    type SQLiteFamilyRepository struct {
+        DB     *sql.DB
+        logger *logging.ContextLogger
+    }
+
+    // NewSQLiteFamilyRepository creates a new SQLiteFamilyRepository
+    func NewSQLiteFamilyRepository(db *sql.DB, logger *logging.ContextLogger) *SQLiteFamilyRepository {
+        if db == nil {
+            panic("database connection cannot be nil")
+        }
+        if logger == nil {
+            panic("logger cannot be nil")
+        }
+        return &SQLiteFamilyRepository{
+            DB:     db,
+            logger: logger,
+        }
     }
 
 #### 3.5 Infrastructure Components
 
 ##### 3.5.1 Error Handling
-Custom error types for different layers, using generics for type-safe error categories:
+The application uses ServiceLib's error handling package, which provides a comprehensive set of error types for different layers:
 
-Example generic AppError:
+Example error types from ServiceLib:
 
-    // AppError is a generic error type that can be used for different error categories
-    type AppError[T ~string] struct {
-        Err     error
-        Message string
-        Code    string
-        Type    T
-    }
-
-Example DomainError using the generic AppError:
-
-    // DomainErrorType represents the type of domain error
-    type DomainErrorType string
-
-    // Domain error type constants
+    // Error code constants
     const (
-        DomainErrorGeneral DomainErrorType = "DOMAIN_ERROR"
+        NotFoundCode              = core.NotFoundCode
+        InvalidInputCode          = core.InvalidInputCode
+        DatabaseErrorCode         = core.DatabaseErrorCode
+        InternalErrorCode         = core.InternalErrorCode
+        BusinessRuleViolationCode = core.BusinessRuleViolationCode
+        // ... more error codes
     )
 
-    // DomainError represents an error that occurred in the domain layer
-    type DomainError = AppError[DomainErrorType]
+    // Domain error creation functions
+    func NewDomainError(code ErrorCode, message string, cause error) *DomainError {
+        return domain.NewDomainError(code, message, cause)
+    }
+
+    func NewValidationError(message string, field string, cause error) *ValidationError {
+        return domain.NewValidationError(message, field, cause)
+    }
+
+    func NewBusinessRuleError(message string, rule string, cause error) *BusinessRuleError {
+        return domain.NewBusinessRuleError(message, rule, cause)
+    }
+
+    func NewNotFoundError(resourceType string, resourceID string, cause error) *NotFoundError {
+        return domain.NewNotFoundError(resourceType, resourceID, cause)
+    }
+
+    // Infrastructure error creation functions
+    func NewDatabaseError(message string, operation string, table string, cause error) *DatabaseError {
+        return infra.NewDatabaseError(message, operation, table, cause)
+    }
+
+    // Application error creation functions
+    func NewApplicationError(code ErrorCode, message string, cause error) *ApplicationError {
+        return app.NewApplicationError(code, message, cause)
+    }
 
 ##### 3.5.2 Validation
-Validation utilities:
+The application uses ServiceLib's validation package, which provides utilities for validating domain entities:
 
-Example ValidationResult:
+Example validation utilities from ServiceLib:
 
     // ValidationResult holds the result of a validation operation
     type ValidationResult struct {
         errors *errors.ValidationErrors
+    }
+
+    // NewValidationResult creates a new ValidationResult
+    func NewValidationResult() *ValidationResult {
+        return &ValidationResult{
+            errors: errors.NewValidationErrors("Validation failed"),
+        }
+    }
+
+    // AddError adds an error to the validation result
+    func (v *ValidationResult) AddError(msg, field string) {
+        v.errors.AddError(errors.NewValidationError(msg, field, nil))
+    }
+
+    // IsValid returns true if there are no validation errors
+    func (v *ValidationResult) IsValid() bool {
+        return !v.errors.HasErrors()
+    }
+
+    // Error returns the validation errors as an error
+    func (v *ValidationResult) Error() error {
+        if v.IsValid() {
+            return nil
+        }
+        return v.errors
+    }
+
+    // ValidateID validates that an ID is not empty
+    func ValidateID(id, field string, result *ValidationResult) {
+        if strings.TrimSpace(id) == "" {
+            result.AddError("is required", field)
+        }
     }
 
 ##### 3.5.3 Middleware
@@ -328,10 +512,24 @@ MongoDB uses an embedded document model:
 PostgreSQL uses a normalized model with JSON for parent and child data:
 
     CREATE TABLE families (
+        id VARCHAR(36) PRIMARY KEY,
+        status VARCHAR(20) NOT NULL,
+        parents JSONB NOT NULL,
+        children JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+##### 4.1.3 SQLite Data Model
+SQLite uses a similar model to PostgreSQL, with JSON for parent and child data:
+
+    CREATE TABLE IF NOT EXISTS families (
         id TEXT PRIMARY KEY,
         status TEXT NOT NULL,
-        parents JSONB NOT NULL,
-        children JSONB NOT NULL
+        parents TEXT NOT NULL,
+        children TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
 #### 4.2 Data Flow
@@ -339,16 +537,18 @@ PostgreSQL uses a normalized model with JSON for parent and child data:
 ##### 4.2.1 Create Family Sequence
 1. GraphQL resolver receives createFamily mutation
 2. Input is converted to domain DTO
-3. FamilyService creates Family aggregate
-4. Repository saves Family to database
-5. Result is converted back to GraphQL type and returned
+3. FamilyApplicationService delegates to FamilyDomainService
+4. FamilyDomainService creates Family aggregate using servicelib value objects
+5. Repository saves Family to database using servicelib database utilities
+6. Result is converted back to GraphQL type and returned
 
 ##### 4.2.2 Divorce Sequence
 1. GraphQL resolver receives divorce mutation
-2. FamilyService retrieves Family from repository
-3. Family.Divorce() creates new Family for custodial parent
-4. Repository saves both families (original and new)
-5. New Family is returned to client
+2. FamilyApplicationService delegates to FamilyDomainService
+3. FamilyDomainService retrieves Family from repository
+4. Family.Divorce() creates new Family for remaining parent (original family keeps custodial parent)
+5. Repository saves both families (original and new) using servicelib database utilities
+6. Updated Family is returned to client
 
 ### 5. Interface Design
 
@@ -397,7 +597,9 @@ Errors are propagated up the call stack and transformed as needed:
 #### 7.1 Database Optimization
 - MongoDB uses embedded documents for efficient retrieval
 - PostgreSQL uses JSONB for flexible querying with indexes
-- Both implementations support efficient lookups by ID
+- SQLite uses JSON stored as TEXT for simple, file-based storage
+- All implementations use ServiceLib's database utilities for connection pooling, retries, and error handling
+- All implementations support efficient lookups by ID
 
 #### 7.2 Caching Strategy
 - No caching implemented in the current version

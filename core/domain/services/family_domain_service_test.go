@@ -21,14 +21,14 @@ type mockRepo struct {
 func (m *mockRepo) GetByID(ctx context.Context, id string) (*entity.Family, error) {
 	fam, ok := m.store[id]
 	if !ok {
-		return nil, errors.NewNotFoundError("Family", id)
+		return nil, errors.NewNotFoundError("Family", id, nil)
 	}
 	return fam, nil
 }
 
 func (m *mockRepo) Save(ctx context.Context, f *entity.Family) error {
 	if f == nil {
-		return errors.NewValidationError("family cannot be nil")
+		return errors.NewValidationError("family cannot be nil", "family", nil)
 	}
 	m.store[f.ID()] = f
 	return nil
@@ -55,7 +55,7 @@ func (m *mockRepo) FindByChildID(ctx context.Context, childID string) (*entity.F
 			}
 		}
 	}
-	return nil, errors.NewNotFoundError("Family with Child", childID)
+	return nil, errors.NewNotFoundError("Family with Child", childID, nil)
 }
 
 func (m *mockRepo) GetAll(ctx context.Context) ([]*entity.Family, error) {
@@ -75,14 +75,14 @@ func TestCreateFamily(t *testing.T) {
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
-	p, err := entity.NewParent("p1", "John", "Doe", birthDate, nil)
+	p, err := entity.NewParent("00000000-0000-0000-0000-000000000001", "John", "Doe", birthDate, nil)
 	if err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 
 	// Create a family DTO
 	dto := entity.FamilyDTO{
-		ID:       "abc123",
+		ID:       "00000000-0000-0000-0000-000000000002",
 		Status:   string(entity.Single),
 		Parents:  []entity.ParentDTO{p.ToDTO()},
 		Children: []entity.ChildDTO{},
@@ -115,13 +115,13 @@ func TestGetFamily(t *testing.T) {
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
-	p, err := entity.NewParent("p1", "John", "Doe", birthDate, nil)
+	p, err := entity.NewParent("00000000-0000-0000-0000-000000000003", "John", "Doe", birthDate, nil)
 	if err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 
 	// Create a family
-	fam, err := entity.NewFamily("abc123", entity.Single, []*entity.Parent{p}, []*entity.Child{})
+	fam, err := entity.NewFamily("00000000-0000-0000-0000-000000000004", entity.Single, []*entity.Parent{p}, []*entity.Child{})
 	if err != nil {
 		t.Fatalf("failed to create family: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestGetFamily(t *testing.T) {
 	}
 
 	// Test
-	result, err := svc.GetFamily(context.Background(), "abc123")
+	result, err := svc.GetFamily(context.Background(), "00000000-0000-0000-0000-000000000004")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -159,13 +159,13 @@ func TestAddParent(t *testing.T) {
 
 	// Create a parent
 	birthDate1 := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
-	p1, err := entity.NewParent("p1", "John", "Doe", birthDate1, nil)
+	p1, err := entity.NewParent("00000000-0000-0000-0000-000000000005", "John", "Doe", birthDate1, nil)
 	if err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 
 	// Create a family
-	fam, err := entity.NewFamily("abc123", entity.Single, []*entity.Parent{p1}, []*entity.Child{})
+	fam, err := entity.NewFamily("00000000-0000-0000-0000-000000000006", entity.Single, []*entity.Parent{p1}, []*entity.Child{})
 	if err != nil {
 		t.Fatalf("failed to create family: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestAddParent(t *testing.T) {
 	// Create a second parent
 	birthDate2 := time.Date(1982, 2, 2, 0, 0, 0, 0, time.UTC)
 	p2DTO := entity.ParentDTO{
-		ID:        "p2",
+		ID:        "00000000-0000-0000-0000-000000000007",
 		FirstName: "Jane",
 		LastName:  "Doe",
 		BirthDate: birthDate2,
@@ -187,7 +187,7 @@ func TestAddParent(t *testing.T) {
 	}
 
 	// Test
-	result, err := svc.AddParent(context.Background(), "abc123", p2DTO)
+	result, err := svc.AddParent(context.Background(), "00000000-0000-0000-0000-000000000006", p2DTO)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -210,13 +210,13 @@ func TestAddChild(t *testing.T) {
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
-	p, err := entity.NewParent("p1", "John", "Doe", birthDate, nil)
+	p, err := entity.NewParent("00000000-0000-0000-0000-000000000008", "John", "Doe", birthDate, nil)
 	if err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 
 	// Create a family
-	fam, err := entity.NewFamily("abc123", entity.Single, []*entity.Parent{p}, []*entity.Child{})
+	fam, err := entity.NewFamily("00000000-0000-0000-0000-000000000009", entity.Single, []*entity.Parent{p}, []*entity.Child{})
 	if err != nil {
 		t.Fatalf("failed to create family: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestAddChild(t *testing.T) {
 	// Create a child
 	childBirthDate := time.Date(2010, 3, 3, 0, 0, 0, 0, time.UTC)
 	childDTO := entity.ChildDTO{
-		ID:        "c1",
+		ID:        "00000000-0000-0000-0000-00000000000a",
 		FirstName: "Baby",
 		LastName:  "Doe",
 		BirthDate: childBirthDate,
@@ -238,7 +238,7 @@ func TestAddChild(t *testing.T) {
 	}
 
 	// Test
-	result, err := svc.AddChild(context.Background(), "abc123", childDTO)
+	result, err := svc.AddChild(context.Background(), "00000000-0000-0000-0000-000000000009", childDTO)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -258,26 +258,26 @@ func TestDivorce(t *testing.T) {
 
 	// Create parents
 	birthDate1 := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
-	p1, err := entity.NewParent("p1", "John", "Doe", birthDate1, nil)
+	p1, err := entity.NewParent("00000000-0000-0000-0000-00000000000b", "John", "Doe", birthDate1, nil)
 	if err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 
 	birthDate2 := time.Date(1982, 2, 2, 0, 0, 0, 0, time.UTC)
-	p2, err := entity.NewParent("p2", "Jane", "Doe", birthDate2, nil)
+	p2, err := entity.NewParent("00000000-0000-0000-0000-00000000000c", "Jane", "Doe", birthDate2, nil)
 	if err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 
 	// Create a child
 	childBirthDate := time.Date(2010, 3, 3, 0, 0, 0, 0, time.UTC)
-	c, err := entity.NewChild("c1", "Baby", "Doe", childBirthDate, nil)
+	c, err := entity.NewChild("00000000-0000-0000-0000-00000000000d", "Baby", "Doe", childBirthDate, nil)
 	if err != nil {
 		t.Fatalf("failed to create child: %v", err)
 	}
 
 	// Create a family
-	fam, err := entity.NewFamily("abc123", entity.Married, []*entity.Parent{p1, p2}, []*entity.Child{c})
+	fam, err := entity.NewFamily("00000000-0000-0000-0000-00000000000e", entity.Married, []*entity.Parent{p1, p2}, []*entity.Child{c})
 	if err != nil {
 		t.Fatalf("failed to create family: %v", err)
 	}
@@ -289,7 +289,7 @@ func TestDivorce(t *testing.T) {
 	}
 
 	// Test
-	result, err := svc.Divorce(context.Background(), "abc123", "p1")
+	result, err := svc.Divorce(context.Background(), "00000000-0000-0000-0000-00000000000e", "00000000-0000-0000-0000-00000000000b")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -305,12 +305,12 @@ func TestDivorce(t *testing.T) {
 		t.Errorf("expected 1 child, got %d", len(result.Children))
 	}
 	// Verify the family with custodial parent keeps the original ID
-	if result.ID != "abc123" {
+	if result.ID != "00000000-0000-0000-0000-00000000000e" {
 		t.Errorf("expected family with custodial parent to keep the original ID, got %s", result.ID)
 	}
 	// Verify the parent is the custodial parent
-	if result.Parents[0].ID != "p1" {
-		t.Errorf("expected custodial parent ID to be p1, got %s", result.Parents[0].ID)
+	if result.Parents[0].ID != "00000000-0000-0000-0000-00000000000b" {
+		t.Errorf("expected custodial parent ID to be 00000000-0000-0000-0000-00000000000b, got %s", result.Parents[0].ID)
 	}
 
 	// Find the new family with the remaining parent
@@ -322,7 +322,7 @@ func TestDivorce(t *testing.T) {
 
 	var remainingFam *entity.Family
 	for _, f := range allFamilies {
-		if f.ID() != "abc123" {
+		if f.ID() != "00000000-0000-0000-0000-00000000000e" {
 			remainingFam = f
 			break
 		}
@@ -343,7 +343,7 @@ func TestDivorce(t *testing.T) {
 		t.Errorf("expected 0 children, got %d", len(remainingFam.Children()))
 	}
 	// Verify the parent is the remaining parent
-	if remainingFam.Parents()[0].ID() != "p2" {
-		t.Errorf("expected remaining parent ID to be p2, got %s", remainingFam.Parents()[0].ID())
+	if remainingFam.Parents()[0].ID() != "00000000-0000-0000-0000-00000000000c" {
+		t.Errorf("expected remaining parent ID to be 00000000-0000-0000-0000-00000000000c, got %s", remainingFam.Parents()[0].ID())
 	}
 }

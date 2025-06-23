@@ -13,7 +13,7 @@ import (
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/model"
 	"github.com/abitofhelp/servicelib/date"
 	myerrors "github.com/abitofhelp/servicelib/errors"
-	"github.com/abitofhelp/servicelib/valueobject"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 	"go.uber.org/zap"
 )
 
@@ -108,7 +108,7 @@ func (r *mutationResolver) CreateFamily(ctx context.Context, input model.FamilyI
 }
 
 // AddParent is the resolver for the addParent field.
-func (r *mutationResolver) AddParent(ctx context.Context, familyID valueobject.ID, input model.ParentInput) (*model.Family, error) {
+func (r *mutationResolver) AddParent(ctx context.Context, familyID identification.ID, input model.ParentInput) (*model.Family, error) {
 	// Check if the user is authorized to add a parent
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"CREATE"}, "PARENT", "AddParent"); err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func (r *mutationResolver) AddParent(ctx context.Context, familyID valueobject.I
 }
 
 // AddChild is the resolver for the addChild field.
-func (r *mutationResolver) AddChild(ctx context.Context, familyID valueobject.ID, input model.ChildInput) (*model.Family, error) {
+func (r *mutationResolver) AddChild(ctx context.Context, familyID identification.ID, input model.ChildInput) (*model.Family, error) {
 	// Check if the user is authorized to add a child
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"CREATE"}, "CHILD", "AddChild"); err != nil {
 		return nil, err
@@ -194,7 +194,7 @@ func (r *mutationResolver) AddChild(ctx context.Context, familyID valueobject.ID
 }
 
 // RemoveChild is the resolver for the removeChild field.
-func (r *mutationResolver) RemoveChild(ctx context.Context, familyID valueobject.ID, childID valueobject.ID) (*model.Family, error) {
+func (r *mutationResolver) RemoveChild(ctx context.Context, familyID identification.ID, childID identification.ID) (*model.Family, error) {
 	// Check if the user is authorized to remove a child
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"DELETE"}, "CHILD", "RemoveChild"); err != nil {
 		return nil, err
@@ -216,7 +216,7 @@ func (r *mutationResolver) RemoveChild(ctx context.Context, familyID valueobject
 }
 
 // MarkParentDeceased is the resolver for the markParentDeceased field.
-func (r *mutationResolver) MarkParentDeceased(ctx context.Context, familyID valueobject.ID, parentID valueobject.ID, deathDate string) (*model.Family, error) {
+func (r *mutationResolver) MarkParentDeceased(ctx context.Context, familyID identification.ID, parentID identification.ID, deathDate string) (*model.Family, error) {
 	// Check if the user is authorized to mark a parent as deceased
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"WRITE"}, "PARENT", "MarkParentDeceased"); err != nil {
 		return nil, err
@@ -245,7 +245,7 @@ func (r *mutationResolver) MarkParentDeceased(ctx context.Context, familyID valu
 }
 
 // Divorce is the resolver for the divorce field.
-func (r *mutationResolver) Divorce(ctx context.Context, familyID valueobject.ID, custodialParentID valueobject.ID) (*model.Family, error) {
+func (r *mutationResolver) Divorce(ctx context.Context, familyID identification.ID, custodialParentID identification.ID) (*model.Family, error) {
 	// Check if the user is authorized to process a divorce
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR"}, []string{"WRITE"}, "FAMILY", "Divorce"); err != nil {
 		return nil, err
@@ -267,7 +267,7 @@ func (r *mutationResolver) Divorce(ctx context.Context, familyID valueobject.ID,
 }
 
 // GetFamily is the resolver for the getFamily field.
-func (r *queryResolver) GetFamily(ctx context.Context, id valueobject.ID) (*model.Family, error) {
+func (r *queryResolver) GetFamily(ctx context.Context, id identification.ID) (*model.Family, error) {
 	// Check if the user is authorized to get a family
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "FAMILY", "GetFamily"); err != nil {
 		return nil, err
@@ -314,7 +314,7 @@ func (r *queryResolver) GetAllFamilies(ctx context.Context) ([]*model.Family, er
 }
 
 // FindFamiliesByParent is the resolver for the findFamiliesByParent field.
-func (r *queryResolver) FindFamiliesByParent(ctx context.Context, parentID valueobject.ID) ([]*model.Family, error) {
+func (r *queryResolver) FindFamiliesByParent(ctx context.Context, parentID identification.ID) ([]*model.Family, error) {
 	// Check if the user is authorized to find families by parent
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "PARENT", "FindFamiliesByParent"); err != nil {
 		return nil, err
@@ -340,7 +340,7 @@ func (r *queryResolver) FindFamiliesByParent(ctx context.Context, parentID value
 }
 
 // FindFamilyByChild is the resolver for the findFamilyByChild field.
-func (r *queryResolver) FindFamilyByChild(ctx context.Context, childID valueobject.ID) (*model.Family, error) {
+func (r *queryResolver) FindFamilyByChild(ctx context.Context, childID identification.ID) (*model.Family, error) {
 	// Check if the user is authorized to find family by child
 	if err := r.Resolver.CheckAuthorization(ctx, []string{"ADMIN", "EDITOR", "VIEWER"}, []string{"READ"}, "CHILD", "FindFamilyByChild"); err != nil {
 		return nil, err
@@ -348,7 +348,7 @@ func (r *queryResolver) FindFamilyByChild(ctx context.Context, childID valueobje
 
 	// This would require adding a new method to the FamilyService
 	// For now, we'll return an error
-	return nil, myerrors.NewApplicationError(nil, "not implemented", "NOT_IMPLEMENTED")
+	return nil, myerrors.NewApplicationError(myerrors.InternalErrorCode, "not implemented", nil)
 }
 
 // Parents is the resolver for the parents field.
@@ -395,7 +395,7 @@ func (r *queryResolver) Parents(ctx context.Context) ([]*model.Parent, error) {
 		}
 
 		modelParent := &model.Parent{
-			ID:        valueobject.ID(parent.ID()),
+			ID:        identification.ID(parent.ID()),
 			FirstName: parent.FirstName(),
 			LastName:  parent.LastName(),
 			BirthDate: parent.BirthDate().Format(time.RFC3339),
