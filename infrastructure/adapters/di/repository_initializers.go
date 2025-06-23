@@ -22,6 +22,9 @@ import (
 // InitMongoRepository initializes a MongoDB repository
 // This function uses servicelib/di.GenericMongoInitializer internally
 func InitMongoRepository(ctx context.Context, uri string, zapLogger *zap.Logger) (*mongo.MongoFamilyRepository, error) {
+	// Create a context logger
+	logger := logging.NewContextLogger(zapLogger)
+
 	// Use the generic initializer from servicelib
 	collection, err := servicedi.GenericMongoInitializer(ctx, uri, "family_service", "families", zapLogger)
 	if err != nil {
@@ -35,7 +38,7 @@ func InitMongoRepository(ctx context.Context, uri string, zapLogger *zap.Logger)
 	}
 
 	// Create repository
-	return mongo.NewMongoFamilyRepository(mongoCollection), nil
+	return mongo.NewMongoFamilyRepository(mongoCollection, logger), nil
 }
 
 // InitPostgresRepository initializes a PostgreSQL repository

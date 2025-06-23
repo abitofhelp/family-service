@@ -67,7 +67,6 @@ func NewResolver(familyService ports.FamilyApplicationService, logger *logging.C
 	}
 	return &Resolver{
 		familyService: familyService,
-		// FIXME: authService:   authService,
 		logger: logger,
 		tracer: otel.Tracer("graphql.resolver"),
 	}

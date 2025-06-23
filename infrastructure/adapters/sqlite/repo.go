@@ -15,6 +15,28 @@ import (
 	"go.uber.org/zap"
 )
 
+// NewRepositoryError is a helper function that wraps errors.NewDatabaseError
+// to maintain compatibility with the old errors.NewDatabaseError function.
+func NewRepositoryError(err error, message string, code string) error {
+	// Map the code to an appropriate operation and table
+	operation := "operation"
+	table := "families"
+
+	// Map common codes to operations
+	switch code {
+	case "SQLITE_ERROR":
+		operation = "query"
+	case "JSON_ERROR":
+		operation = "unmarshal"
+	case "DATA_FORMAT_ERROR":
+		operation = "parse"
+	case "CONVERSION_ERROR":
+		operation = "convert"
+	}
+
+	return errors.NewDatabaseError(message, operation, table, err)
+}
+
 // SQLiteFamilyRepository implements the ports.FamilyRepository interface for SQLite
 type SQLiteFamilyRepository struct {
 	DB     *sql.DB
@@ -53,7 +75,7 @@ func (r *SQLiteFamilyRepository) ensureTableExists(ctx context.Context) error {
 	_, err := r.DB.ExecContext(ctx, query)
 	if err != nil {
 		r.logger.Error(ctx, "Failed to create families table in SQLite", zap.Error(err))
-		return errors.NewDatabaseError(err, "failed to create families table", "SQLITE_ERROR")
+		return NewRepositoryError(err, "failed to create families table", "SQLITE_ERROR")
 	}
 
 	r.logger.Debug(ctx, "Families table exists in SQLite")
@@ -66,7 +88,7 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 
 	if id == "" {
 		r.logger.Warn(ctx, "Family ID is required for GetByID")
-		return nil, errors.NewValidationError("id is required")
+		return nil, errors.NewValidationError("id is required", "id", nil)
 	}
 
 	// Ensure table exists
@@ -84,17 +106,17 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 	if err != nil {
 		if err == sql.ErrNoRows {
 			r.logger.Info(ctx, "Family not found in SQLite", zap.String("family_id", id))
-			return nil, errors.NewNotFoundError("Family", id)
+			return nil, errors.NewNotFoundError("Family", id, nil)
 		}
 		r.logger.Error(ctx, "Failed to get family from SQLite", zap.Error(err), zap.String("family_id", id))
-		return nil, errors.NewDatabaseError(err, "failed to get family from SQLite", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "failed to get family from SQLite", "SQLITE_ERROR")
 	}
 
 	// Parse parents JSON
 	var parentDTOs []entity.ParentDTO
 	if err := json.Unmarshal([]byte(parentsData), &parentDTOs); err != nil {
 		r.logger.Error(ctx, "Failed to unmarshal parents data", zap.Error(err), zap.String("family_id", id))
-		return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
+		return nil, NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
 	}
 
 	// Convert parent DTOs to domain entities
@@ -106,7 +128,7 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 				zap.Error(err),
 				zap.String("family_id", id),
 				zap.String("parent_id", dto.ID))
-			return nil, errors.NewDatabaseError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
+			return nil, NewRepositoryError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
 		}
 		parents = append(parents, p)
 	}
@@ -115,7 +137,7 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 	var childDTOs []entity.ChildDTO
 	if err := json.Unmarshal([]byte(childrenData), &childDTOs); err != nil {
 		r.logger.Error(ctx, "Failed to unmarshal children data", zap.Error(err), zap.String("family_id", id))
-		return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
+		return nil, NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
 	}
 
 	// Convert child DTOs to domain entities
@@ -127,7 +149,7 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 				zap.Error(err),
 				zap.String("family_id", id),
 				zap.String("child_id", dto.ID))
-			return nil, errors.NewDatabaseError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
+			return nil, NewRepositoryError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
 		}
 		children = append(children, c)
 	}
@@ -153,7 +175,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 
 	if fam == nil {
 		r.logger.Warn(ctx, "Family cannot be nil for Save")
-		return errors.NewValidationError("family cannot be nil")
+		return errors.NewValidationError("family cannot be nil", "family", nil)
 	}
 
 	if err := fam.Validate(); err != nil {
@@ -170,7 +192,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		r.logger.Error(ctx, "Failed to begin transaction", zap.Error(err), zap.String("family_id", fam.ID()))
-		return errors.NewDatabaseError(err, "failed to begin transaction", "SQLITE_ERROR")
+		return NewRepositoryError(err, "failed to begin transaction", "SQLITE_ERROR")
 	}
 
 	// Ensure transaction is rolled back if an error occurs
@@ -204,7 +226,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 		r.logger.Error(ctx, "Failed to marshal parents to JSON",
 			zap.Error(err),
 			zap.String("family_id", fam.ID()))
-		return errors.NewDatabaseError(err, "failed to marshal parents to JSON", "JSON_ERROR")
+		return NewRepositoryError(err, "failed to marshal parents to JSON", "JSON_ERROR")
 	}
 
 	childrenJSON, err := json.Marshal(childDTOs)
@@ -212,7 +234,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 		r.logger.Error(ctx, "Failed to marshal children to JSON",
 			zap.Error(err),
 			zap.String("family_id", fam.ID()))
-		return errors.NewDatabaseError(err, "failed to marshal children to JSON", "JSON_ERROR")
+		return NewRepositoryError(err, "failed to marshal children to JSON", "JSON_ERROR")
 	}
 
 	// Check if family exists
@@ -222,7 +244,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 		r.logger.Error(ctx, "Failed to check if family exists",
 			zap.Error(err),
 			zap.String("family_id", fam.ID()))
-		return errors.NewDatabaseError(err, "failed to check if family exists", "SQLITE_ERROR")
+		return NewRepositoryError(err, "failed to check if family exists", "SQLITE_ERROR")
 	}
 
 	var query string
@@ -254,7 +276,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 			zap.Error(err),
 			zap.String("family_id", fam.ID()),
 			zap.String("operation", operation))
-		return errors.NewDatabaseError(err, "failed to save family to SQLite", "SQLITE_ERROR")
+		return NewRepositoryError(err, "failed to save family to SQLite", "SQLITE_ERROR")
 	}
 
 	// Commit transaction
@@ -262,7 +284,7 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 		r.logger.Error(ctx, "Failed to commit transaction",
 			zap.Error(err),
 			zap.String("family_id", fam.ID()))
-		return errors.NewDatabaseError(err, "failed to commit transaction", "SQLITE_ERROR")
+		return NewRepositoryError(err, "failed to commit transaction", "SQLITE_ERROR")
 	}
 	committed = true
 
@@ -281,7 +303,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 
 	if parentID == "" {
 		r.logger.Warn(ctx, "Parent ID is required for FindByParentID")
-		return nil, errors.NewValidationError("parent ID is required")
+		return nil, errors.NewValidationError("parent ID is required", "parentID", nil)
 	}
 
 	// Ensure table exists
@@ -295,7 +317,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 	rows, err := r.DB.QueryContext(ctx, "SELECT id, status, parents, children FROM families")
 	if err != nil {
 		r.logger.Error(ctx, "Failed to query families", zap.Error(err))
-		return nil, errors.NewDatabaseError(err, "failed to query families", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "failed to query families", "SQLITE_ERROR")
 	}
 	defer rows.Close()
 
@@ -309,7 +331,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 
 		if err := rows.Scan(&famID, &statusStr, &parentsData, &childrenData); err != nil {
 			r.logger.Error(ctx, "Failed to scan family row", zap.Error(err))
-			return nil, errors.NewDatabaseError(err, "failed to scan family row", "SQLITE_ERROR")
+			return nil, NewRepositoryError(err, "failed to scan family row", "SQLITE_ERROR")
 		}
 
 		// Parse parents JSON
@@ -318,7 +340,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 			r.logger.Error(ctx, "Failed to unmarshal parents data",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
+			return nil, NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
 		}
 
 		// Check if any parent has the specified ID
@@ -348,7 +370,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 					zap.Error(err),
 					zap.String("family_id", famID),
 					zap.String("parent_id", dto.ID))
-				return nil, errors.NewDatabaseError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
+				return nil, NewRepositoryError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
 			}
 			parents = append(parents, p)
 		}
@@ -359,7 +381,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 			r.logger.Error(ctx, "Failed to unmarshal children data",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
+			return nil, NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
 		}
 
 		// Convert child DTOs to domain entities
@@ -371,7 +393,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 					zap.Error(err),
 					zap.String("family_id", famID),
 					zap.String("child_id", dto.ID))
-				return nil, errors.NewDatabaseError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
+				return nil, NewRepositoryError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
 			}
 			children = append(children, c)
 		}
@@ -382,7 +404,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 			r.logger.Error(ctx, "Failed to create family entity",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to create family entity", "CONVERSION_ERROR")
+			return nil, NewRepositoryError(err, "failed to create family entity", "CONVERSION_ERROR")
 		}
 
 		families = append(families, fam)
@@ -390,7 +412,7 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 
 	if err := rows.Err(); err != nil {
 		r.logger.Error(ctx, "Error iterating over family rows", zap.Error(err))
-		return nil, errors.NewDatabaseError(err, "error iterating over family rows", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "error iterating over family rows", "SQLITE_ERROR")
 	}
 
 	r.logger.Info(ctx, "Successfully found families by parent ID",
@@ -413,7 +435,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 	rows, err := r.DB.QueryContext(ctx, "SELECT id, status, parents, children FROM families")
 	if err != nil {
 		r.logger.Error(ctx, "Failed to query all families", zap.Error(err))
-		return nil, errors.NewDatabaseError(err, "failed to query families", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "failed to query families", "SQLITE_ERROR")
 	}
 	defer rows.Close()
 
@@ -426,7 +448,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 
 		if err := rows.Scan(&famID, &statusStr, &parentsData, &childrenData); err != nil {
 			r.logger.Error(ctx, "Failed to scan family row", zap.Error(err))
-			return nil, errors.NewDatabaseError(err, "failed to scan family row", "SQLITE_ERROR")
+			return nil, NewRepositoryError(err, "failed to scan family row", "SQLITE_ERROR")
 		}
 
 		// Parse parents JSON
@@ -435,7 +457,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 			r.logger.Error(ctx, "Failed to unmarshal parents data",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
+			return nil, NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
 		}
 
 		// Convert parent DTOs to domain entities
@@ -447,7 +469,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 					zap.Error(err),
 					zap.String("family_id", famID),
 					zap.String("parent_id", dto.ID))
-				return nil, errors.NewDatabaseError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
+				return nil, NewRepositoryError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
 			}
 			parents = append(parents, p)
 		}
@@ -458,7 +480,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 			r.logger.Error(ctx, "Failed to unmarshal children data",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
+			return nil, NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
 		}
 
 		// Convert child DTOs to domain entities
@@ -470,7 +492,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 					zap.Error(err),
 					zap.String("family_id", famID),
 					zap.String("child_id", dto.ID))
-				return nil, errors.NewDatabaseError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
+				return nil, NewRepositoryError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
 			}
 			children = append(children, c)
 		}
@@ -481,7 +503,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 			r.logger.Error(ctx, "Failed to create family entity",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to create family entity", "CONVERSION_ERROR")
+			return nil, NewRepositoryError(err, "failed to create family entity", "CONVERSION_ERROR")
 		}
 
 		r.logger.Debug(ctx, "Retrieved family",
@@ -492,7 +514,7 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 
 	if err := rows.Err(); err != nil {
 		r.logger.Error(ctx, "Error iterating over family rows", zap.Error(err))
-		return nil, errors.NewDatabaseError(err, "error iterating over family rows", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "error iterating over family rows", "SQLITE_ERROR")
 	}
 
 	r.logger.Info(ctx, "Successfully retrieved all families", zap.Int("family_count", len(families)))
@@ -505,7 +527,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 
 	if childID == "" {
 		r.logger.Warn(ctx, "Child ID is required for FindByChildID")
-		return nil, errors.NewValidationError("child ID is required")
+		return nil, errors.NewValidationError("child ID is required", "childID", nil)
 	}
 
 	// Ensure table exists
@@ -519,7 +541,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 	rows, err := r.DB.QueryContext(ctx, "SELECT id, status, parents, children FROM families")
 	if err != nil {
 		r.logger.Error(ctx, "Failed to query families", zap.Error(err))
-		return nil, errors.NewDatabaseError(err, "failed to query families", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "failed to query families", "SQLITE_ERROR")
 	}
 	defer rows.Close()
 
@@ -532,7 +554,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 
 		if err := rows.Scan(&famID, &statusStr, &parentsData, &childrenData); err != nil {
 			r.logger.Error(ctx, "Failed to scan family row", zap.Error(err))
-			return nil, errors.NewDatabaseError(err, "failed to scan family row", "SQLITE_ERROR")
+			return nil, NewRepositoryError(err, "failed to scan family row", "SQLITE_ERROR")
 		}
 
 		familiesChecked++
@@ -543,7 +565,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 			r.logger.Error(ctx, "Failed to unmarshal children data",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to unmarshal children data", "JSON_ERROR")
+			return nil, NewRepositoryError(err, "failed to unmarshal children data", "JSON_ERROR")
 		}
 
 		// Check if any child has the specified ID
@@ -569,7 +591,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 			r.logger.Error(ctx, "Failed to unmarshal parents data",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to unmarshal parents data", "JSON_ERROR")
+			return nil, NewRepositoryError(err, "failed to unmarshal parents data", "JSON_ERROR")
 		}
 
 		// Convert parent DTOs to domain entities
@@ -581,7 +603,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 					zap.Error(err),
 					zap.String("family_id", famID),
 					zap.String("parent_id", dto.ID))
-				return nil, errors.NewDatabaseError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
+				return nil, NewRepositoryError(err, "failed to convert parent DTO to entity", "CONVERSION_ERROR")
 			}
 			parents = append(parents, p)
 		}
@@ -595,7 +617,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 					zap.Error(err),
 					zap.String("family_id", famID),
 					zap.String("child_id", dto.ID))
-				return nil, errors.NewDatabaseError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
+				return nil, NewRepositoryError(err, "failed to convert child DTO to entity", "CONVERSION_ERROR")
 			}
 			children = append(children, c)
 		}
@@ -606,7 +628,7 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 			r.logger.Error(ctx, "Failed to create family entity",
 				zap.Error(err),
 				zap.String("family_id", famID))
-			return nil, errors.NewDatabaseError(err, "failed to create family entity", "CONVERSION_ERROR")
+			return nil, NewRepositoryError(err, "failed to create family entity", "CONVERSION_ERROR")
 		}
 
 		r.logger.Info(ctx, "Successfully found family by child ID",
@@ -618,11 +640,11 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 
 	if err := rows.Err(); err != nil {
 		r.logger.Error(ctx, "Error iterating over family rows", zap.Error(err))
-		return nil, errors.NewDatabaseError(err, "error iterating over family rows", "SQLITE_ERROR")
+		return nil, NewRepositoryError(err, "error iterating over family rows", "SQLITE_ERROR")
 	}
 
 	r.logger.Info(ctx, "No family found with child ID",
 		zap.String("child_id", childID),
 		zap.Int("families_checked", familiesChecked))
-	return nil, errors.NewNotFoundError("Family with Child", childID)
+	return nil, errors.NewNotFoundError("Family with Child", childID, nil)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/validation"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 )
 
 // Status represents the current status of a family
@@ -26,7 +27,7 @@ const (
 
 // Family is the root aggregate that represents a family unit
 type Family struct {
-	id       string //FIXME: We'll keep this as a string for now since it's using a custom generation function
+	id       identification.ID
 	status   Status
 	parents  []*Parent
 	children []*Child
@@ -44,8 +45,14 @@ func NewFamily(id string, status Status, parents []*Parent, children []*Child) (
 		id = generateID()
 	}
 
+	// Create ID value object
+	idVO, err := identification.NewID(id)
+	if err != nil {
+		return nil, errors.NewValidationError("invalid ID: "+err.Error(), "ID", err)
+	}
+
 	f := &Family{
-		id:       id,
+		id:       idVO,
 		status:   status,
 		parents:  parents,
 		children: children,
@@ -62,7 +69,7 @@ func NewFamily(id string, status Status, parents []*Parent, children []*Child) (
 func (f *Family) Validate() error {
 	result := validation.NewValidationResult()
 
-	validation.ValidateID(f.id, "ID", result)
+	// ID value object has its own validation, so we don't need to validate it here
 
 	// Validate status
 	if f.status == "" {
@@ -127,7 +134,7 @@ func (f *Family) Validate() error {
 
 // ID returns the family's ID
 func (f *Family) ID() string {
-	return f.id
+	return f.id.String()
 }
 
 // Status returns the family's status
@@ -330,7 +337,7 @@ func (f *Family) ToDTO() FamilyDTO {
 	}
 
 	return FamilyDTO{
-		ID:            f.id,
+		ID:            f.id.String(),
 		Status:        string(f.status),
 		Parents:       parentDTOs,
 		Children:      childDTOs,

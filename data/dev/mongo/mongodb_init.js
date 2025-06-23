@@ -14,18 +14,18 @@ db.families.createIndex({ "children.id": 1 });
 // Insert sample families
 db.families.insertMany([
   {
-    _id: "f1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+    _id: "00000000-0000-0000-0000-000000000100",
     status: "active",
     parents: [
       {
-        id: "p1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000101",
         firstName: "John",
         lastName: "Smith",
         birthDate: new Date("1980-05-15").toISOString(),
         deathDate: null
       },
       {
-        id: "p2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000102",
         firstName: "Jane",
         lastName: "Smith",
         birthDate: new Date("1982-08-22").toISOString(),
@@ -34,14 +34,14 @@ db.families.insertMany([
     ],
     children: [
       {
-        id: "c1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000103",
         firstName: "Emily",
         lastName: "Smith",
         birthDate: new Date("2010-03-12").toISOString(),
         deathDate: null
       },
       {
-        id: "c2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000104",
         firstName: "Michael",
         lastName: "Smith",
         birthDate: new Date("2012-11-05").toISOString(),
@@ -50,18 +50,18 @@ db.families.insertMany([
     ]
   },
   {
-    _id: "f2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+    _id: "00000000-0000-0000-0000-000000000200",
     status: "active",
     parents: [
       {
-        id: "p3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000201",
         firstName: "Robert",
         lastName: "Johnson",
         birthDate: new Date("1975-12-10").toISOString(),
         deathDate: null
       },
       {
-        id: "p4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000202",
         firstName: "Maria",
         lastName: "Johnson",
         birthDate: new Date("1978-04-28").toISOString(),
@@ -70,7 +70,7 @@ db.families.insertMany([
     ],
     children: [
       {
-        id: "c3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000203",
         firstName: "David",
         lastName: "Johnson",
         birthDate: new Date("2008-07-19").toISOString(),
@@ -79,11 +79,11 @@ db.families.insertMany([
     ]
   },
   {
-    _id: "f3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+    _id: "00000000-0000-0000-0000-000000000300",
     status: "divorced",
     parents: [
       {
-        id: "p5a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000301",
         firstName: "Thomas",
         lastName: "Williams",
         birthDate: new Date("1970-09-30").toISOString(),
@@ -93,18 +93,18 @@ db.families.insertMany([
     children: []
   },
   {
-    _id: "f4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+    _id: "00000000-0000-0000-0000-000000000400",
     status: "active",
     parents: [
       {
-        id: "p6a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000401",
         firstName: "Sarah",
         lastName: "Brown",
         birthDate: new Date("1985-02-14").toISOString(),
         deathDate: null
       },
       {
-        id: "p7a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000402",
         firstName: "James",
         lastName: "Brown",
         birthDate: new Date("1983-11-08").toISOString(),
@@ -113,14 +113,14 @@ db.families.insertMany([
     ],
     children: [
       {
-        id: "c4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000403",
         firstName: "Olivia",
         lastName: "Brown",
         birthDate: new Date("2015-06-23").toISOString(),
         deathDate: null
       },
       {
-        id: "c5a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        id: "00000000-0000-0000-0000-000000000404",
         firstName: "William",
         lastName: "Brown",
         birthDate: new Date("2017-09-11").toISOString(),

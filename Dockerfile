@@ -9,7 +9,7 @@ COPY dev.docker.env ./
 COPY "cmd/" "./cmd/"
 COPY config/ ./config/
 COPY core/ ./core/
-COPY data/dev/sqlite/family_service.db ./
+COPY data/dev/sqlite/family_service.db.or ./
 COPY infrastructure/ ./infrastructure/
 COPY interface/ ./interface/
 #COPY pkg/ ./pkg/

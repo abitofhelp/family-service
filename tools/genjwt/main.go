@@ -19,7 +19,7 @@ func main() {
 
 	// Create a configuration
 	config := auth.DefaultConfig()
-	config.JWT.SecretKey = "abc123"
+	config.JWT.SecretKey = "01234567890123456789012345678901"
 
 	// Create an auth instance
 	authInstance, err := auth.New(ctx, config, logger)

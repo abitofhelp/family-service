@@ -28,18 +28,18 @@ CREATE INDEX idx_families_children USING GIN (children);
 -- Insert sample families
 INSERT INTO families (id, status, parents, children) VALUES
 (
-    'f1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6',
+    '00000000-0000-0000-0000-000000000100',
     'active',
     '[
         {
-            "ID": "p1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000101",
             "FirstName": "John",
             "LastName": "Smith",
             "BirthDate": "1980-05-15T00:00:00Z",
             "DeathDate": null
         },
         {
-            "ID": "p2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000102",
             "FirstName": "Jane",
             "LastName": "Smith",
             "BirthDate": "1982-08-22T00:00:00Z",
@@ -48,14 +48,14 @@ INSERT INTO families (id, status, parents, children) VALUES
     ]',
     '[
         {
-            "ID": "c1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000103",
             "FirstName": "Emily",
             "LastName": "Smith",
             "BirthDate": "2010-03-12T00:00:00Z",
             "DeathDate": null
         },
         {
-            "ID": "c2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000104",
             "FirstName": "Michael",
             "LastName": "Smith",
             "BirthDate": "2012-11-05T00:00:00Z",
@@ -64,18 +64,18 @@ INSERT INTO families (id, status, parents, children) VALUES
     ]'
 ),
 (
-    'f2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6',
+    '00000000-0000-0000-0000-000000000200',
     'active',
     '[
         {
-            "ID": "p3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000201",
             "FirstName": "Robert",
             "LastName": "Johnson",
             "BirthDate": "1975-12-10T00:00:00Z",
             "DeathDate": null
         },
         {
-            "ID": "p4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000202",
             "FirstName": "Maria",
             "LastName": "Johnson",
             "BirthDate": "1978-04-28T00:00:00Z",
@@ -84,7 +84,7 @@ INSERT INTO families (id, status, parents, children) VALUES
     ]',
     '[
         {
-            "ID": "c3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000203",
             "FirstName": "David",
             "LastName": "Johnson",
             "BirthDate": "2008-07-19T00:00:00Z",
@@ -93,11 +93,11 @@ INSERT INTO families (id, status, parents, children) VALUES
     ]'
 ),
 (
-    'f3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6',
+    '00000000-0000-0000-0000-000000000300',
     'divorced',
     '[
         {
-            "ID": "p5a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000301",
             "FirstName": "Thomas",
             "LastName": "Williams",
             "BirthDate": "1970-09-30T00:00:00Z",
@@ -107,18 +107,18 @@ INSERT INTO families (id, status, parents, children) VALUES
     '[]'
 ),
 (
-    'f4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6',
+    '00000000-0000-0000-0000-000000000400',
     'active',
     '[
         {
-            "ID": "p6a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000401",
             "FirstName": "Sarah",
             "LastName": "Brown",
             "BirthDate": "1985-02-14T00:00:00Z",
             "DeathDate": null
         },
         {
-            "ID": "p7a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000402",
             "FirstName": "James",
             "LastName": "Brown",
             "BirthDate": "1983-11-08T00:00:00Z",
@@ -127,14 +127,14 @@ INSERT INTO families (id, status, parents, children) VALUES
     ]',
     '[
         {
-            "ID": "c4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000403",
             "FirstName": "Olivia",
             "LastName": "Brown",
             "BirthDate": "2015-06-23T00:00:00Z",
             "DeathDate": null
         },
         {
-            "ID": "c5a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+            "ID": "00000000-0000-0000-0000-000000000404",
             "FirstName": "William",
             "LastName": "Brown",
             "BirthDate": "2017-09-11T00:00:00Z",

@@ -53,7 +53,7 @@ func setupMongoDBTestConfig() *config.Config {
 	cfg.Database.MongoDB.URI = mongoURI
 
 	// Set up auth config
-	cfg.Auth.JWT.SecretKey = "test-secret-key"
+	cfg.Auth.JWT.SecretKey = "test-secret-key-that-is-at-least-32-characters-long"
 	cfg.Auth.JWT.Issuer = "test-issuer"
 	cfg.Auth.JWT.TokenDuration = 1 * time.Hour
 
@@ -177,17 +177,17 @@ func TestIntegrationCreateFamilyMongoDB(t *testing.T) {
 	mutation := `
 		mutation {
 			createFamily(input: {
-				id: "test-family-id"
+				id: "00000000-0000-0000-0000-000000000001"
 				status: MARRIED
 				parents: [
 					{
-						id: "parent-1"
+						id: "00000000-0000-0000-0000-000000000002"
 						firstName: "John"
 						lastName: "Smith"
 						birthDate: "1980-01-01T00:00:00Z"
 					},
 					{
-						id: "parent-2"
+						id: "00000000-0000-0000-0000-000000000003"
 						firstName: "Jane"
 						lastName: "Smith"
 						birthDate: "1982-02-02T00:00:00Z"
@@ -195,13 +195,13 @@ func TestIntegrationCreateFamilyMongoDB(t *testing.T) {
 				]
 				children: [
 					{
-						id: "child-1"
+						id: "00000000-0000-0000-0000-000000000004"
 						firstName: "Jimmy"
 						lastName: "Smith"
 						birthDate: "2010-03-03T00:00:00Z"
 					},
 					{
-						id: "child-2"
+						id: "00000000-0000-0000-0000-000000000005"
 						firstName: "Sally"
 						lastName: "Smith"
 						birthDate: "2012-04-04T00:00:00Z"

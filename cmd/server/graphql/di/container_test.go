@@ -275,7 +275,7 @@ func TestContainer_Close(t *testing.T) {
 		Auth: config.AuthConfig{
 			OIDCTimeout: 5 * time.Second,
 			JWT: config.JWTConfig{
-				SecretKey:     "test-secret-key",
+				SecretKey:     "test-secret-key-that-is-at-least-32-characters-long",
 				TokenDuration: 24 * time.Hour,
 				Issuer:        "test-issuer",
 			},

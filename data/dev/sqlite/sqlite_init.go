@@ -117,7 +117,7 @@ func createSampleFamilies(ctx context.Context, repo *sqlite.SQLiteFamilyReposito
 func createFamily1() (*entity.Family, error) {
 	// Create parents
 	parent1, err := entity.NewParent(
-		"p1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000101",
 		"John",
 		"Smith",
 		parseDate("1980-05-15T00:00:00Z"),
@@ -128,7 +128,7 @@ func createFamily1() (*entity.Family, error) {
 	}
 
 	parent2, err := entity.NewParent(
-		"p2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000102",
 		"Jane",
 		"Smith",
 		parseDate("1982-08-22T00:00:00Z"),
@@ -140,7 +140,7 @@ func createFamily1() (*entity.Family, error) {
 
 	// Create children
 	child1, err := entity.NewChild(
-		"c1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000103",
 		"Emily",
 		"Smith",
 		parseDate("2010-03-12T00:00:00Z"),
@@ -151,7 +151,7 @@ func createFamily1() (*entity.Family, error) {
 	}
 
 	child2, err := entity.NewChild(
-		"c2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000104",
 		"Michael",
 		"Smith",
 		parseDate("2012-11-05T00:00:00Z"),
@@ -163,7 +163,7 @@ func createFamily1() (*entity.Family, error) {
 
 	// Create family
 	return entity.NewFamily(
-		"f1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000100",
 		entity.Married,
 		[]*entity.Parent{parent1, parent2},
 		[]*entity.Child{child1, child2},
@@ -173,7 +173,7 @@ func createFamily1() (*entity.Family, error) {
 func createFamily2() (*entity.Family, error) {
 	// Create parents
 	parent1, err := entity.NewParent(
-		"p3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000201",
 		"Robert",
 		"Johnson",
 		parseDate("1975-12-10T00:00:00Z"),
@@ -184,7 +184,7 @@ func createFamily2() (*entity.Family, error) {
 	}
 
 	parent2, err := entity.NewParent(
-		"p4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000202",
 		"Maria",
 		"Johnson",
 		parseDate("1978-04-28T00:00:00Z"),
@@ -196,7 +196,7 @@ func createFamily2() (*entity.Family, error) {
 
 	// Create child
 	child1, err := entity.NewChild(
-		"c3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000203",
 		"David",
 		"Johnson",
 		parseDate("2008-07-19T00:00:00Z"),
@@ -208,7 +208,7 @@ func createFamily2() (*entity.Family, error) {
 
 	// Create family
 	return entity.NewFamily(
-		"f2a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000200",
 		entity.Married,
 		[]*entity.Parent{parent1, parent2},
 		[]*entity.Child{child1},
@@ -218,7 +218,7 @@ func createFamily2() (*entity.Family, error) {
 func createFamily3() (*entity.Family, error) {
 	// Create parent
 	parent1, err := entity.NewParent(
-		"p5a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000301",
 		"Thomas",
 		"Williams",
 		parseDate("1970-09-30T00:00:00Z"),
@@ -230,7 +230,7 @@ func createFamily3() (*entity.Family, error) {
 
 	// Create family
 	return entity.NewFamily(
-		"f3a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000300",
 		entity.Divorced,
 		[]*entity.Parent{parent1},
 		[]*entity.Child{},
@@ -240,7 +240,7 @@ func createFamily3() (*entity.Family, error) {
 func createFamily4() (*entity.Family, error) {
 	// Create parents
 	parent1, err := entity.NewParent(
-		"p6a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000401",
 		"Sarah",
 		"Brown",
 		parseDate("1985-02-14T00:00:00Z"),
@@ -252,7 +252,7 @@ func createFamily4() (*entity.Family, error) {
 
 	deathDate := parseDate("2020-04-15T00:00:00Z")
 	parent2, err := entity.NewParent(
-		"p7a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000402",
 		"James",
 		"Brown",
 		parseDate("1983-11-08T00:00:00Z"),
@@ -264,7 +264,7 @@ func createFamily4() (*entity.Family, error) {
 
 	// Create children
 	child1, err := entity.NewChild(
-		"c4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000403",
 		"Olivia",
 		"Brown",
 		parseDate("2015-06-23T00:00:00Z"),
@@ -275,7 +275,7 @@ func createFamily4() (*entity.Family, error) {
 	}
 
 	child2, err := entity.NewChild(
-		"c5a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000404",
 		"William",
 		"Brown",
 		parseDate("2017-09-11T00:00:00Z"),
@@ -287,7 +287,7 @@ func createFamily4() (*entity.Family, error) {
 
 	// Create family
 	return entity.NewFamily(
-		"f4a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+		"00000000-0000-0000-0000-000000000400",
 		entity.Widowed,
 		[]*entity.Parent{parent1, parent2},
 		[]*entity.Child{child1, child2},

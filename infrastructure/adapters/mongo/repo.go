@@ -9,10 +9,12 @@ import (
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
 	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/servicelib/logging"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 )
 
 // FamilyDocument represents how a family is stored in MongoDB
@@ -45,33 +47,47 @@ type ChildDocument struct {
 // MongoFamilyRepository implements the ports.FamilyRepository interface for MongoDB
 type MongoFamilyRepository struct {
 	Collection *mongo.Collection
+	logger     *logging.ContextLogger
 }
 
 // Ensure MongoFamilyRepository implements ports.FamilyRepository
 var _ ports.FamilyRepository = (*MongoFamilyRepository)(nil)
 
 // NewMongoFamilyRepository creates a new MongoFamilyRepository
-func NewMongoFamilyRepository(collection *mongo.Collection) *MongoFamilyRepository {
+func NewMongoFamilyRepository(collection *mongo.Collection, logger *logging.ContextLogger) *MongoFamilyRepository {
 	if collection == nil {
 		panic("collection cannot be nil")
 	}
-	return &MongoFamilyRepository{Collection: collection}
+	if logger == nil {
+		panic("logger cannot be nil")
+	}
+	return &MongoFamilyRepository{
+		Collection: collection,
+		logger:     logger,
+	}
 }
 
 // GetByID retrieves a family by its ID
 func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity.Family, error) {
+	r.logger.Debug(ctx, "Getting family by ID from MongoDB", zap.String("family_id", id))
+
 	if id == "" {
-		return nil, errors.NewValidationError("id is required")
+		r.logger.Warn(ctx, "Family ID is required for GetByID")
+		return nil, errors.NewValidationError("id is required", "id", nil)
 	}
 
 	var doc FamilyDocument
 	err := r.Collection.FindOne(ctx, bson.M{"family_id": id}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, errors.NewNotFoundError("Family", id)
+			r.logger.Info(ctx, "Family not found in MongoDB", zap.String("family_id", id))
+			return nil, errors.NewNotFoundError("Family", id, nil)
 		}
-		return nil, errors.NewDatabaseError(err, "failed to get family from MongoDB", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to get family from MongoDB", zap.Error(err), zap.String("family_id", id))
+		return nil, errors.NewDatabaseError("failed to get family from MongoDB", "query", "families", err)
 	}
+
+	r.logger.Debug(ctx, "Successfully retrieved family from MongoDB", zap.String("family_id", id))
 
 	// Convert document to domain entity
 	return r.documentToEntity(doc)
@@ -80,10 +96,14 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 // Save persists a family
 func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) error {
 	if fam == nil {
-		return errors.NewValidationError("family cannot be nil")
+		r.logger.Warn(ctx, "Family cannot be nil for Save")
+		return errors.NewValidationError("family cannot be nil", "family", nil)
 	}
 
+	r.logger.Debug(ctx, "Saving family to MongoDB", zap.String("family_id", fam.ID()))
+
 	if err := fam.Validate(); err != nil {
+		r.logger.Error(ctx, "Family validation failed", zap.Error(err), zap.String("family_id", fam.ID()))
 		return err
 	}
 
@@ -100,28 +120,35 @@ func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) er
 	)
 
 	if err != nil {
-		return errors.NewDatabaseError(err, "failed to save family to MongoDB", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to save family to MongoDB", zap.Error(err), zap.String("family_id", fam.ID()))
+		return errors.NewDatabaseError("failed to save family to MongoDB", "save", "families", err)
 	}
 
+	r.logger.Debug(ctx, "Successfully saved family to MongoDB", zap.String("family_id", fam.ID()))
 	return nil
 }
 
 // FindByParentID finds families that contain a specific parent
 func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID string) ([]*entity.Family, error) {
+	r.logger.Debug(ctx, "Finding families by parent ID in MongoDB", zap.String("parent_id", parentID))
+
 	if parentID == "" {
-		return nil, errors.NewValidationError("parent ID is required")
+		r.logger.Warn(ctx, "Parent ID is required for FindByParentID")
+		return nil, errors.NewValidationError("parent ID is required", "parentID", nil)
 	}
 
 	// No change needed here, as parents.id is still the same field
 	cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID})
 	if err != nil {
-		return nil, errors.NewDatabaseError(err, "failed to find families by parent ID", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to find families by parent ID in MongoDB", zap.Error(err), zap.String("parent_id", parentID))
+		return nil, errors.NewDatabaseError("failed to find families by parent ID", "query", "families", err)
 	}
 	defer cursor.Close(ctx)
 
 	var docs []FamilyDocument
 	if err := cursor.All(ctx, &docs); err != nil {
-		return nil, errors.NewDatabaseError(err, "failed to decode families", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
+		return nil, errors.NewDatabaseError("failed to decode families", "query", "families", err)
 	}
 
 	// Convert documents to domain entities
@@ -129,18 +156,25 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 	for _, doc := range docs {
 		fam, err := r.documentToEntity(doc)
 		if err != nil {
+			r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
 			return nil, err
 		}
 		families = append(families, fam)
 	}
 
+	r.logger.Debug(ctx, "Successfully found families by parent ID in MongoDB", 
+		zap.String("parent_id", parentID), 
+		zap.Int("count", len(families)))
 	return families, nil
 }
 
 // FindByChildID finds the family that contains a specific child
 func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID string) (*entity.Family, error) {
+	r.logger.Debug(ctx, "Finding family by child ID in MongoDB", zap.String("child_id", childID))
+
 	if childID == "" {
-		return nil, errors.NewValidationError("child ID is required")
+		r.logger.Warn(ctx, "Child ID is required for FindByChildID")
+		return nil, errors.NewValidationError("child ID is required", "childID", nil)
 	}
 
 	// No change needed here, as children.id is still the same field
@@ -148,10 +182,16 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 	err := r.Collection.FindOne(ctx, bson.M{"children.id": childID}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, errors.NewNotFoundError("Family with Child", childID)
+			r.logger.Info(ctx, "Family with child not found in MongoDB", zap.String("child_id", childID))
+			return nil, errors.NewNotFoundError("Family with Child", childID, nil)
 		}
-		return nil, errors.NewDatabaseError(err, "failed to find family by child ID", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to find family by child ID in MongoDB", zap.Error(err), zap.String("child_id", childID))
+		return nil, errors.NewDatabaseError("failed to find family by child ID", "query", "families", err)
 	}
+
+	r.logger.Debug(ctx, "Successfully found family by child ID in MongoDB", 
+		zap.String("child_id", childID), 
+		zap.String("family_id", doc.FamilyID))
 
 	// Convert document to domain entity
 	return r.documentToEntity(doc)
@@ -159,17 +199,20 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 
 // GetAll retrieves all families
 func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, error) {
+	r.logger.Debug(ctx, "Getting all families from MongoDB")
+
 	// Find all documents in the collection
-	// No change needed here, as we want all documents
 	cursor, err := r.Collection.Find(ctx, bson.M{})
 	if err != nil {
-		return nil, errors.NewDatabaseError(err, "failed to get all families", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to get all families from MongoDB", zap.Error(err))
+		return nil, errors.NewDatabaseError("failed to get all families", "query", "families", err)
 	}
 	defer cursor.Close(ctx)
 
 	var docs []FamilyDocument
 	if err := cursor.All(ctx, &docs); err != nil {
-		return nil, errors.NewDatabaseError(err, "failed to decode families", "MONGO_ERROR")
+		r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
+		return nil, errors.NewDatabaseError("failed to decode families", "query", "families", err)
 	}
 
 	// Convert documents to domain entities
@@ -177,11 +220,13 @@ func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, e
 	for _, doc := range docs {
 		fam, err := r.documentToEntity(doc)
 		if err != nil {
+			r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
 			return nil, err
 		}
 		families = append(families, fam)
 	}
 
+	r.logger.Debug(ctx, "Successfully retrieved all families from MongoDB", zap.Int("count", len(families)))
 	return families, nil
 }
 
@@ -193,14 +238,14 @@ func (r *MongoFamilyRepository) documentToEntity(doc FamilyDocument) (*entity.Fa
 		// Parse dates
 		birthDate, err := time.Parse(time.RFC3339, p.BirthDate)
 		if err != nil {
-			return nil, errors.NewDatabaseError(err, "invalid parent birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError("invalid parent birth date format", "parse", "families", err)
 		}
 
 		var deathDate *time.Time
 		if p.DeathDate != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *p.DeathDate)
 			if err != nil {
-				return nil, errors.NewDatabaseError(err, "invalid parent death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError("invalid parent death date format", "parse", "families", err)
 			}
 			deathDate = &parsedDeathDate
 		}
@@ -219,14 +264,14 @@ func (r *MongoFamilyRepository) documentToEntity(doc FamilyDocument) (*entity.Fa
 		// Parse dates
 		birthDate, err := time.Parse(time.RFC3339, c.BirthDate)
 		if err != nil {
-			return nil, errors.NewDatabaseError(err, "invalid child birth date format", "DATA_FORMAT_ERROR")
+			return nil, errors.NewDatabaseError("invalid child birth date format", "parse", "families", err)
 		}
 
 		var deathDate *time.Time
 		if c.DeathDate != nil {
 			parsedDeathDate, err := time.Parse(time.RFC3339, *c.DeathDate)
 			if err != nil {
-				return nil, errors.NewDatabaseError(err, "invalid child death date format", "DATA_FORMAT_ERROR")
+				return nil, errors.NewDatabaseError("invalid child death date format", "parse", "families", err)
 			}
 			deathDate = &parsedDeathDate
 		}

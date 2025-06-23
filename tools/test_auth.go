@@ -20,7 +20,7 @@ func main() {
 
 	// Create a configuration
 	config := auth.DefaultConfig()
-	config.JWT.SecretKey = "abc123"
+	config.JWT.SecretKey = "test-secret-key-that-is-at-least-32-characters-long"
 
 	// Create an auth instance
 	authInstance, err := auth.New(ctx, config, logger)
