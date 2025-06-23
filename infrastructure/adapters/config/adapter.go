@@ -10,6 +10,7 @@ var (
 	_ MongoDBConfigAdapter  = (*Config)(nil)
 	_ PostgresConfigAdapter = (*Config)(nil)
 	_ SQLiteConfigAdapter   = (*Config)(nil)
+	_ RetryConfigAdapter    = (*Config)(nil)
 )
 
 // MongoDBConfigAdapter adapts the Config to implement the ports.MongoDBConfig interface
@@ -66,6 +67,18 @@ type SQLiteConfigAdapter interface {
 	GetSQLiteURI() string
 }
 
+// RetryConfigAdapter adapts the Config to implement the retry configuration interface
+type RetryConfigAdapter interface {
+	// GetMaxRetries returns the maximum number of retries
+	GetMaxRetries() int
+
+	// GetInitialBackoff returns the initial backoff duration
+	GetInitialBackoff() time.Duration
+
+	// GetMaxBackoff returns the maximum backoff duration
+	GetMaxBackoff() time.Duration
+}
+
 // GetConnectionTimeout returns the MongoDB connection timeout
 func (c *Config) GetConnectionTimeout() time.Duration {
 	return c.Database.MongoDB.ConnectionTimeout
@@ -113,4 +126,19 @@ func (c *Config) GetMigrationTimeout() time.Duration {
 	default:
 		return 30 * time.Second // Default to 30 seconds
 	}
+}
+
+// GetMaxRetries returns the maximum number of retries
+func (c *Config) GetMaxRetries() int {
+	return c.Retry.MaxRetries
+}
+
+// GetInitialBackoff returns the initial backoff duration
+func (c *Config) GetInitialBackoff() time.Duration {
+	return c.Retry.InitialBackoff
+}
+
+// GetMaxBackoff returns the maximum backoff duration
+func (c *Config) GetMaxBackoff() time.Duration {
+	return c.Retry.MaxBackoff
 }

@@ -324,6 +324,29 @@ DB_URI=postgres://user:pass@localhost:5432/familydb
 MONGO_URI=mongodb://localhost:27017
 ```
 
+### Retry Configuration
+
+The Family Service includes configurable retry logic for database operations to handle transient errors. The retry configuration is defined in the application configuration files:
+
+```yaml
+retry:
+  max_retries: 3              # Maximum number of retry attempts
+  initial_backoff: 100ms      # Initial backoff duration before the first retry
+  max_backoff: 1s             # Maximum backoff duration for any retry
+```
+
+These settings can be overridden using environment variables:
+
+```env
+APP_RETRY_MAX_RETRIES=3
+APP_RETRY_INITIAL_BACKOFF=100ms
+APP_RETRY_MAX_BACKOFF=1s
+```
+
+The retry logic is implemented in all repository adapters (MongoDB, PostgreSQL, SQLite) and uses an exponential backoff strategy with jitter to prevent thundering herd problems. The retry mechanism automatically handles transient errors such as network issues, timeouts, and temporary database unavailability.
+
+Retries are only attempted for operations that are safe to retry (idempotent operations) and for specific error types that are likely to be transient. Permanent errors such as validation failures or not found errors are not retried.
+
 ### Make Commands
 
 ```bash

@@ -44,6 +44,25 @@ package "ServiceLib" {
     }
   }
 
+  package "Retry" {
+    class "retry.Config" as RetryConfig {
+      -maxRetries: int
+      -initialBackoff: time.Duration
+      -maxBackoff: time.Duration
+      +DefaultConfig(): Config
+      +WithMaxRetries(maxRetries: int): Config
+      +WithInitialBackoff(initialBackoff: time.Duration): Config
+      +WithMaxBackoff(maxBackoff: time.Duration): Config
+      +MaxRetries(): int
+      +InitialBackoff(): time.Duration
+      +MaxBackoff(): time.Duration
+    }
+
+    class "retry.Do" as RetryDo {
+      +Do(ctx: context.Context, operation: Operation, config: Config, isRetryable: IsRetryableFunc): error
+    }
+  }
+
   package "Repository" {
     interface "repository.Repository<T>" as ServiceLibRepository {
       +GetByID(ctx: context.Context, id: string): (T, error)
@@ -247,6 +266,31 @@ package "Ports Layer" {
 }
 
 package "Adapters Layer" {
+  package "Config Adapter" {
+    class Config {
+      +App: AppConfig
+      +Auth: AuthConfig
+      +Database: DatabaseConfig
+      +Features: FeaturesConfig
+      +Log: LogConfig
+      +Retry: RetryConfig
+      +Server: ServerConfig
+      +Telemetry: TelemetryConfig
+    }
+
+    class RetryConfig {
+      +MaxRetries: int
+      +InitialBackoff: time.Duration
+      +MaxBackoff: time.Duration
+    }
+
+    interface RetryConfigAdapter {
+      +GetMaxRetries(): int
+      +GetInitialBackoff(): time.Duration
+      +GetMaxBackoff(): time.Duration
+    }
+  }
+
   package "GraphQL Adapter" {
     class Resolver {
       -familySvc: FamilyApplicationServicePort
@@ -333,6 +377,13 @@ Resolver --> ContextLogger : uses
 MongoFamilyRepository ..|> FamilyRepository : implements
 PostgresFamilyRepository ..|> FamilyRepository : implements
 SQLiteFamilyRepository ..|> FamilyRepository : implements
+
+MongoFamilyRepository --> RetryConfig : uses
+PostgresFamilyRepository --> RetryConfig : uses
+SQLiteFamilyRepository --> RetryConfig : uses
+
+Config ..|> RetryConfigAdapter : implements
+Config *-- RetryConfig : contains
 
 FamilyRepository --|> ServiceLibRepository : extends
 

@@ -4,13 +4,12 @@ package entity
 
 import (
 	"fmt"
-	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/validation"
 	"github.com/abitofhelp/servicelib/valueobject/identification"
+	"github.com/google/uuid"
 )
 
 // Status represents the current status of a family
@@ -33,10 +32,10 @@ type Family struct {
 	children []*Child
 }
 
-// generateID generates a simple unique ID for a family
+// generateID generates a UUID for a family
 func generateID() string {
-	// Simple ID generation using timestamp and random number
-	return "fam-" + strconv.FormatInt(time.Now().UnixNano(), 10) + "-" + strconv.Itoa(rand.Intn(1000))
+	// Generate a UUID v4
+	return uuid.New().String()
 }
 
 // NewFamily creates a new Family aggregate with validation

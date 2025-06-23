@@ -29,6 +29,10 @@ features:
 log:
   development: true
   level: debug
+retry:
+  max_retries: 3
+  initial_backoff: 100ms
+  max_backoff: 1s
 server:
   health_endpoint: /health
   idle_timeout: 1200s

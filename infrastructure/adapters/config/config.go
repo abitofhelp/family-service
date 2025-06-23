@@ -29,6 +29,7 @@ type Config struct {
 	Database  DatabaseConfig  `mapstructure:"database" validate:"required"`
 	Features  FeaturesConfig  `mapstructure:"features" validate:"required"`
 	Log       LogConfig       `mapstructure:"log" validate:"required"`
+	Retry     RetryConfig     `mapstructure:"retry" validate:"required"`
 	Server    ServerConfig    `mapstructure:"server" validate:"required"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry" validate:"required"`
 }
@@ -126,6 +127,13 @@ type PrometheusConfig struct {
 	Enabled bool   `mapstructure:"enabled"`
 	Listen  string `mapstructure:"listen"`
 	Path    string `mapstructure:"path"`
+}
+
+// RetryConfig contains configuration for retry logic
+type RetryConfig struct {
+	MaxRetries     int           `mapstructure:"max_retries" validate:"required,min=1"`
+	InitialBackoff time.Duration `mapstructure:"initial_backoff" validate:"required,min=1"`
+	MaxBackoff     time.Duration `mapstructure:"max_backoff" validate:"required,min=1"`
 }
 
 var (
@@ -396,6 +404,8 @@ func convertDurations(m map[string]interface{}) {
 		"database.sqlite.disconnect_timeout",
 		"database.sqlite.migration_timeout",
 		"database.sqlite.ping_timeout",
+		"retry.initial_backoff",
+		"retry.max_backoff",
 		"server.idle_timeout",
 		"server.read_timeout",
 		"server.shutdown_timeout",
@@ -495,6 +505,11 @@ func getDefaultsMap() map[string]interface{} {
 		"auth.jwt.secret_key": "your-secret-key-here", // Default secret key, should be overridden in production
 		"auth.jwt.token_duration": "24h", // 24 hours
 		"auth.jwt.issuer": "family-service", // Default issuer
+
+		// Retry defaults
+		"retry.max_retries": 3,
+		"retry.initial_backoff": "100ms", // 100 milliseconds
+		"retry.max_backoff": "1s", // 1 second
 
 		// Database defaults
 		"database.type":                       "sqlite",

@@ -601,6 +601,28 @@ Errors are propagated up the call stack and transformed as needed:
 - All implementations use ServiceLib's database utilities for connection pooling, retries, and error handling
 - All implementations support efficient lookups by ID
 
+##### 7.1.1 Retry Configuration
+The application includes configurable retry logic for database operations to handle transient errors:
+
+```yaml
+retry:
+  max_retries: 3              # Maximum number of retry attempts
+  initial_backoff: 100ms      # Initial backoff duration before the first retry
+  max_backoff: 1s             # Maximum backoff duration for any retry
+```
+
+The retry configuration is defined in the application configuration files and can be overridden using environment variables:
+
+```env
+APP_RETRY_MAX_RETRIES=3
+APP_RETRY_INITIAL_BACKOFF=100ms
+APP_RETRY_MAX_BACKOFF=1s
+```
+
+The retry logic is implemented in all repository adapters (MongoDB, PostgreSQL, SQLite) and uses an exponential backoff strategy with jitter to prevent thundering herd problems. The retry mechanism automatically handles transient errors such as network issues, timeouts, and temporary database unavailability.
+
+Retries are only attempted for operations that are safe to retry (idempotent operations) and for specific error types that are likely to be transient. Permanent errors such as validation failures or not found errors are not retried.
+
 #### 7.2 Caching Strategy
 - No caching implemented in the current version
 - Future versions could add caching at the repository or service layer

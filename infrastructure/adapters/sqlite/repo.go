@@ -6,14 +6,47 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"sync"
+	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
+	"github.com/abitofhelp/servicelib/retry"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 	"go.uber.org/zap"
 )
+
+var (
+	// Global configuration instance
+	globalConfig     *config.Config
+	globalConfigOnce sync.Once
+)
+
+// SetGlobalConfig sets the global configuration instance
+func SetGlobalConfig(cfg *config.Config) {
+	globalConfigOnce.Do(func() {
+		globalConfig = cfg
+	})
+}
+
+// getRetryConfig returns the retry configuration
+func getRetryConfig() retry.Config {
+	if globalConfig != nil {
+		return retry.DefaultConfig().
+			WithMaxRetries(globalConfig.Retry.MaxRetries).
+			WithInitialBackoff(globalConfig.Retry.InitialBackoff).
+			WithMaxBackoff(globalConfig.Retry.MaxBackoff)
+	}
+
+	// Fallback to default values if configuration is not available
+	return retry.DefaultConfig().
+		WithMaxRetries(3).
+		WithInitialBackoff(100 * time.Millisecond).
+		WithMaxBackoff(1 * time.Second)
+}
 
 // NewRepositoryError is a helper function that wraps errors.NewDatabaseError
 // to maintain compatibility with the old errors.NewDatabaseError function.
@@ -96,21 +129,68 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 		return nil, err
 	}
 
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	var famID string
 	var statusStr string
 	var parentsData, childrenData string
 
-	query := "SELECT id, status, parents, children FROM families WHERE id = ?"
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(&famID, &statusStr, &parentsData, &childrenData)
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		query := "SELECT id, status, parents, children FROM families WHERE id = ?"
+		err := r.DB.QueryRowContext(ctx, query, id).Scan(&famID, &statusStr, &parentsData, &childrenData)
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			r.logger.Info(ctx, "Family not found in SQLite", zap.String("family_id", id))
-			return nil, errors.NewNotFoundError("Family", id, nil)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				r.logger.Info(ctx, "Family not found in SQLite", zap.String("family_id", id))
+				return errors.NewNotFoundError("Family", id, nil)
+			}
+			r.logger.Error(ctx, "Failed to get family from SQLite", zap.Error(err), zap.String("family_id", id))
+			return NewRepositoryError(err, "failed to get family from SQLite", "SQLITE_ERROR")
 		}
-		r.logger.Error(ctx, "Failed to get family from SQLite", zap.Error(err), zap.String("family_id", id))
-		return nil, NewRepositoryError(err, "failed to get family from SQLite", "SQLITE_ERROR")
+		return nil
 	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry not found errors
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return false
+		}
+
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Execute with retry
+	err := retry.Do(ctxWithTimeout, operation, retryConfig, isRetryable)
+	if err != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return nil, err
+		}
+		if _, ok := err.(*errors.ValidationError); ok {
+			return nil, err
+		}
+		if _, ok := err.(*errors.DatabaseError); ok {
+			return nil, err
+		}
+
+		// Otherwise, wrap it in a database error
+		return nil, NewRepositoryError(err, "failed to get family from SQLite after retries", "SQLITE_ERROR")
+	}
+
+	r.logger.Debug(ctx, "Successfully retrieved family data from SQLite", zap.String("family_id", id))
 
 	// Parse parents JSON
 	var parentDTOs []entity.ParentDTO

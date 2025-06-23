@@ -5,16 +5,48 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
+	"github.com/abitofhelp/servicelib/retry"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
+
+var (
+	// Global configuration instance
+	globalConfig     *config.Config
+	globalConfigOnce sync.Once
+)
+
+// SetGlobalConfig sets the global configuration instance
+func SetGlobalConfig(cfg *config.Config) {
+	globalConfigOnce.Do(func() {
+		globalConfig = cfg
+	})
+}
+
+// getRetryConfig returns the retry configuration
+func getRetryConfig() retry.Config {
+	if globalConfig != nil {
+		return retry.DefaultConfig().
+			WithMaxRetries(globalConfig.Retry.MaxRetries).
+			WithInitialBackoff(globalConfig.Retry.InitialBackoff).
+			WithMaxBackoff(globalConfig.Retry.MaxBackoff)
+	}
+
+	// Fallback to default values if configuration is not available
+	return retry.DefaultConfig().
+		WithMaxRetries(3).
+		WithInitialBackoff(100 * time.Millisecond).
+		WithMaxBackoff(1 * time.Second)
+}
 
 // NewRepositoryError is a helper function that wraps errors.NewDatabaseError
 // to maintain compatibility with the old errors.NewDatabaseError function.
@@ -137,20 +169,69 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 		return nil, err
 	}
 
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	var famID string
 	var statusStr string
 	var parentsData, childrenData []byte
 
-	err := r.DB.QueryRow(ctx, `
-        SELECT id, status, parents, children FROM families WHERE id = $1
-    `, id).Scan(&famID, &statusStr, &parentsData, &childrenData)
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		err := r.DB.QueryRow(ctx, `
+			SELECT id, status, parents, children FROM families WHERE id = $1
+		`, id).Scan(&famID, &statusStr, &parentsData, &childrenData)
 
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, errors.NewNotFoundError("Family", id, nil)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				r.logger.Info(ctx, "Family not found in PostgreSQL", zap.String("family_id", id))
+				return errors.NewNotFoundError("Family", id, nil)
+			}
+			r.logger.Error(ctx, "Failed to get family from PostgreSQL", zap.Error(err), zap.String("family_id", id))
+			return NewRepositoryError(err, "failed to get family from PostgreSQL", "POSTGRES_ERROR")
 		}
-		return nil, NewRepositoryError(err, "failed to get family from PostgreSQL", "POSTGRES_ERROR")
+		return nil
 	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry not found errors
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return false
+		}
+
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Execute with retry
+	err := retry.Do(ctxWithTimeout, operation, retryConfig, isRetryable)
+	if err != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return nil, err
+		}
+		if _, ok := err.(*errors.ValidationError); ok {
+			return nil, err
+		}
+		if _, ok := err.(*errors.DatabaseError); ok {
+			return nil, err
+		}
+
+		// Otherwise, wrap it in a database error
+		return nil, NewRepositoryError(err, "failed to get family from PostgreSQL after retries", "POSTGRES_ERROR")
+	}
+
+	r.logger.Debug(ctx, "Successfully retrieved family data from PostgreSQL", zap.String("family_id", id))
 
 	// Define custom structs for JSON unmarshaling to handle both uppercase and lowercase field names
 	type jsonParent struct {

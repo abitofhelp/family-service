@@ -4,18 +4,50 @@ package mongo
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
+	"github.com/abitofhelp/servicelib/retry"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
 )
+
+var (
+	// Global configuration instance
+	globalConfig     *config.Config
+	globalConfigOnce sync.Once
+)
+
+// SetGlobalConfig sets the global configuration instance
+func SetGlobalConfig(cfg *config.Config) {
+	globalConfigOnce.Do(func() {
+		globalConfig = cfg
+	})
+}
+
+// getRetryConfig returns the retry configuration
+func getRetryConfig() retry.Config {
+	if globalConfig != nil {
+		return retry.DefaultConfig().
+			WithMaxRetries(globalConfig.Retry.MaxRetries).
+			WithInitialBackoff(globalConfig.Retry.InitialBackoff).
+			WithMaxBackoff(globalConfig.Retry.MaxBackoff)
+	}
+
+	// Fallback to default values if configuration is not available
+	return retry.DefaultConfig().
+		WithMaxRetries(3).
+		WithInitialBackoff(100 * time.Millisecond).
+		WithMaxBackoff(1 * time.Second)
+}
 
 // FamilyDocument represents how a family is stored in MongoDB
 type FamilyDocument struct {
@@ -76,21 +108,70 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 		return nil, errors.NewValidationError("id is required", "id", nil)
 	}
 
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	var doc FamilyDocument
-	err := r.Collection.FindOne(ctx, bson.M{"family_id": id}).Decode(&doc)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			r.logger.Info(ctx, "Family not found in MongoDB", zap.String("family_id", id))
-			return nil, errors.NewNotFoundError("Family", id, nil)
+	var family *entity.Family
+
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		err := r.Collection.FindOne(ctx, bson.M{"family_id": id}).Decode(&doc)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				r.logger.Info(ctx, "Family not found in MongoDB", zap.String("family_id", id))
+				return errors.NewNotFoundError("Family", id, nil)
+			}
+			r.logger.Error(ctx, "Failed to get family from MongoDB", zap.Error(err), zap.String("family_id", id))
+			return errors.NewDatabaseError("failed to get family from MongoDB", "query", "families", err)
 		}
-		r.logger.Error(ctx, "Failed to get family from MongoDB", zap.Error(err), zap.String("family_id", id))
-		return nil, errors.NewDatabaseError("failed to get family from MongoDB", "query", "families", err)
+
+		// Convert document to domain entity
+		var convErr error
+		family, convErr = r.documentToEntity(doc)
+		return convErr
+	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry not found errors
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return false
+		}
+
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Execute with retry
+	err := retry.Do(ctxWithTimeout, operation, retryConfig, isRetryable)
+	if err != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return nil, err
+		}
+		if _, ok := err.(*errors.ValidationError); ok {
+			return nil, err
+		}
+		if _, ok := err.(*errors.DatabaseError); ok {
+			return nil, err
+		}
+
+		// Otherwise, wrap it in a database error
+		return nil, errors.NewDatabaseError("failed to get family from MongoDB after retries", "query", "families", err)
 	}
 
 	r.logger.Debug(ctx, "Successfully retrieved family from MongoDB", zap.String("family_id", id))
-
-	// Convert document to domain entity
-	return r.documentToEntity(doc)
+	return family, nil
 }
 
 // Save persists a family
@@ -162,8 +243,8 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 		families = append(families, fam)
 	}
 
-	r.logger.Debug(ctx, "Successfully found families by parent ID in MongoDB", 
-		zap.String("parent_id", parentID), 
+	r.logger.Debug(ctx, "Successfully found families by parent ID in MongoDB",
+		zap.String("parent_id", parentID),
 		zap.Int("count", len(families)))
 	return families, nil
 }
@@ -189,8 +270,8 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 		return nil, errors.NewDatabaseError("failed to find family by child ID", "query", "families", err)
 	}
 
-	r.logger.Debug(ctx, "Successfully found family by child ID in MongoDB", 
-		zap.String("child_id", childID), 
+	r.logger.Debug(ctx, "Successfully found family by child ID in MongoDB",
+		zap.String("child_id", childID),
 		zap.String("family_id", doc.FamilyID))
 
 	// Convert document to domain entity

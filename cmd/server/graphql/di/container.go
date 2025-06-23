@@ -13,6 +13,9 @@ import (
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/di"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/mongo"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/postgres"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/sqlite"
 	"github.com/abitofhelp/servicelib/auth"
 	basedi "github.com/abitofhelp/servicelib/di"
 	"go.uber.org/zap"
@@ -35,6 +38,11 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to create base container: %w", err)
 	}
+
+	// Set global configuration for repositories
+	mongo.SetGlobalConfig(cfg)
+	postgres.SetGlobalConfig(cfg)
+	sqlite.SetGlobalConfig(cfg)
 
 	// Create GraphQL-specific container
 	container := &Container{
