@@ -11,6 +11,7 @@ import (
 	application "github.com/abitofhelp/family-service/core/application/services"
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/di"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/mongo"
@@ -29,6 +30,7 @@ type Container struct {
 	familyAppService    appports.FamilyApplicationService
 	authService         *auth.Auth
 	dbType              string
+	cache               *cache.Cache
 }
 
 // NewContainer creates a new dependency injection container for the GraphQL server
@@ -78,6 +80,13 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 		return nil, fmt.Errorf("unsupported database type: %s", dbType)
 	}
 
+	// Initialize cache
+	cacheInstance, err := cache.NewCache(cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize cache: %w", err)
+	}
+	container.cache = cacheInstance
+
 	// Initialize domain service
 	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo, container.GetContextLogger())
 
@@ -86,6 +95,7 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 		container.familyDomainService,
 		container.familyRepo,
 		container.GetContextLogger(),
+		container.cache,
 	)
 
 	// Initialize auth service
@@ -144,6 +154,11 @@ func (c *Container) GetAuthService() *auth.Auth {
 // Close closes all resources
 func (c *Container) Close() error {
 	var errs []error
+
+	// Shutdown cache if it exists
+	if c.cache != nil {
+		c.cache.Shutdown()
+	}
 
 	// Add resource cleanup here as needed
 	// For example, close database connections if they implement a Close method

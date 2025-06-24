@@ -4,12 +4,14 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"github.com/abitofhelp/servicelib/di"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
 	"go.uber.org/zap"
@@ -31,6 +33,7 @@ type FamilyApplicationService struct {
 	familyService *domainservices.FamilyDomainService
 	familyRepo    domainports.FamilyRepository
 	logger        *logging.ContextLogger
+	cache         *cache.Cache
 }
 
 // Ensure FamilyApplicationService implements di.ApplicationService
@@ -41,6 +44,7 @@ func NewFamilyApplicationService(
 	familyService *domainservices.FamilyDomainService,
 	familyRepo domainports.FamilyRepository,
 	logger *logging.ContextLogger,
+	cache *cache.Cache,
 ) *FamilyApplicationService {
 	if familyService == nil {
 		panic("family service cannot be nil")
@@ -55,6 +59,7 @@ func NewFamilyApplicationService(
 		familyService: familyService,
 		familyRepo:    familyRepo,
 		logger:        logger,
+		cache:         cache,
 	}
 }
 
@@ -77,11 +82,24 @@ func (s *FamilyApplicationService) Create(ctx context.Context, dto *entity.Famil
 func (s *FamilyApplicationService) GetByID(ctx context.Context, id string) (*entity.FamilyDTO, error) {
 	s.logger.Info(ctx, "Retrieving family by ID", zap.String("family_id", id))
 
-	// Delegate to domain service
-	family, err := s.familyService.GetFamily(ctx, id)
+	// Create cache key
+	cacheKey := fmt.Sprintf("family:%s", id)
+
+	// Try to get from cache or call the domain service
+	result, err := cache.WithContextCache(ctx, s.cache, cacheKey, func(ctx context.Context) (interface{}, error) {
+		// Delegate to domain service
+		return s.familyService.GetFamily(ctx, id)
+	})
 	if err != nil {
 		s.logger.Error(ctx, "Failed to retrieve family", zap.Error(err), zap.String("family_id", id))
 		return nil, err
+	}
+
+	// Type assertion
+	family, ok := result.(*entity.FamilyDTO)
+	if !ok {
+		s.logger.Error(ctx, "Failed to cast cached result to FamilyDTO", zap.String("family_id", id))
+		return nil, errors.NewApplicationError(errors.InternalErrorCode, "failed to cast cached result to FamilyDTO", nil)
 	}
 
 	s.logger.Info(ctx, "Successfully retrieved family", zap.String("family_id", family.ID), zap.String("status", family.Status))

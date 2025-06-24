@@ -3,6 +3,8 @@
 package entity
 
 import (
+	"fmt"
+	"regexp"
 	"time"
 
 	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
@@ -90,6 +92,47 @@ func (p *Parent) Validate() error {
 
 	if len(p.lastName.String()) < 2 {
 		result.AddError("must be at least 2 characters long", "LastName")
+	}
+
+	// Enhanced validation: Validate name doesn't contain special characters
+	nameRegex := "^[a-zA-Z\\s-]+$"
+	if matched, _ := regexp.MatchString(nameRegex, p.firstName.String()); !matched {
+		result.AddError("must contain only letters, spaces, and hyphens", "FirstName")
+	}
+
+	if matched, _ := regexp.MatchString(nameRegex, p.lastName.String()); !matched {
+		result.AddError("must contain only letters, spaces, and hyphens", "LastName")
+	}
+
+	// Enhanced validation: Validate birth date is not in the future
+	if p.birthDate.Date().After(time.Now()) {
+		result.AddError("birth date cannot be in the future", "BirthDate")
+	}
+
+	// Enhanced validation: Validate death date is not in the future
+	if p.deathDate != nil && p.deathDate.Date().After(time.Now()) {
+		result.AddError("death date cannot be in the future", "DeathDate")
+	}
+
+	// Enhanced validation: Validate minimum age for a parent (18 years)
+	minAge := 18
+	now := time.Now()
+	birthDate := p.birthDate.Date()
+	age := now.Year() - birthDate.Year()
+
+	// Adjust age if birthday hasn't occurred yet this year
+	if now.Month() < birthDate.Month() || (now.Month() == birthDate.Month() && now.Day() < birthDate.Day()) {
+		age--
+	}
+
+	if age < minAge {
+		result.AddError(fmt.Sprintf("parent does not meet minimum age requirement (%d years)", minAge), "BirthDate")
+	}
+
+	// Enhanced validation: Validate maximum age (e.g., 150 years)
+	maxAge := 150
+	if age > maxAge {
+		result.AddError(fmt.Sprintf("age cannot exceed %d years", maxAge), "BirthDate")
 	}
 
 	return result.Error()

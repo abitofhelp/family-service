@@ -1,8 +1,9 @@
 # Family Service GraphQL
+[![codecov](https://codecov.io/gh/abitofhelp/family-service/graph/badge.svg?token=KQI02N7OS7)](https://codecov.io/gh/abitofhelp/family-service)
 
 ## 📖 Overview
 
-This project is a backend service designed to track dynamic family relationships using modern software engineering principles. It supports use cases such as marriage, divorce, remarriage, single-parent families, and parental death. Data integrity and family structure constraints are enforced through domain validation logic. The architecture is based on Domain-Driven Design (DDD), Clean Architecture, and Hexagonal Architecture, providing a scalable and testable foundation for managing families across SQLite (local development), MongoDB (document model), and PostgreSQL (relational model).
+Family-Service is a backend service designed to track dynamic family relationships using modern software engineering principles. It supports use cases such as marriage, divorce, remarriage, single-parent families, and parental death. Data integrity and family structure constraints are enforced through domain validation logic. The architecture is based on Domain-Driven Design (DDD), Clean Architecture, and Hexagonal Architecture, providing a scalable and testable foundation for managing families across SQLite (local development), MongoDB (document model), and PostgreSQL (relational model).
 
 Key features include:
 
@@ -157,6 +158,130 @@ Future improvements could include:
 1. Implementing more generic repository implementations for different storage backends.
 2. Creating generic validation utilities for common validation patterns.
 3. Implementing generic query builders for more complex database operations.
+
+## 🔌 ServiceLib Integration
+
+This project leverages several packages from the `servicelib` library to enhance reliability, performance, and observability:
+
+### Telemetry Integration
+
+The `servicelib/telemetry` package is used for distributed tracing and metrics:
+
+- **Distributed Tracing**: OpenTelemetry tracing is integrated throughout the application to provide end-to-end visibility into request flows. Traces are collected and can be exported to various backends.
+- **Metrics**: Prometheus metrics are exposed at the `/metrics` endpoint, providing insights into application performance and behavior.
+
+```
+// Example of tracing integration in domain services
+func (s *FamilyDomainService) CreateFamily(ctx context.Context, dto entity.FamilyDTO) (*entity.FamilyDTO, error) {
+    // Start a new span for this operation
+    ctx, span := s.tracer.Start(ctx, "FamilyDomainService.CreateFamily")
+    defer span.End()
+
+    // Operation logic...
+}
+```
+
+### Cache Integration
+
+The `servicelib/cache` package is used for caching frequently accessed data:
+
+- **In-Memory Cache**: A configurable in-memory cache with TTL and automatic cleanup is implemented.
+- **Cache Middleware**: Cache middleware functions make it easy to add caching to any operation.
+
+```
+// Example of cache integration in application services
+func (s *FamilyApplicationService) GetByID(ctx context.Context, id string) (*entity.FamilyDTO, error) {
+    // Create cache key
+    cacheKey := fmt.Sprintf("family:%s", id)
+
+    // Try to get from cache or call the domain service
+    result, err := cache.WithContextCache(ctx, s.cache, cacheKey, func(ctx context.Context) (interface{}, error) {
+        // Delegate to domain service
+        return s.familyService.GetFamily(ctx, id)
+    })
+
+    // Process result...
+}
+```
+
+### Circuit Breaker Integration
+
+The `servicelib/circuit` package is used for circuit breaking on external dependencies:
+
+- **Circuit Breaker Pattern**: Prevents cascading failures when external dependencies are unavailable.
+- **Configurable Thresholds**: Error thresholds, volume thresholds, and sleep windows are all configurable.
+- **Fallback Support**: Support for fallback functions when the circuit is open.
+
+```
+// Example of circuit breaker integration
+func (repo *MongoRepository) GetByID(ctx context.Context, id string) (*entity.Family, error) {
+    var family *entity.Family
+
+    err := repo.circuitBreaker.Execute(ctx, "GetByID", func(ctx context.Context) error {
+        // Database operation...
+        return nil
+    })
+
+    return family, err
+}
+```
+
+### Rate Limiter Integration
+
+The `servicelib/rate` package is used for rate limiting to protect resources:
+
+- **Token Bucket Algorithm**: Implements the token bucket algorithm for rate limiting.
+- **Configurable Rates**: Requests per second and burst size are configurable.
+- **Wait or Fail Options**: Support for both immediate failure and waiting for a token.
+
+```
+// Example of rate limiter integration
+func (s *FamilyApplicationService) Create(ctx context.Context, dto *entity.FamilyDTO) (*entity.FamilyDTO, error) {
+    var family *entity.FamilyDTO
+
+    err := s.rateLimiter.Execute(ctx, "Create", func(ctx context.Context) error {
+        // Create operation...
+        return nil
+    })
+
+    return family, err
+}
+```
+
+### Configuration
+
+All servicelib integrations are configurable through the application's configuration system:
+
+```yaml
+# Example configuration
+app:
+  cache:
+    enabled: true
+    ttl: 5m
+    max_size: 1000
+    purge_interval: 10m
+
+  circuit:
+    enabled: true
+    timeout: 5s
+    max_concurrent: 100
+    error_threshold: 0.5
+    volume_threshold: 20
+    sleep_window: 10s
+
+  rate:
+    enabled: true
+    requests_per_second: 100
+    burst_size: 50
+
+  telemetry:
+    tracing:
+      enabled: true
+      otlp:
+        endpoint: localhost:4317
+        insecure: true
+        timeout: 5s
+```
 
 ## 📊 UML Diagrams
 

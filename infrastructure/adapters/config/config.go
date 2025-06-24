@@ -26,9 +26,12 @@ import (
 type Config struct {
 	App       AppConfig       `mapstructure:"app" validate:"required"`
 	Auth      AuthConfig      `mapstructure:"auth" validate:"required"`
+	Cache     CacheConfig     `mapstructure:"cache" validate:"required"`
+	Circuit   CircuitConfig   `mapstructure:"circuit" validate:"required"`
 	Database  DatabaseConfig  `mapstructure:"database" validate:"required"`
 	Features  FeaturesConfig  `mapstructure:"features" validate:"required"`
 	Log       LogConfig       `mapstructure:"log" validate:"required"`
+	Rate      RateConfig      `mapstructure:"rate" validate:"required"`
 	Retry     RetryConfig     `mapstructure:"retry" validate:"required"`
 	Server    ServerConfig    `mapstructure:"server" validate:"required"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry" validate:"required"`
@@ -110,11 +113,25 @@ type ServerConfig struct {
 type TelemetryConfig struct {
 	ShutdownTimeout time.Duration   `mapstructure:"shutdown_timeout" validate:"required,min=1"`
 	Exporters       ExportersConfig `mapstructure:"exporters"`
+	Tracing         TracingConfig   `mapstructure:"tracing"`
 }
 
 // ExportersConfig contains configuration for telemetry exporters
 type ExportersConfig struct {
 	Metrics MetricsExporterConfig `mapstructure:"metrics"`
+}
+
+// TracingConfig contains configuration for distributed tracing
+type TracingConfig struct {
+	Enabled bool           `mapstructure:"enabled"`
+	OTLP    OTLPConfig     `mapstructure:"otlp"`
+}
+
+// OTLPConfig contains configuration for OpenTelemetry Protocol (OTLP) exporter
+type OTLPConfig struct {
+	Endpoint string        `mapstructure:"endpoint"`
+	Insecure bool          `mapstructure:"insecure"`
+	Timeout  time.Duration `mapstructure:"timeout" validate:"required,min=1"`
 }
 
 // MetricsExporterConfig contains configuration for metrics exporters
@@ -127,6 +144,31 @@ type PrometheusConfig struct {
 	Enabled bool   `mapstructure:"enabled"`
 	Listen  string `mapstructure:"listen"`
 	Path    string `mapstructure:"path"`
+}
+
+// CacheConfig contains configuration for caching
+type CacheConfig struct {
+	Enabled     bool          `mapstructure:"enabled"`
+	TTL         time.Duration `mapstructure:"ttl" validate:"required,min=1"`
+	MaxSize     int           `mapstructure:"max_size" validate:"required,min=1"`
+	PurgeInterval time.Duration `mapstructure:"purge_interval" validate:"required,min=1"`
+}
+
+// CircuitConfig contains configuration for circuit breaking
+type CircuitConfig struct {
+	Enabled       bool          `mapstructure:"enabled"`
+	Timeout       time.Duration `mapstructure:"timeout" validate:"required,min=1"`
+	MaxConcurrent int           `mapstructure:"max_concurrent" validate:"required,min=1"`
+	ErrorThreshold float64      `mapstructure:"error_threshold" validate:"required,min=0,max=1"`
+	VolumeThreshold int         `mapstructure:"volume_threshold" validate:"required,min=1"`
+	SleepWindow   time.Duration `mapstructure:"sleep_window" validate:"required,min=1"`
+}
+
+// RateConfig contains configuration for rate limiting
+type RateConfig struct {
+	Enabled     bool  `mapstructure:"enabled"`
+	RequestsPerSecond int `mapstructure:"requests_per_second" validate:"required,min=1"`
+	BurstSize   int   `mapstructure:"burst_size" validate:"required,min=1"`
 }
 
 // RetryConfig contains configuration for retry logic
@@ -394,6 +436,10 @@ func convertDurations(m map[string]interface{}) {
 	durationPaths := []string{
 		"auth.oidc_timeout",
 		"auth.jwt.token_duration",
+		"cache.ttl",
+		"cache.purge_interval",
+		"circuit.timeout",
+		"circuit.sleep_window",
 		"database.mongodb.connection_timeout",
 		"database.mongodb.disconnect_timeout",
 		"database.mongodb.index_timeout",
@@ -411,6 +457,7 @@ func convertDurations(m map[string]interface{}) {
 		"server.shutdown_timeout",
 		"server.write_timeout",
 		"telemetry.shutdown_timeout",
+		"telemetry.tracing.otlp.timeout",
 	}
 
 	// Helper function to get a nested value from the map
@@ -506,6 +553,25 @@ func getDefaultsMap() map[string]interface{} {
 		"auth.jwt.token_duration": "24h", // 24 hours
 		"auth.jwt.issuer": "family-service", // Default issuer
 
+		// Cache defaults
+		"cache.enabled": true,
+		"cache.ttl": "5m", // 5 minutes
+		"cache.max_size": 1000,
+		"cache.purge_interval": "10m", // 10 minutes
+
+		// Circuit defaults
+		"circuit.enabled": true,
+		"circuit.timeout": "5s", // 5 seconds
+		"circuit.max_concurrent": 100,
+		"circuit.error_threshold": 0.5, // 50% error rate
+		"circuit.volume_threshold": 20, // Minimum 20 requests before tripping
+		"circuit.sleep_window": "10s", // 10 seconds
+
+		// Rate defaults
+		"rate.enabled": true,
+		"rate.requests_per_second": 100,
+		"rate.burst_size": 50,
+
 		// Retry defaults
 		"retry.max_retries": 3,
 		"retry.initial_backoff": "100ms", // 100 milliseconds
@@ -547,5 +613,9 @@ func getDefaultsMap() map[string]interface{} {
 		"telemetry.exporters.metrics.prometheus.enabled": true,
 		"telemetry.exporters.metrics.prometheus.listen":  "0.0.0.0:8089",
 		"telemetry.exporters.metrics.prometheus.path":    "/metrics",
+		"telemetry.tracing.enabled":                      true,
+		"telemetry.tracing.otlp.endpoint":                "localhost:4317",
+		"telemetry.tracing.otlp.insecure":                true,
+		"telemetry.tracing.otlp.timeout":                 "5s", // 5 seconds
 	}
 }

@@ -9,6 +9,7 @@ import (
 	application "github.com/abitofhelp/family-service/core/application/services"
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	"github.com/abitofhelp/servicelib/logging"
 	"go.uber.org/zap"
@@ -23,6 +24,7 @@ type FamilyContainer[T domainports.FamilyRepository] struct {
 	familyRepo          T
 	familyDomainService *domainservices.FamilyDomainService
 	familyAppService    ports.FamilyApplicationService
+	cache               *cache.Cache
 }
 
 // NewFamilyContainer creates a new family dependency injection container
@@ -50,6 +52,13 @@ func NewFamilyContainer[T domainports.FamilyRepository](
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
 
+	// Initialize cache
+	cacheInstance, err := cache.NewCache(cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize cache: %w", err)
+	}
+	container.cache = cacheInstance
+
 	// Initialize domain service
 	contextLogger := logging.NewContextLogger(logger)
 	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo, contextLogger)
@@ -59,6 +68,7 @@ func NewFamilyContainer[T domainports.FamilyRepository](
 		container.familyDomainService,
 		container.familyRepo,
 		contextLogger,
+		container.cache,
 	)
 
 	return container, nil
@@ -97,6 +107,11 @@ func (c *FamilyContainer[T]) GetAuthorizationService() interface{} {
 // Close closes all resources
 func (c *FamilyContainer[T]) Close() error {
 	var errs []error
+
+	// Shutdown cache if it exists
+	if c.cache != nil {
+		c.cache.Shutdown()
+	}
 
 	// Add resource cleanup here as needed
 	// For example, close database connections if they implement a Close method

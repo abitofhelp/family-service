@@ -105,6 +105,20 @@ func (f *Family) Validate() error {
 			result.AddError("duplicate parent in family", "Parents")
 		}
 		seen[key] = true
+
+		// Enhanced validation: Validate parent age (minimum 18 years)
+		now := time.Now()
+		birthDate := p.BirthDate()
+		age := now.Year() - birthDate.Year()
+
+		// Adjust age if birthday hasn't occurred yet this year
+		if now.Month() < birthDate.Month() || (now.Month() == birthDate.Month() && now.Day() < birthDate.Day()) {
+			age--
+		}
+
+		if age < 18 {
+			result.AddError(fmt.Sprintf("parent at index %d does not meet minimum age requirement (18 years)", i), "Parents")
+		}
 	}
 
 	// Validate children
@@ -118,6 +132,20 @@ func (f *Family) Validate() error {
 		if err := c.Validate(); err != nil {
 			result.AddError(fmt.Sprintf("child at index %d is invalid: %v", i, err), "Children")
 		}
+
+		// Enhanced validation: Validate child's birth date is after parents' birth dates
+		childBirthDate := c.BirthDate()
+		for j, p := range f.parents {
+			parentBirthDate := p.BirthDate()
+			if !childBirthDate.After(parentBirthDate) {
+				result.AddError(fmt.Sprintf("child at index %d has birth date before parent at index %d", i, j), "Children")
+			}
+		}
+
+		// Enhanced validation: Validate child's birth date is not in the future
+		if childBirthDate.After(time.Now()) {
+			result.AddError(fmt.Sprintf("child at index %d has birth date in the future", i), "Children")
+		}
 	}
 
 	// Validate status transitions based on parents
@@ -127,6 +155,51 @@ func (f *Family) Validate() error {
 
 	if f.status == Single && len(f.parents) > 1 {
 		result.AddError("single family cannot have more than one parent", "Status")
+	}
+
+	// Enhanced validation: Validate Divorced status
+	if f.status == Divorced && len(f.parents) != 1 {
+		result.AddError("divorced family must have exactly one parent", "Status")
+	}
+
+	// Enhanced validation: Validate Widowed status
+	if f.status == Widowed {
+		if len(f.parents) != 1 {
+			result.AddError("widowed family must have exactly one parent", "Status")
+		} else {
+			// Check if the remaining parent is deceased
+			if f.parents[0].IsDeceased() {
+				result.AddError("widowed family cannot have a deceased parent", "Status")
+			}
+		}
+	}
+
+	// Enhanced validation: Validate Abandoned status
+	if f.status == Abandoned && len(f.children) == 0 {
+		result.AddError("abandoned family must have at least one child", "Status")
+	}
+
+	// Enhanced validation: Validate parent-child age gap
+	for i, child := range f.children {
+		childBirthDate := child.BirthDate()
+
+		for j, parent := range f.parents {
+			parentBirthDate := parent.BirthDate()
+
+			// Calculate the age difference in years
+			ageGap := childBirthDate.Year() - parentBirthDate.Year()
+
+			// Adjust for partial years
+			if childBirthDate.Month() < parentBirthDate.Month() || 
+			   (childBirthDate.Month() == parentBirthDate.Month() && childBirthDate.Day() < parentBirthDate.Day()) {
+				ageGap--
+			}
+
+			// Minimum 12 years between parent and child
+			if ageGap < 12 {
+				result.AddError(fmt.Sprintf("child at index %d has too small age gap with parent at index %d", i, j), "Children")
+			}
+		}
 	}
 
 	return result.Error()

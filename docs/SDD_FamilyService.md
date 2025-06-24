@@ -635,6 +635,51 @@ All inputs are validated at multiple levels:
 - Application service validation
 - Domain entity validation
 
+##### 8.1.1 Domain Entity Validation
+The domain entities implement comprehensive validation rules:
+
+###### Family Entity Validation
+- Basic structural validation:
+  - Family must have at least one parent
+  - Family cannot have more than two parents
+  - No duplicate parents (based on name and birth date)
+- Status validation:
+  - Married families must have exactly two parents
+  - Single families cannot have more than one parent
+  - Divorced families must have exactly one parent
+  - Widowed families must have exactly one parent and that parent cannot be deceased
+  - Abandoned families must have at least one child
+- Parent validation:
+  - Parents must be at least 18 years old
+- Child validation:
+  - Children's birth dates must be after their parents' birth dates
+  - Children's birth dates cannot be in the future
+- Parent-child relationship validation:
+  - Minimum 12-year age gap between parents and children
+
+###### Parent Entity Validation
+- Name validation:
+  - First and last names must be at least 2 characters long
+  - Names must contain only letters, spaces, and hyphens
+- Date validation:
+  - Birth date cannot be in the future
+  - Death date must be after birth date
+  - Death date cannot be in the future
+- Age validation:
+  - Minimum age of 18 years
+  - Maximum age of 150 years
+
+###### Child Entity Validation
+- Name validation:
+  - First and last names must be at least 2 characters long
+  - Names must contain only letters, spaces, and hyphens
+- Date validation:
+  - Birth date cannot be in the future
+  - Death date must be after birth date
+  - Death date cannot be in the future
+- Age validation:
+  - Maximum age of 150 years
+
 #### 8.2 Error Information Exposure
 Error messages are sanitized before being returned to clients to prevent information leakage.
 

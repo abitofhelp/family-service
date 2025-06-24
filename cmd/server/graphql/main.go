@@ -12,6 +12,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/abitofhelp/family-service/cmd/server/graphql/di"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
+	infratelemetry "github.com/abitofhelp/family-service/infrastructure/adapters/telemetry"
 	"github.com/abitofhelp/family-service/infrastructure/server"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/generated"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/resolver"
@@ -82,8 +83,8 @@ func initContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) 
 }
 
 // setupRoutes sets up the HTTP routes for the application.
-// It returns the HTTP handler with all routes configured.
-func setupRoutes(container *di.Container, logger *zap.Logger, cfg *config.Config) http.Handler {
+// It returns the HTTP handler with all routes configured and a shutdown function.
+func setupRoutes(ctx context.Context, container *di.Container, logger *zap.Logger, cfg *config.Config) (http.Handler, func(), error) {
 	logger.Info("Setting up HTTP routes")
 
 	// Create a container adapter for health checks
@@ -92,8 +93,11 @@ func setupRoutes(container *di.Container, logger *zap.Logger, cfg *config.Config
 	// Create a ServeMux for routing
 	mux := http.NewServeMux()
 
-	// Set up metrics endpoint if enabled
-	setupMetricsEndpoint(mux, cfg, logger)
+	// Set up telemetry (metrics and tracing)
+	telemetryShutdown, err := setupTelemetry(ctx, mux, cfg, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to set up telemetry: %w", err)
+	}
 
 	// Set up GraphQL endpoints
 	setupGraphQLEndpoints(mux, container)
@@ -105,11 +109,15 @@ func setupRoutes(container *di.Container, logger *zap.Logger, cfg *config.Config
 	mux.Handle(healthEndpoint, health.NewHandler(adapter, logger, configAdapter))
 
 	logger.Info("HTTP routes set up successfully")
-	return mux
+	return mux, telemetryShutdown, nil
 }
 
-// setupMetricsEndpoint sets up the metrics endpoint if enabled in configuration.
-func setupMetricsEndpoint(mux *http.ServeMux, cfg *config.Config, logger *zap.Logger) {
+// setupTelemetry sets up telemetry (metrics and tracing) based on configuration.
+// It returns a shutdown function that should be called when the application is shutting down.
+func setupTelemetry(ctx context.Context, mux *http.ServeMux, cfg *config.Config, logger *zap.Logger) (func(), error) {
+	var shutdownFuncs []func()
+
+	// Set up metrics if enabled
 	if cfg.Telemetry.Exporters.Metrics.Prometheus.Enabled {
 		metricsPath := cfg.Telemetry.Exporters.Metrics.Prometheus.Path
 		logger.Info("Setting up Prometheus metrics endpoint",
@@ -119,6 +127,21 @@ func setupMetricsEndpoint(mux *http.ServeMux, cfg *config.Config, logger *zap.Lo
 	} else {
 		logger.Info("Prometheus metrics endpoint is disabled")
 	}
+
+	// Set up tracing
+	tracingShutdown, err := infratelemetry.InitTracing(ctx, cfg, logger)
+	if err != nil {
+		logger.Error("Failed to initialize tracing", zap.Error(err))
+		return nil, err
+	}
+	shutdownFuncs = append(shutdownFuncs, tracingShutdown)
+
+	// Return a combined shutdown function
+	return func() {
+		for _, fn := range shutdownFuncs {
+			fn()
+		}
+	}, nil
 }
 
 // setupGraphQLEndpoints sets up all GraphQL-related endpoints.
@@ -229,7 +252,14 @@ func main() {
 	}()
 
 	// Set up HTTP routes
-	handler := setupRoutes(container, logger, cfg)
+	handler, telemetryShutdown, err := setupRoutes(rootCtx, container, logger, cfg)
+	if err != nil {
+		logger.Error("Failed to set up HTTP routes", zap.Error(err))
+		os.Exit(1)
+	}
+
+	// Add telemetry shutdown to the shutdown process
+	defer telemetryShutdown()
 
 	// Apply auth middleware to all routes
 	// Note: The auth middleware will validate JWT tokens locally.
