@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/validation"
 	"github.com/abitofhelp/servicelib/valueobject/identification"
@@ -172,20 +173,20 @@ func (f *Family) AddParent(p *Parent) error {
 	}
 
 	if len(f.parents) >= 2 {
-		return errors.NewDomainError(errors.BusinessRuleViolationCode, "family cannot have more than two parents", nil)
+		return domainerrors.NewFamilyTooManyParentsError("family cannot have more than two parents", nil)
 	}
 
 	// Check for duplicate parent
 	for _, existingParent := range f.parents {
 		if existingParent.Equals(p) {
-			return errors.NewDomainError(errors.BusinessRuleViolationCode, "parent already exists in family", nil)
+			return domainerrors.NewFamilyParentExistsError("parent already exists in family", nil)
 		}
 
 		// Check for duplicate based on name and birthdate
 		if existingParent.FirstName() == p.FirstName() &&
 			existingParent.LastName() == p.LastName() &&
 			existingParent.BirthDate().Equal(p.BirthDate()) {
-			return errors.NewDomainError(errors.BusinessRuleViolationCode, "parent with same name and birthdate already exists in family", nil)
+			return domainerrors.NewFamilyParentDuplicateError("parent with same name and birthdate already exists in family", nil)
 		}
 	}
 
@@ -206,7 +207,7 @@ func (f *Family) AddChild(c *Child) error {
 	// Check for duplicate child
 	for _, existingChild := range f.children {
 		if existingChild.Equals(c) {
-			return errors.NewDomainError(errors.BusinessRuleViolationCode, "child already exists in family", nil)
+			return domainerrors.NewFamilyChildExistsError("child already exists in family", nil)
 		}
 	}
 
@@ -229,7 +230,7 @@ func (f *Family) RemoveChild(childID string) error {
 // RemoveParent removes a parent from the family
 func (f *Family) RemoveParent(parentID string) error {
 	if len(f.parents) <= 1 {
-		return errors.NewDomainError(errors.BusinessRuleViolationCode, "cannot remove the only parent from a family", nil)
+		return domainerrors.NewFamilyCannotRemoveLastParentError("cannot remove the only parent from a family", nil)
 	}
 
 	for i, p := range f.parents {
@@ -279,11 +280,11 @@ func (f *Family) MarkParentDeceased(parentID string, deathDate time.Time) error 
 // The original family keeps the custodial parent and children
 func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	if f.status != Married {
-		return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "only married families can divorce", nil)
+		return nil, domainerrors.NewFamilyNotMarriedError("only married families can divorce", nil)
 	}
 
 	if len(f.parents) != 2 {
-		return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "divorce requires exactly two parents", nil)
+		return nil, domainerrors.NewFamilyDivorceRequiresTwoParentsError("divorce requires exactly two parents", nil)
 	}
 
 	var custodialParent *Parent
@@ -311,7 +312,7 @@ func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	)
 
 	if err != nil {
-		return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "failed to create new family for remaining parent", err)
+		return nil, domainerrors.NewFamilyCreateFailedError("failed to create new family for remaining parent", err)
 	}
 
 	// Update the original family to keep only the custodial parent

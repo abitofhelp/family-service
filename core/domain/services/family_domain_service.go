@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
+	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
 	"github.com/abitofhelp/family-service/core/domain/metrics"
 	"github.com/abitofhelp/family-service/core/domain/ports"
 	"github.com/abitofhelp/servicelib/errors"
@@ -262,7 +263,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 			s.logger.Error(ctx, "Failed to update family status", 
 				zap.Error(err), 
 				zap.String("family_id", familyID))
-			return nil, errors.NewDomainError(errors.BusinessRuleViolationCode, "failed to update family status", err)
+			return nil, domainerrors.NewFamilyStatusUpdateFailedError("failed to update family status", err)
 		}
 		fam = updatedFam
 	}

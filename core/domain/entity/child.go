@@ -5,6 +5,7 @@ package entity
 import (
 	"time"
 
+	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/validation"
 	"github.com/abitofhelp/servicelib/valueobject/identification"
@@ -137,7 +138,7 @@ func (c *Child) IsDeceased() bool {
 // MarkDeceased marks the child as deceased with the given death date
 func (c *Child) MarkDeceased(deathDate time.Time) error {
 	if c.deathDate != nil {
-		return errors.NewDomainError(errors.BusinessRuleViolationCode, "child is already marked as deceased", nil)
+		return domainerrors.NewChildAlreadyDeceasedError("child is already marked as deceased", nil)
 	}
 
 	// Validate death date is after birth date
