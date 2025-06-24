@@ -677,6 +677,9 @@ The application uses the OpenTelemetry SDK to collect various metrics:
 - **Runtime Metrics**: Memory usage, goroutines, GC statistics
 - **HTTP Metrics**: Request counts, durations, error rates
 - **Database Metrics**: Query counts, durations, connection pool stats
+- **Domain Operation Metrics**: Counts and durations for domain operations
+- **Repository Operation Metrics**: Counts and durations for repository operations
+- **Family Metrics**: Counts of family members and families by status
 - **Application Metrics**: Business-specific metrics and error counts
 
 Example metrics implementation:
@@ -693,6 +696,84 @@ Example metrics implementation:
         attribute.String("path", "/api/families"),
         attribute.Int("status", 200),
     )
+
+###### Domain Operation Metrics
+
+The application includes comprehensive metrics for domain operations:
+
+```
+// Family operations counters
+var FamilyOperationsTotal = prometheus.NewCounterVec(
+    prometheus.CounterOpts{
+        Name: "family_operations_total",
+        Help: "Total number of family domain operations",
+    },
+    []string{"operation", "status"},
+)
+
+// Family operations duration
+var FamilyOperationsDuration = prometheus.NewHistogramVec(
+    prometheus.HistogramOpts{
+        Name:    "family_operations_duration_seconds",
+        Help:    "Duration of family domain operations in seconds",
+        Buckets: prometheus.DefBuckets,
+    },
+    []string{"operation"},
+)
+
+// Family member counts
+var FamilyMemberCounts = prometheus.NewGaugeVec(
+    prometheus.GaugeOpts{
+        Name: "family_member_counts",
+        Help: "Current count of family members by type",
+    },
+    []string{"type"},
+)
+
+// Family status counts
+var FamilyStatusCounts = prometheus.NewGaugeVec(
+    prometheus.GaugeOpts{
+        Name: "family_status_counts",
+        Help: "Current count of families by status",
+    },
+    []string{"status"},
+)
+```
+
+These metrics track:
+- Success and failure counts for all domain operations (create_family, get_family, add_parent, add_child, remove_child, mark_parent_deceased, divorce)
+- Duration of domain operations
+- Current counts of parents and children
+- Current counts of families by status (single, married, divorced, widowed)
+
+###### Repository Operation Metrics
+
+The application also tracks metrics for repository operations:
+
+```
+// Repository operation metrics
+var RepositoryOperationsTotal = prometheus.NewCounterVec(
+    prometheus.CounterOpts{
+        Name: "repository_operations_total",
+        Help: "Total number of repository operations",
+    },
+    []string{"operation", "status"},
+)
+
+// Repository operations duration
+var RepositoryOperationsDuration = prometheus.NewHistogramVec(
+    prometheus.HistogramOpts{
+        Name:    "repository_operations_duration_seconds",
+        Help:    "Duration of repository operations in seconds",
+        Buckets: prometheus.DefBuckets,
+    },
+    []string{"operation"},
+)
+```
+
+These metrics track:
+- Success and failure counts for all repository operations (save, get_by_id, get_all, find_by_parent_id, find_by_child_id)
+- Duration of repository operations
 
 ##### 9.2.2 Middleware Integration
 
@@ -730,29 +811,95 @@ Database operations are instrumented to track performance:
         )
     }
 
-#### 9.3 Metrics Exposure
+#### 9.3 Distributed Tracing
+
+The application uses OpenTelemetry for distributed tracing, providing detailed insights into the execution flow of complex operations.
+
+##### 9.3.1 Domain Operation Tracing
+
+Each domain operation is instrumented with tracing spans to track its execution:
+
+```
+// Start a new span for this operation
+ctx, span := s.tracer.Start(ctx, "FamilyDomainService.CreateFamily")
+defer span.End()
+```
+
+##### 9.3.2 Complex Workflow Tracing
+
+Complex workflows like the divorce process have detailed tracing with nested spans for each step:
+
+```
+// Main operation span
+ctx, span := s.tracer.Start(ctx, "FamilyDomainService.Divorce")
+defer span.End()
+
+// Repository operation span
+ctx, getSpan := s.tracer.Start(ctx, "Repository.GetByID.Divorce")
+// ... repository operation ...
+getSpan.End()
+
+// Domain logic span
+ctx, divorceLogicSpan := s.tracer.Start(ctx, "Domain.DivorceLogic")
+// ... domain logic ...
+divorceLogicSpan.End()
+
+// Save custodial parent family span
+ctx, saveCustodialSpan := s.tracer.Start(ctx, "Repository.Save.CustodialFamily")
+// ... save operation ...
+saveCustodialSpan.End()
+
+// Save remaining parent family span
+ctx, saveRemainingSpan := s.tracer.Start(ctx, "Repository.Save.RemainingFamily")
+// ... save operation ...
+saveRemainingSpan.End()
+```
+
+This detailed tracing provides visibility into:
+- The overall duration of complex operations
+- The time spent in each step of the workflow
+- Potential bottlenecks in the execution path
+- Error points in the workflow
+
+#### 9.4 Metrics Exposure
 
 The application exposes metrics through a `/metrics` endpoint in Prometheus format. This endpoint is automatically scraped by Prometheus at regular intervals.
 
-#### 9.4 Visualization
+#### 9.5 Visualization
 
 A custom Grafana dashboard (`grafana_dashboard_for_family_service.json`) provides visualization of key metrics:
 
 - Heap allocations over time
 - HTTP request rates and durations
 - Database operation performance
+- Domain operation performance and counts
+- Family member and status counts
 - Error rates
+
+The dashboard includes panels specifically for the new domain operation metrics:
+
+- Family operation success/failure rates
+- Family operation duration distributions
+- Repository operation success/failure rates
+- Repository operation duration distributions
+- Family member counts by type (parents/children)
+- Family status distribution (single/married/divorced/widowed)
+
+Additionally, the dashboard includes a tracing panel that visualizes the execution flow of complex operations like the divorce process, showing the time spent in each step of the workflow.
 
 The dashboard is designed to provide insights into the application's performance and health, allowing for proactive monitoring and troubleshooting.
 
-#### 9.5 Alerting
+#### 9.6 Alerting
 
 The monitoring system supports alerting based on metric thresholds:
 
-- High error rates
-- Elevated response times
+- High error rates in domain operations
+- Elevated operation durations
 - Memory usage spikes
 - Database connection pool exhaustion
+- High failure rates for specific operations (e.g., divorce process)
+- Unusual changes in family member counts
+- Unusual changes in family status distribution
 
 Alerts can be configured in Grafana to notify operators via email, Slack, or other channels when predefined conditions are met.
 
