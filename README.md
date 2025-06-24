@@ -3,16 +3,17 @@
 
 ## 📖 Overview
 
-Family-Service is a backend service designed to track dynamic family relationships using modern software engineering principles. It supports use cases such as marriage, divorce, remarriage, single-parent families, and parental death. Data integrity and family structure constraints are enforced through domain validation logic. The architecture is based on Domain-Driven Design (DDD), Clean Architecture, and Hexagonal Architecture, providing a scalable and testable foundation for managing families across SQLite (local development), MongoDB (document model), and PostgreSQL (relational model).
+Family-Service is a sophisticated GraphQL-based backend service designed to manage complex family relationships using modern software engineering principles. Built with Go and following Domain-Driven Design (DDD), Clean Architecture, and Hexagonal Architecture patterns, it provides robust functionality for tracking dynamic family structures including marriages, divorces, remarriages, single-parent families, and parental changes. The service features a flexible multi-database implementation supporting SQLite (for local development), MongoDB (document model), and PostgreSQL (relational model), with full transaction safety and data integrity. Key capabilities include rich relationship modeling between families, parents, and children, strict domain validation logic, and cascade operations for life events like divorce and remarriage. The system is engineered for reliability with comprehensive logging via Zap, OS signal handling, and context propagation throughout the request lifecycle. Leveraging Go's generics for type-safe, reusable code patterns, the application demonstrates modern best practices in software architecture while solving real-world family relationship management challenges.
 
-Key features include:
-
-- Rich relationship modeling between families, parents, and children
-- Transaction-safe CRUD operations for SQLite, MongoDB, and PostgreSQL
-- Validation of unique parent identity within a family (name + birthdate)
-- Cascade logic during divorce/remarriage events
-- Logging with Zap, OS signal handling, and context propagation
-  A backend service for managing complex family relationships (parents, children, families) using Domain-Driven Design, Clean Architecture, and Hexagonal Architecture.
+Key Features:
+* Modern Architecture: Built with Go, following DDD, Clean Architecture, and Hexagonal Architecture patterns
+* GraphQL API: Flexible and efficient API layer for querying and mutating family data
+* Multi-Database Support: Compatible with SQLite, MongoDB, and PostgreSQL with full transaction safety
+* Rich Domain Model: Comprehensive modeling of family relationships, including marriages, divorces, and remarriages
+* Data Integrity: Strict domain validation logic and cascade operations for life events
+* High Reliability: Robust error handling, logging with Zap, and OS signal handling
+* Type Safety: Leverages Go's generics for reusable, type-safe code patterns
+* Observability: Context propagation and comprehensive request lifecycle tracking
 
 ## 🏗 Architecture
 

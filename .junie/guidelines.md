@@ -1,5 +1,4 @@
 This project follows the following coding guidelines:
-* You do not have to maintain backward compatibility at this time.
 * You will explain decisions and design choices before implementing them.
 * The architecture combines the best practices from Domain-Driven Design (DDD), Clean Architecture, and Hexagonal Architecture, creating a hybrid model that leverages the strengths of each.  All code must adhere to these designs.
 * The codebase is written in Go, following best practices and conventions.

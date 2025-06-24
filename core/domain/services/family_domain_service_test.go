@@ -8,77 +8,28 @@ import (
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
-	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/family-service/core/domain/ports/mock"
 	"github.com/abitofhelp/servicelib/logging"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
 
-// mockRepo is a mock implementation of the FamilyRepository interface for testing
-type mockRepo struct {
-	store map[string]*entity.Family
-}
-
-func (m *mockRepo) GetByID(ctx context.Context, id string) (*entity.Family, error) {
-	fam, ok := m.store[id]
-	if !ok {
-		return nil, errors.NewNotFoundError("Family", id, nil)
-	}
-	return fam, nil
-}
-
-func (m *mockRepo) Save(ctx context.Context, f *entity.Family) error {
-	if f == nil {
-		return errors.NewValidationError("family cannot be nil", "family", nil)
-	}
-	m.store[f.ID()] = f
-	return nil
-}
-
-func (m *mockRepo) FindByParentID(ctx context.Context, parentID string) ([]*entity.Family, error) {
-	var result []*entity.Family
-	for _, fam := range m.store {
-		for _, p := range fam.Parents() {
-			if p.ID() == parentID {
-				result = append(result, fam)
-				break
-			}
-		}
-	}
-	return result, nil
-}
-
-func (m *mockRepo) FindByChildID(ctx context.Context, childID string) (*entity.Family, error) {
-	for _, fam := range m.store {
-		for _, c := range fam.Children() {
-			if c.ID() == childID {
-				return fam, nil
-			}
-		}
-	}
-	return nil, errors.NewNotFoundError("Family with Child", childID, nil)
-}
-
-func (m *mockRepo) GetAll(ctx context.Context) ([]*entity.Family, error) {
-	var families []*entity.Family
-	for _, fam := range m.store {
-		families = append(families, fam)
-	}
-	return families, nil
-}
-
 func TestCreateFamily(t *testing.T) {
 	// Setup
-	repo := &mockRepo{store: make(map[string]*entity.Family)}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock.NewMockFamilyRepository(ctrl)
 	logger := zaptest.NewLogger(t)
 	contextLogger := logging.NewContextLogger(logger)
-	svc := NewFamilyDomainService(repo, contextLogger)
+	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 	p, err := entity.NewParent("00000000-0000-0000-0000-000000000001", "John", "Doe", birthDate, nil)
-	if err != nil {
-		t.Fatalf("failed to create parent: %v", err)
-	}
+	require.NoError(t, err, "failed to create parent")
 
 	// Create a family DTO
 	dto := entity.FamilyDTO{
@@ -88,93 +39,76 @@ func TestCreateFamily(t *testing.T) {
 		Children: []entity.ChildDTO{},
 	}
 
+	// Set expectations
+	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, family *entity.Family) error {
+			// Verify the family being saved
+			assert.Equal(t, dto.ID, family.ID(), "Family ID should match")
+			assert.Equal(t, entity.Status(dto.Status), family.Status(), "Family status should match")
+			assert.Len(t, family.Parents(), 1, "Should have 1 parent")
+			return nil
+		})
+
 	// Test
 	result, err := svc.CreateFamily(context.Background(), dto)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err, "unexpected error")
 
 	// Verify
-	if result.ID != dto.ID {
-		t.Errorf("expected ID %s, got %s", dto.ID, result.ID)
-	}
-	if result.Status != dto.Status {
-		t.Errorf("expected Status %s, got %s", dto.Status, result.Status)
-	}
-	if len(result.Parents) != 1 {
-		t.Errorf("expected 1 parent, got %d", len(result.Parents))
-	}
+	assert.Equal(t, dto.ID, result.ID, "ID should match")
+	assert.Equal(t, dto.Status, result.Status, "Status should match")
+	assert.Len(t, result.Parents, 1, "Should have 1 parent")
 }
 
 func TestGetFamily(t *testing.T) {
 	// Setup
-	repo := &mockRepo{store: make(map[string]*entity.Family)}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock.NewMockFamilyRepository(ctrl)
 	logger := zaptest.NewLogger(t)
 	contextLogger := logging.NewContextLogger(logger)
-	svc := NewFamilyDomainService(repo, contextLogger)
+	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 	p, err := entity.NewParent("00000000-0000-0000-0000-000000000003", "John", "Doe", birthDate, nil)
-	if err != nil {
-		t.Fatalf("failed to create parent: %v", err)
-	}
+	require.NoError(t, err, "failed to create parent")
 
 	// Create a family
 	fam, err := entity.NewFamily("00000000-0000-0000-0000-000000000004", entity.Single, []*entity.Parent{p}, []*entity.Child{})
-	if err != nil {
-		t.Fatalf("failed to create family: %v", err)
-	}
+	require.NoError(t, err, "failed to create family")
 
-	// Save the family
-	err = repo.Save(context.Background(), fam)
-	if err != nil {
-		t.Fatalf("failed to save family: %v", err)
-	}
+	// Set expectations
+	mockRepo.EXPECT().GetByID(gomock.Any(), "00000000-0000-0000-0000-000000000004").Return(fam, nil)
 
 	// Test
 	result, err := svc.GetFamily(context.Background(), "00000000-0000-0000-0000-000000000004")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err, "unexpected error")
 
 	// Verify
-	if result.ID != fam.ID() {
-		t.Errorf("expected ID %s, got %s", fam.ID(), result.ID)
-	}
-	if result.Status != string(fam.Status()) {
-		t.Errorf("expected Status %s, got %s", fam.Status(), result.Status)
-	}
-	if len(result.Parents) != 1 {
-		t.Errorf("expected 1 parent, got %d", len(result.Parents))
-	}
+	assert.Equal(t, fam.ID(), result.ID, "ID should match")
+	assert.Equal(t, string(fam.Status()), result.Status, "Status should match")
+	assert.Len(t, result.Parents, 1, "Should have 1 parent")
 }
 
 func TestAddParent(t *testing.T) {
 	// Setup
-	repo := &mockRepo{store: make(map[string]*entity.Family)}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock.NewMockFamilyRepository(ctrl)
 	logger := zaptest.NewLogger(t)
 	contextLogger := logging.NewContextLogger(logger)
-	svc := NewFamilyDomainService(repo, contextLogger)
+	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create a parent
 	birthDate1 := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 	p1, err := entity.NewParent("00000000-0000-0000-0000-000000000005", "John", "Doe", birthDate1, nil)
-	if err != nil {
-		t.Fatalf("failed to create parent: %v", err)
-	}
+	require.NoError(t, err, "failed to create parent")
 
 	// Create a family
 	fam, err := entity.NewFamily("00000000-0000-0000-0000-000000000006", entity.Single, []*entity.Parent{p1}, []*entity.Child{})
-	if err != nil {
-		t.Fatalf("failed to create family: %v", err)
-	}
-
-	// Save the family
-	err = repo.Save(context.Background(), fam)
-	if err != nil {
-		t.Fatalf("failed to save family: %v", err)
-	}
+	require.NoError(t, err, "failed to create family")
 
 	// Create a second parent
 	birthDate2 := time.Date(1982, 2, 2, 0, 0, 0, 0, time.UTC)
@@ -186,46 +120,44 @@ func TestAddParent(t *testing.T) {
 		DeathDate: nil,
 	}
 
+	// Set expectations
+	mockRepo.EXPECT().GetByID(gomock.Any(), "00000000-0000-0000-0000-000000000006").Return(fam, nil)
+	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, family *entity.Family) error {
+			// Verify the family being saved
+			assert.Equal(t, "00000000-0000-0000-0000-000000000006", family.ID(), "Family ID should match")
+			assert.Equal(t, entity.Married, family.Status(), "Family status should be Married")
+			assert.Len(t, family.Parents(), 2, "Should have 2 parents")
+			return nil
+		})
+
 	// Test
 	result, err := svc.AddParent(context.Background(), "00000000-0000-0000-0000-000000000006", p2DTO)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err, "unexpected error")
 
 	// Verify
-	if len(result.Parents) != 2 {
-		t.Errorf("expected 2 parents, got %d", len(result.Parents))
-	}
-	if result.Status != string(entity.Married) {
-		t.Errorf("expected Status %s, got %s", entity.Married, result.Status)
-	}
+	assert.Len(t, result.Parents, 2, "Should have 2 parents")
+	assert.Equal(t, string(entity.Married), result.Status, "Status should be Married")
 }
 
 func TestAddChild(t *testing.T) {
 	// Setup
-	repo := &mockRepo{store: make(map[string]*entity.Family)}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock.NewMockFamilyRepository(ctrl)
 	logger := zaptest.NewLogger(t)
 	contextLogger := logging.NewContextLogger(logger)
-	svc := NewFamilyDomainService(repo, contextLogger)
+	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create a parent
 	birthDate := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 	p, err := entity.NewParent("00000000-0000-0000-0000-000000000008", "John", "Doe", birthDate, nil)
-	if err != nil {
-		t.Fatalf("failed to create parent: %v", err)
-	}
+	require.NoError(t, err, "failed to create parent")
 
 	// Create a family
 	fam, err := entity.NewFamily("00000000-0000-0000-0000-000000000009", entity.Single, []*entity.Parent{p}, []*entity.Child{})
-	if err != nil {
-		t.Fatalf("failed to create family: %v", err)
-	}
-
-	// Save the family
-	err = repo.Save(context.Background(), fam)
-	if err != nil {
-		t.Fatalf("failed to save family: %v", err)
-	}
+	require.NoError(t, err, "failed to create family")
 
 	// Create a child
 	childBirthDate := time.Date(2010, 3, 3, 0, 0, 0, 0, time.UTC)
@@ -237,113 +169,94 @@ func TestAddChild(t *testing.T) {
 		DeathDate: nil,
 	}
 
+	// Set expectations
+	mockRepo.EXPECT().GetByID(gomock.Any(), "00000000-0000-0000-0000-000000000009").Return(fam, nil)
+	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, family *entity.Family) error {
+			// Verify the family being saved
+			assert.Equal(t, "00000000-0000-0000-0000-000000000009", family.ID(), "Family ID should match")
+			assert.Len(t, family.Children(), 1, "Should have 1 child")
+			return nil
+		})
+
 	// Test
 	result, err := svc.AddChild(context.Background(), "00000000-0000-0000-0000-000000000009", childDTO)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err, "unexpected error")
 
 	// Verify
-	if len(result.Children) != 1 {
-		t.Errorf("expected 1 child, got %d", len(result.Children))
-	}
+	assert.Len(t, result.Children, 1, "Should have 1 child")
 }
 
 func TestDivorce(t *testing.T) {
 	// Setup
-	repo := &mockRepo{store: make(map[string]*entity.Family)}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mock.NewMockFamilyRepository(ctrl)
 	logger := zaptest.NewLogger(t)
 	contextLogger := logging.NewContextLogger(logger)
-	svc := NewFamilyDomainService(repo, contextLogger)
+	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create parents
 	birthDate1 := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 	p1, err := entity.NewParent("00000000-0000-0000-0000-00000000000b", "John", "Doe", birthDate1, nil)
-	if err != nil {
-		t.Fatalf("failed to create parent: %v", err)
-	}
+	require.NoError(t, err, "failed to create parent")
 
 	birthDate2 := time.Date(1982, 2, 2, 0, 0, 0, 0, time.UTC)
 	p2, err := entity.NewParent("00000000-0000-0000-0000-00000000000c", "Jane", "Doe", birthDate2, nil)
-	if err != nil {
-		t.Fatalf("failed to create parent: %v", err)
-	}
+	require.NoError(t, err, "failed to create parent")
 
 	// Create a child
 	childBirthDate := time.Date(2010, 3, 3, 0, 0, 0, 0, time.UTC)
 	c, err := entity.NewChild("00000000-0000-0000-0000-00000000000d", "Baby", "Doe", childBirthDate, nil)
-	if err != nil {
-		t.Fatalf("failed to create child: %v", err)
-	}
+	require.NoError(t, err, "failed to create child")
 
 	// Create a family
 	fam, err := entity.NewFamily("00000000-0000-0000-0000-00000000000e", entity.Married, []*entity.Parent{p1, p2}, []*entity.Child{c})
-	if err != nil {
-		t.Fatalf("failed to create family: %v", err)
-	}
+	require.NoError(t, err, "failed to create family")
 
-	// Save the family
-	err = repo.Save(context.Background(), fam)
-	if err != nil {
-		t.Fatalf("failed to save family: %v", err)
-	}
+	// Create a variable to capture the new family created during divorce
+	var newFamily *entity.Family
+
+	// Set expectations
+	mockRepo.EXPECT().GetByID(gomock.Any(), "00000000-0000-0000-0000-00000000000e").Return(fam, nil)
+
+	// Expect two Save calls - one for the original family and one for the new family
+	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, family *entity.Family) error {
+			// This is the original family being updated
+			if family.ID() == "00000000-0000-0000-0000-00000000000e" {
+				// Verify the family being saved
+				assert.Equal(t, entity.Divorced, family.Status(), "Original family status should be Divorced")
+				assert.Len(t, family.Parents(), 1, "Original family should have 1 parent")
+				assert.Equal(t, "00000000-0000-0000-0000-00000000000b", family.Parents()[0].ID(), "Original family should have the custodial parent")
+				assert.Len(t, family.Children(), 1, "Original family should have 1 child")
+			} else {
+				// This is the new family being created
+				newFamily = family
+				assert.Equal(t, entity.Divorced, family.Status(), "New family status should be Divorced")
+				assert.Len(t, family.Parents(), 1, "New family should have 1 parent")
+				assert.Equal(t, "00000000-0000-0000-0000-00000000000c", family.Parents()[0].ID(), "New family should have the remaining parent")
+				assert.Len(t, family.Children(), 0, "New family should have 0 children")
+			}
+			return nil
+		}).Times(2)
 
 	// Test
 	result, err := svc.Divorce(context.Background(), "00000000-0000-0000-0000-00000000000e", "00000000-0000-0000-0000-00000000000b")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err, "unexpected error")
 
 	// Verify the original family (now with custodial parent)
-	if result.Status != string(entity.Divorced) {
-		t.Errorf("expected Status %s, got %s", entity.Divorced, result.Status)
-	}
-	if len(result.Parents) != 1 {
-		t.Errorf("expected 1 parent, got %d", len(result.Parents))
-	}
-	if len(result.Children) != 1 {
-		t.Errorf("expected 1 child, got %d", len(result.Children))
-	}
-	// Verify the family with custodial parent keeps the original ID
-	if result.ID != "00000000-0000-0000-0000-00000000000e" {
-		t.Errorf("expected family with custodial parent to keep the original ID, got %s", result.ID)
-	}
-	// Verify the parent is the custodial parent
-	if result.Parents[0].ID != "00000000-0000-0000-0000-00000000000b" {
-		t.Errorf("expected custodial parent ID to be 00000000-0000-0000-0000-00000000000b, got %s", result.Parents[0].ID)
-	}
+	assert.Equal(t, string(entity.Divorced), result.Status, "Status should be Divorced")
+	assert.Len(t, result.Parents, 1, "Should have 1 parent")
+	assert.Len(t, result.Children, 1, "Should have 1 child")
+	assert.Equal(t, "00000000-0000-0000-0000-00000000000e", result.ID, "Family with custodial parent should keep the original ID")
+	assert.Equal(t, "00000000-0000-0000-0000-00000000000b", result.Parents[0].ID, "Custodial parent ID should be correct")
 
-	// Find the new family with the remaining parent
-	// We need to get all families and find the one that's not the original
-	allFamilies, err := repo.GetAll(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var remainingFam *entity.Family
-	for _, f := range allFamilies {
-		if f.ID() != "00000000-0000-0000-0000-00000000000e" {
-			remainingFam = f
-			break
-		}
-	}
-
-	if remainingFam == nil {
-		t.Fatalf("could not find family with remaining parent")
-	}
-
-	// Verify the family with remaining parent
-	if remainingFam.Status() != entity.Divorced {
-		t.Errorf("expected Status %s, got %s", entity.Divorced, remainingFam.Status())
-	}
-	if len(remainingFam.Parents()) != 1 {
-		t.Errorf("expected 1 parent, got %d", len(remainingFam.Parents()))
-	}
-	if len(remainingFam.Children()) != 0 {
-		t.Errorf("expected 0 children, got %d", len(remainingFam.Children()))
-	}
-	// Verify the parent is the remaining parent
-	if remainingFam.Parents()[0].ID() != "00000000-0000-0000-0000-00000000000c" {
-		t.Errorf("expected remaining parent ID to be 00000000-0000-0000-0000-00000000000c, got %s", remainingFam.Parents()[0].ID())
-	}
+	// Verify the new family was created
+	require.NotNil(t, newFamily, "New family should have been created")
+	assert.Equal(t, entity.Divorced, newFamily.Status(), "New family status should be Divorced")
+	assert.Len(t, newFamily.Parents(), 1, "New family should have 1 parent")
+	assert.Len(t, newFamily.Children(), 0, "New family should have 0 children")
+	assert.Equal(t, "00000000-0000-0000-0000-00000000000c", newFamily.Parents()[0].ID(), "Remaining parent ID should be correct")
 }

@@ -4,12 +4,15 @@ package mongo
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
+	"github.com/abitofhelp/servicelib/rate"
+	"github.com/abitofhelp/servicelib/circuit"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
 	"github.com/abitofhelp/servicelib/retry"
@@ -78,8 +81,10 @@ type ChildDocument struct {
 
 // MongoFamilyRepository implements the ports.FamilyRepository interface for MongoDB
 type MongoFamilyRepository struct {
-	Collection *mongo.Collection
-	logger     *logging.ContextLogger
+	Collection    *mongo.Collection
+	logger        *logging.ContextLogger
+	circuitBreaker *circuit.CircuitBreaker
+	rateLimiter    *rate.RateLimiter
 }
 
 // Ensure MongoFamilyRepository implements ports.FamilyRepository
@@ -93,9 +98,76 @@ func NewMongoFamilyRepository(collection *mongo.Collection, logger *logging.Cont
 	if logger == nil {
 		panic("logger cannot be nil")
 	}
+
+	// Get circuit breaker configuration
+	var circuitConfig *config.CircuitConfig
+	if globalConfig != nil {
+		circuitConfig = &globalConfig.Circuit
+	} else {
+		// Default configuration if global config is not available
+		circuitConfig = &config.CircuitConfig{
+			Enabled:         true,
+			Timeout:         5 * time.Second,
+			MaxConcurrent:   100,
+			ErrorThreshold:  0.5,
+			VolumeThreshold: 20,
+			SleepWindow:     10 * time.Second,
+		}
+	}
+
+	// Get rate limiter configuration
+	var rateConfig *config.RateConfig
+	if globalConfig != nil {
+		rateConfig = &globalConfig.Rate
+	} else {
+		// Default configuration if global config is not available
+		rateConfig = &config.RateConfig{
+			Enabled:           true,
+			RequestsPerSecond: 100,
+			BurstSize:         50,
+		}
+	}
+
+	// Create a new zap logger for the circuit breaker and rate limiter
+	zapLogger, _ := zap.NewProduction()
+	contextLogger := logging.NewContextLogger(zapLogger)
+
+	// Create circuit breaker config
+	circuitBreakerConfig := circuit.DefaultConfig().
+		WithEnabled(circuitConfig.Enabled).
+		WithTimeout(circuitConfig.Timeout).
+		WithMaxConcurrent(circuitConfig.MaxConcurrent).
+		WithErrorThreshold(circuitConfig.ErrorThreshold).
+		WithVolumeThreshold(circuitConfig.VolumeThreshold).
+		WithSleepWindow(circuitConfig.SleepWindow)
+
+	// Create circuit breaker options
+	circuitBreakerOptions := circuit.DefaultOptions().
+		WithName("mongodb").
+		WithLogger(contextLogger)
+
+	// Create circuit breaker
+	cb := circuit.NewCircuitBreaker(circuitBreakerConfig, circuitBreakerOptions)
+
+	// Create rate limiter config
+	rateLimiterConfig := rate.DefaultConfig().
+		WithEnabled(rateConfig.Enabled).
+		WithRequestsPerSecond(rateConfig.RequestsPerSecond).
+		WithBurstSize(rateConfig.BurstSize)
+
+	// Create rate limiter options
+	rateLimiterOptions := rate.DefaultOptions().
+		WithName("mongodb").
+		WithLogger(contextLogger)
+
+	// Create rate limiter
+	rl := rate.NewRateLimiter(rateLimiterConfig, rateLimiterOptions)
+
 	return &MongoFamilyRepository{
-		Collection: collection,
-		logger:     logger,
+		Collection:    collection,
+		logger:        logger,
+		circuitBreaker: cb,
+		rateLimiter:    rl,
 	}
 }
 
@@ -114,6 +186,7 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 
 	var doc FamilyDocument
 	var family *entity.Family
+	var retryErr error
 
 	// Define the operation to retry
 	operation := func(ctx context.Context) error {
@@ -152,22 +225,58 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 	// Configure retry with backoff
 	retryConfig := getRetryConfig()
 
-	// Execute with retry
-	err := retry.Do(ctxWithTimeout, operation, retryConfig, isRetryable)
-	if err != nil {
+	// Wrap the retry operation with circuit breaker
+	circuitOperation := func(ctx context.Context) error {
+		// Execute with retry
+		retryErr = retry.Do(ctx, operation, retryConfig, isRetryable)
+		return retryErr
+	}
+
+	// Wrap the circuit breaker operation with rate limiter
+	rateOperation := func(ctx context.Context) error {
+		// Execute with circuit breaker
+		// We need to wrap the circuitOperation to match the generic function signature
+		circuitOpWrapper := func(ctx context.Context) (bool, error) {
+			err := circuitOperation(ctx)
+			return err == nil, err
+		}
+		_, err := circuit.Execute(ctx, r.circuitBreaker, "GetByID", circuitOpWrapper)
+		return err
+	}
+
+	// Execute with rate limiter
+	// We need to wrap the rateOperation to match the generic function signature
+	rateOpWrapper := func(ctx context.Context) (bool, error) {
+		err := rateOperation(ctx)
+		return err == nil, err
+	}
+	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "GetByID", rateOpWrapper)
+
+	// Check for errors from rate limiter or circuit breaker
+	if err != nil && retryErr == nil {
+		// Check if it's a rate limiter error
+		if strings.Contains(err.Error(), "rate limit exceeded") {
+			return nil, errors.NewDatabaseError("rate limit exceeded", "query", "families", err)
+		}
+		// Otherwise, assume it's a circuit breaker error
+		return nil, errors.NewDatabaseError("circuit breaker is open", "query", "families", err)
+	}
+
+	// Handle retry errors
+	if retryErr != nil {
 		// If it's already a typed error, return it directly
-		if _, ok := err.(*errors.NotFoundError); ok {
-			return nil, err
+		if _, ok := retryErr.(*errors.NotFoundError); ok {
+			return nil, retryErr
 		}
-		if _, ok := err.(*errors.ValidationError); ok {
-			return nil, err
+		if _, ok := retryErr.(*errors.ValidationError); ok {
+			return nil, retryErr
 		}
-		if _, ok := err.(*errors.DatabaseError); ok {
-			return nil, err
+		if _, ok := retryErr.(*errors.DatabaseError); ok {
+			return nil, retryErr
 		}
 
 		// Otherwise, wrap it in a database error
-		return nil, errors.NewDatabaseError("failed to get family from MongoDB after retries", "query", "families", err)
+		return nil, errors.NewDatabaseError("failed to get family from MongoDB after retries", "query", "families", retryErr)
 	}
 
 	r.logger.Debug(ctx, "Successfully retrieved family from MongoDB", zap.String("family_id", id))
@@ -188,21 +297,95 @@ func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) er
 		return err
 	}
 
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Convert domain entity to document
 	doc := r.entityToDocument(fam)
+	var retryErr error
 
-	// Use ReplaceOne with upsert to handle both insert and update
-	// Query by family_id instead of _id
-	_, err := r.Collection.ReplaceOne(
-		ctx,
-		bson.M{"family_id": doc.FamilyID},
-		doc,
-		options.Replace().SetUpsert(true),
-	)
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		// Use ReplaceOne with upsert to handle both insert and update
+		// Query by family_id instead of _id
+		_, err := r.Collection.ReplaceOne(
+			ctx,
+			bson.M{"family_id": doc.FamilyID},
+			doc,
+			options.Replace().SetUpsert(true),
+		)
 
-	if err != nil {
-		r.logger.Error(ctx, "Failed to save family to MongoDB", zap.Error(err), zap.String("family_id", fam.ID()))
-		return errors.NewDatabaseError("failed to save family to MongoDB", "save", "families", err)
+		if err != nil {
+			r.logger.Error(ctx, "Failed to save family to MongoDB", zap.Error(err), zap.String("family_id", fam.ID()))
+			return errors.NewDatabaseError("failed to save family to MongoDB", "save", "families", err)
+		}
+		return nil
+	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Wrap the retry operation with circuit breaker
+	circuitOperation := func(ctx context.Context) error {
+		// Execute with retry
+		retryErr = retry.Do(ctx, operation, retryConfig, isRetryable)
+		return retryErr
+	}
+
+	// Wrap the circuit breaker operation with rate limiter
+	rateOperation := func(ctx context.Context) error {
+		// Execute with circuit breaker
+		// We need to wrap the circuitOperation to match the generic function signature
+		circuitOpWrapper := func(ctx context.Context) (bool, error) {
+			err := circuitOperation(ctx)
+			return err == nil, err
+		}
+		_, err := circuit.Execute(ctx, r.circuitBreaker, "Save", circuitOpWrapper)
+		return err
+	}
+
+	// Execute with rate limiter
+	// We need to wrap the rateOperation to match the generic function signature
+	rateOpWrapper := func(ctx context.Context) (bool, error) {
+		err := rateOperation(ctx)
+		return err == nil, err
+	}
+	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "Save", rateOpWrapper)
+
+	// Check for errors from rate limiter or circuit breaker
+	if err != nil && retryErr == nil {
+		// Check if it's a rate limiter error
+		if strings.Contains(err.Error(), "rate limit exceeded") {
+			return errors.NewDatabaseError("rate limit exceeded", "save", "families", err)
+		}
+		// Otherwise, assume it's a circuit breaker error
+		return errors.NewDatabaseError("circuit breaker is open", "save", "families", err)
+	}
+
+	// Handle retry errors
+	if retryErr != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := retryErr.(*errors.ValidationError); ok {
+			return retryErr
+		}
+		if _, ok := retryErr.(*errors.DatabaseError); ok {
+			return retryErr
+		}
+
+		// Otherwise, wrap it in a database error
+		return errors.NewDatabaseError("failed to save family to MongoDB after retries", "save", "families", retryErr)
 	}
 
 	r.logger.Debug(ctx, "Successfully saved family to MongoDB", zap.String("family_id", fam.ID()))
@@ -218,29 +401,106 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 		return nil, errors.NewValidationError("parent ID is required", "parentID", nil)
 	}
 
-	// No change needed here, as parents.id is still the same field
-	cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID})
-	if err != nil {
-		r.logger.Error(ctx, "Failed to find families by parent ID in MongoDB", zap.Error(err), zap.String("parent_id", parentID))
-		return nil, errors.NewDatabaseError("failed to find families by parent ID", "query", "families", err)
-	}
-	defer cursor.Close(ctx)
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-	var docs []FamilyDocument
-	if err := cursor.All(ctx, &docs); err != nil {
-		r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
-		return nil, errors.NewDatabaseError("failed to decode families", "query", "families", err)
-	}
+	var families []*entity.Family
+	var retryErr error
 
-	// Convert documents to domain entities
-	families := make([]*entity.Family, 0, len(docs))
-	for _, doc := range docs {
-		fam, err := r.documentToEntity(doc)
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		// No change needed here, as parents.id is still the same field
+		cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID})
 		if err != nil {
-			r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
-			return nil, err
+			r.logger.Error(ctx, "Failed to find families by parent ID in MongoDB", zap.Error(err), zap.String("parent_id", parentID))
+			return errors.NewDatabaseError("failed to find families by parent ID", "query", "families", err)
 		}
-		families = append(families, fam)
+		defer cursor.Close(ctx)
+
+		var docs []FamilyDocument
+		if err := cursor.All(ctx, &docs); err != nil {
+			r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
+			return errors.NewDatabaseError("failed to decode families", "query", "families", err)
+		}
+
+		// Convert documents to domain entities
+		families = make([]*entity.Family, 0, len(docs))
+		for _, doc := range docs {
+			fam, err := r.documentToEntity(doc)
+			if err != nil {
+				r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
+				return err
+			}
+			families = append(families, fam)
+		}
+
+		return nil
+	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Wrap the retry operation with circuit breaker
+	circuitOperation := func(ctx context.Context) error {
+		// Execute with retry
+		retryErr = retry.Do(ctx, operation, retryConfig, isRetryable)
+		return retryErr
+	}
+
+	// Wrap the circuit breaker operation with rate limiter
+	rateOperation := func(ctx context.Context) error {
+		// Execute with circuit breaker
+		// We need to wrap the circuitOperation to match the generic function signature
+		circuitOpWrapper := func(ctx context.Context) (bool, error) {
+			err := circuitOperation(ctx)
+			return err == nil, err
+		}
+		_, err := circuit.Execute(ctx, r.circuitBreaker, "FindByParentID", circuitOpWrapper)
+		return err
+	}
+
+	// Execute with rate limiter
+	// We need to wrap the rateOperation to match the generic function signature
+	rateOpWrapper := func(ctx context.Context) (bool, error) {
+		err := rateOperation(ctx)
+		return err == nil, err
+	}
+	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "FindByParentID", rateOpWrapper)
+
+	// Check for errors from rate limiter or circuit breaker
+	if err != nil && retryErr == nil {
+		// Check if it's a rate limiter error
+		if strings.Contains(err.Error(), "rate limit exceeded") {
+			return nil, errors.NewDatabaseError("rate limit exceeded", "query", "families", err)
+		}
+		// Otherwise, assume it's a circuit breaker error
+		return nil, errors.NewDatabaseError("circuit breaker is open", "query", "families", err)
+	}
+
+	// Handle retry errors
+	if retryErr != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := retryErr.(*errors.ValidationError); ok {
+			return nil, retryErr
+		}
+		if _, ok := retryErr.(*errors.DatabaseError); ok {
+			return nil, retryErr
+		}
+
+		// Otherwise, wrap it in a database error
+		return nil, errors.NewDatabaseError("failed to find families by parent ID after retries", "query", "families", retryErr)
 	}
 
 	r.logger.Debug(ctx, "Successfully found families by parent ID in MongoDB",
@@ -258,53 +518,217 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 		return nil, errors.NewValidationError("child ID is required", "childID", nil)
 	}
 
-	// No change needed here, as children.id is still the same field
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	var doc FamilyDocument
-	err := r.Collection.FindOne(ctx, bson.M{"children.id": childID}).Decode(&doc)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			r.logger.Info(ctx, "Family with child not found in MongoDB", zap.String("child_id", childID))
-			return nil, errors.NewNotFoundError("Family with Child", childID, nil)
+	var family *entity.Family
+	var retryErr error
+
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		// No change needed here, as children.id is still the same field
+		err := r.Collection.FindOne(ctx, bson.M{"children.id": childID}).Decode(&doc)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				r.logger.Info(ctx, "Family with child not found in MongoDB", zap.String("child_id", childID))
+				return errors.NewNotFoundError("Family with Child", childID, nil)
+			}
+			r.logger.Error(ctx, "Failed to find family by child ID in MongoDB", zap.Error(err), zap.String("child_id", childID))
+			return errors.NewDatabaseError("failed to find family by child ID", "query", "families", err)
 		}
-		r.logger.Error(ctx, "Failed to find family by child ID in MongoDB", zap.Error(err), zap.String("child_id", childID))
-		return nil, errors.NewDatabaseError("failed to find family by child ID", "query", "families", err)
+
+		// Convert document to domain entity
+		var convErr error
+		family, convErr = r.documentToEntity(doc)
+		return convErr
+	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry not found errors
+		if _, ok := err.(*errors.NotFoundError); ok {
+			return false
+		}
+
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Wrap the retry operation with circuit breaker
+	circuitOperation := func(ctx context.Context) error {
+		// Execute with retry
+		retryErr = retry.Do(ctx, operation, retryConfig, isRetryable)
+		return retryErr
+	}
+
+	// Wrap the circuit breaker operation with rate limiter
+	rateOperation := func(ctx context.Context) error {
+		// Execute with circuit breaker
+		// We need to wrap the circuitOperation to match the generic function signature
+		circuitOpWrapper := func(ctx context.Context) (bool, error) {
+			err := circuitOperation(ctx)
+			return err == nil, err
+		}
+		_, err := circuit.Execute(ctx, r.circuitBreaker, "FindByChildID", circuitOpWrapper)
+		return err
+	}
+
+	// Execute with rate limiter
+	// We need to wrap the rateOperation to match the generic function signature
+	rateOpWrapper := func(ctx context.Context) (bool, error) {
+		err := rateOperation(ctx)
+		return err == nil, err
+	}
+	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "FindByChildID", rateOpWrapper)
+
+	// Check for errors from rate limiter or circuit breaker
+	if err != nil && retryErr == nil {
+		// Check if it's a rate limiter error
+		if strings.Contains(err.Error(), "rate limit exceeded") {
+			return nil, errors.NewDatabaseError("rate limit exceeded", "query", "families", err)
+		}
+		// Otherwise, assume it's a circuit breaker error
+		return nil, errors.NewDatabaseError("circuit breaker is open", "query", "families", err)
+	}
+
+	// Handle retry errors
+	if retryErr != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := retryErr.(*errors.NotFoundError); ok {
+			return nil, retryErr
+		}
+		if _, ok := retryErr.(*errors.ValidationError); ok {
+			return nil, retryErr
+		}
+		if _, ok := retryErr.(*errors.DatabaseError); ok {
+			return nil, retryErr
+		}
+
+		// Otherwise, wrap it in a database error
+		return nil, errors.NewDatabaseError("failed to find family by child ID after retries", "query", "families", retryErr)
 	}
 
 	r.logger.Debug(ctx, "Successfully found family by child ID in MongoDB",
 		zap.String("child_id", childID),
 		zap.String("family_id", doc.FamilyID))
 
-	// Convert document to domain entity
-	return r.documentToEntity(doc)
+	return family, nil
 }
 
 // GetAll retrieves all families
 func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, error) {
 	r.logger.Debug(ctx, "Getting all families from MongoDB")
 
-	// Find all documents in the collection
-	cursor, err := r.Collection.Find(ctx, bson.M{})
-	if err != nil {
-		r.logger.Error(ctx, "Failed to get all families from MongoDB", zap.Error(err))
-		return nil, errors.NewDatabaseError("failed to get all families", "query", "families", err)
-	}
-	defer cursor.Close(ctx)
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-	var docs []FamilyDocument
-	if err := cursor.All(ctx, &docs); err != nil {
-		r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
-		return nil, errors.NewDatabaseError("failed to decode families", "query", "families", err)
-	}
+	var families []*entity.Family
+	var retryErr error
 
-	// Convert documents to domain entities
-	families := make([]*entity.Family, 0, len(docs))
-	for _, doc := range docs {
-		fam, err := r.documentToEntity(doc)
+	// Define the operation to retry
+	operation := func(ctx context.Context) error {
+		// Find all documents in the collection
+		cursor, err := r.Collection.Find(ctx, bson.M{})
 		if err != nil {
-			r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
-			return nil, err
+			r.logger.Error(ctx, "Failed to get all families from MongoDB", zap.Error(err))
+			return errors.NewDatabaseError("failed to get all families", "query", "families", err)
 		}
-		families = append(families, fam)
+		defer cursor.Close(ctx)
+
+		var docs []FamilyDocument
+		if err := cursor.All(ctx, &docs); err != nil {
+			r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
+			return errors.NewDatabaseError("failed to decode families", "query", "families", err)
+		}
+
+		// Convert documents to domain entities
+		families = make([]*entity.Family, 0, len(docs))
+		for _, doc := range docs {
+			fam, err := r.documentToEntity(doc)
+			if err != nil {
+				r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
+				return err
+			}
+			families = append(families, fam)
+		}
+
+		return nil
+	}
+
+	// Define which errors are retryable
+	isRetryable := func(err error) bool {
+		// Don't retry validation errors
+		if _, ok := err.(*errors.ValidationError); ok {
+			return false
+		}
+
+		// Retry network errors, timeouts, and transient database errors
+		return retry.IsNetworkError(err) || retry.IsTimeoutError(err) || retry.IsTransientError(err)
+	}
+
+	// Configure retry with backoff
+	retryConfig := getRetryConfig()
+
+	// Wrap the retry operation with circuit breaker
+	circuitOperation := func(ctx context.Context) error {
+		// Execute with retry
+		retryErr = retry.Do(ctx, operation, retryConfig, isRetryable)
+		return retryErr
+	}
+
+	// Wrap the circuit breaker operation with rate limiter
+	rateOperation := func(ctx context.Context) error {
+		// Execute with circuit breaker
+		// We need to wrap the circuitOperation to match the generic function signature
+		circuitOpWrapper := func(ctx context.Context) (bool, error) {
+			err := circuitOperation(ctx)
+			return err == nil, err
+		}
+		_, err := circuit.Execute(ctx, r.circuitBreaker, "GetAll", circuitOpWrapper)
+		return err
+	}
+
+	// Execute with rate limiter
+	// We need to wrap the rateOperation to match the generic function signature
+	rateOpWrapper := func(ctx context.Context) (bool, error) {
+		err := rateOperation(ctx)
+		return err == nil, err
+	}
+	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "GetAll", rateOpWrapper)
+
+	// Check for errors from rate limiter or circuit breaker
+	if err != nil && retryErr == nil {
+		// Check if it's a rate limiter error
+		if strings.Contains(err.Error(), "rate limit exceeded") {
+			return nil, errors.NewDatabaseError("rate limit exceeded", "query", "families", err)
+		}
+		// Otherwise, assume it's a circuit breaker error
+		return nil, errors.NewDatabaseError("circuit breaker is open", "query", "families", err)
+	}
+
+	// Handle retry errors
+	if retryErr != nil {
+		// If it's already a typed error, return it directly
+		if _, ok := retryErr.(*errors.ValidationError); ok {
+			return nil, retryErr
+		}
+		if _, ok := retryErr.(*errors.DatabaseError); ok {
+			return nil, retryErr
+		}
+
+		// Otherwise, wrap it in a database error
+		return nil, errors.NewDatabaseError("failed to get all families after retries", "query", "families", retryErr)
 	}
 
 	r.logger.Debug(ctx, "Successfully retrieved all families from MongoDB", zap.Int("count", len(families)))

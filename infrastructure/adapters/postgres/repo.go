@@ -11,6 +11,7 @@ import (
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
+	repoerrors "github.com/abitofhelp/family-service/infrastructure/adapters/errors"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
 	"github.com/abitofhelp/servicelib/retry"
@@ -48,26 +49,23 @@ func getRetryConfig() retry.Config {
 		WithMaxBackoff(1 * time.Second)
 }
 
-// NewRepositoryError is a helper function that wraps errors.NewDatabaseError
-// to maintain compatibility with the old errors.NewDatabaseError function.
+// NewRepositoryError is a helper function that wraps the common repository error handling
+// to maintain backward compatibility.
 func NewRepositoryError(err error, message string, code string) error {
-	// Map the code to an appropriate operation and table
-	operation := "operation"
-	table := "families"
-
-	// Map common codes to operations
+	// Map old codes to new codes
+	newCode := code
 	switch code {
 	case "POSTGRES_ERROR":
-		operation = "query"
+		newCode = repoerrors.PostgresErrorCode
 	case "JSON_ERROR":
-		operation = "unmarshal"
+		newCode = repoerrors.JSONErrorCode
 	case "DATA_FORMAT_ERROR":
-		operation = "parse"
+		newCode = repoerrors.DataFormatErrorCode
 	case "CONVERSION_ERROR":
-		operation = "convert"
+		newCode = repoerrors.ConversionErrorCode
 	}
 
-	return errors.NewDatabaseError(message, operation, table, err)
+	return repoerrors.NewRepositoryError(err, message, newCode, "families")
 }
 
 // PostgresFamilyRepository implements the ports.FamilyRepository interface for PostgreSQL
