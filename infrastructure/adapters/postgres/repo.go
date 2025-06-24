@@ -368,12 +368,12 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 // Save persists a family
 func (r *PostgresFamilyRepository) Save(ctx context.Context, fam *entity.Family) error {
-	r.logger.Debug(ctx, "Saving family to PostgreSQL", zap.String("family_id", fam.ID()))
-
 	if fam == nil {
 		r.logger.Warn(ctx, "Family cannot be nil for Save")
 		return errors.NewValidationError("family cannot be nil", "family", nil)
 	}
+
+	r.logger.Debug(ctx, "Saving family to PostgreSQL", zap.String("family_id", fam.ID()))
 
 	if err := fam.Validate(); err != nil {
 		r.logger.Error(ctx, "Family validation failed", zap.Error(err), zap.String("family_id", fam.ID()))

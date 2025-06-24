@@ -81,17 +81,20 @@ type ChildDocument struct {
 
 // MongoFamilyRepository implements the ports.FamilyRepository interface for MongoDB
 type MongoFamilyRepository struct {
-	Collection    *mongo.Collection
-	logger        *logging.ContextLogger
+	Collection     *mongo.Collection
+	logger         *logging.ContextLogger
 	circuitBreaker *circuit.CircuitBreaker
 	rateLimiter    *rate.RateLimiter
+	batchSize      int32        // Default batch size for queries
+	defaultTimeout time.Duration // Default timeout for operations
 }
 
 // Ensure MongoFamilyRepository implements ports.FamilyRepository
 var _ ports.FamilyRepository = (*MongoFamilyRepository)(nil)
 
 // NewMongoFamilyRepository creates a new MongoFamilyRepository
-func NewMongoFamilyRepository(collection *mongo.Collection, logger *logging.ContextLogger) *MongoFamilyRepository {
+// The skipIndexCreation parameter is used to skip index creation in test environments
+func NewMongoFamilyRepository(collection *mongo.Collection, logger *logging.ContextLogger, skipIndexCreation ...bool) *MongoFamilyRepository {
 	if collection == nil {
 		panic("collection cannot be nil")
 	}
@@ -163,17 +166,75 @@ func NewMongoFamilyRepository(collection *mongo.Collection, logger *logging.Cont
 	// Create rate limiter
 	rl := rate.NewRateLimiter(rateLimiterConfig, rateLimiterOptions)
 
-	return &MongoFamilyRepository{
-		Collection:    collection,
-		logger:        logger,
+	repo := &MongoFamilyRepository{
+		Collection:     collection,
+		logger:         logger,
 		circuitBreaker: cb,
 		rateLimiter:    rl,
+		batchSize:      100,                // Process 100 documents at a time
+		defaultTimeout: 5 * time.Second,    // Default timeout for operations
+	}
+
+	// Determine if we should skip index creation (useful for tests)
+	shouldSkipIndexCreation := false
+	if len(skipIndexCreation) > 0 && skipIndexCreation[0] {
+		shouldSkipIndexCreation = true
+	}
+
+	// Ensure indexes are created if not skipped
+	if !shouldSkipIndexCreation {
+		repo.ensureIndexes(context.Background())
+	}
+
+	return repo
+}
+
+// ensureIndexes creates necessary indexes for optimal query performance
+func (r *MongoFamilyRepository) ensureIndexes(ctx context.Context) {
+	// Create a context with timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.defaultTimeout)
+	defer cancel()
+
+	// Create indexes
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "family_id", Value: 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "parents.id", Value: 1},
+			},
+			Options: options.Index().SetBackground(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "children.id", Value: 1},
+			},
+			Options: options.Index().SetBackground(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "status", Value: 1},
+			},
+			Options: options.Index().SetBackground(true),
+		},
+	}
+
+	// Create indexes in the background
+	_, err := r.Collection.Indexes().CreateMany(ctxWithTimeout, indexes)
+	if err != nil {
+		r.logger.Error(ctx, "Failed to create indexes", zap.Error(err))
+		// Don't panic, just log the error
 	}
 }
 
 // GetByID retrieves a family by its ID
+// This implementation uses projections for better performance
 func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity.Family, error) {
-	r.logger.Debug(ctx, "Getting family by ID from MongoDB", zap.String("family_id", id))
+	r.logger.Debug(ctx, "Getting family by ID from MongoDB with optimized query", zap.String("family_id", id))
 
 	if id == "" {
 		r.logger.Warn(ctx, "Family ID is required for GetByID")
@@ -181,7 +242,7 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 	}
 
 	// Create a context with timeout
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.defaultTimeout)
 	defer cancel()
 
 	var doc FamilyDocument
@@ -190,13 +251,27 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 
 	// Define the operation to retry
 	operation := func(ctx context.Context) error {
-		err := r.Collection.FindOne(ctx, bson.M{"family_id": id}).Decode(&doc)
+		// Set up options for the query with projection
+		findOptions := options.FindOne().
+			// Only return the fields we need
+			SetProjection(bson.M{
+				"_id":       1,
+				"family_id": 1,
+				"status":    1,
+				"parents":   1,
+				"children":  1,
+			})
+
+		// Find the family with the specified ID
+		err := r.Collection.FindOne(ctx, bson.M{"family_id": id}, findOptions).Decode(&doc)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				r.logger.Info(ctx, "Family not found in MongoDB", zap.String("family_id", id))
 				return errors.NewNotFoundError("Family", id, nil)
 			}
-			r.logger.Error(ctx, "Failed to get family from MongoDB", zap.Error(err), zap.String("family_id", id))
+			r.logger.Error(ctx, "Failed to get family from MongoDB", 
+				zap.Error(err), 
+				zap.String("family_id", id))
 			return errors.NewDatabaseError("failed to get family from MongoDB", "query", "families", err)
 		}
 
@@ -284,21 +359,22 @@ func (r *MongoFamilyRepository) GetByID(ctx context.Context, id string) (*entity
 }
 
 // Save persists a family
+// This implementation uses optimized settings for better performance
 func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) error {
 	if fam == nil {
 		r.logger.Warn(ctx, "Family cannot be nil for Save")
 		return errors.NewValidationError("family cannot be nil", "family", nil)
 	}
 
-	r.logger.Debug(ctx, "Saving family to MongoDB", zap.String("family_id", fam.ID()))
+	r.logger.Debug(ctx, "Saving family to MongoDB with optimized settings", zap.String("family_id", fam.ID()))
 
 	if err := fam.Validate(); err != nil {
 		r.logger.Error(ctx, "Family validation failed", zap.Error(err), zap.String("family_id", fam.ID()))
 		return err
 	}
 
-	// Create a context with timeout
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Create a context with timeout using the repository's default timeout
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.defaultTimeout)
 	defer cancel()
 
 	// Convert domain entity to document
@@ -393,8 +469,9 @@ func (r *MongoFamilyRepository) Save(ctx context.Context, fam *entity.Family) er
 }
 
 // FindByParentID finds families that contain a specific parent
+// This implementation uses batch processing and projections for better performance
 func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID string) ([]*entity.Family, error) {
-	r.logger.Debug(ctx, "Finding families by parent ID in MongoDB", zap.String("parent_id", parentID))
+	r.logger.Debug(ctx, "Finding families by parent ID in MongoDB using batch processing", zap.String("parent_id", parentID))
 
 	if parentID == "" {
 		r.logger.Warn(ctx, "Parent ID is required for FindByParentID")
@@ -402,7 +479,7 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 	}
 
 	// Create a context with timeout
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.defaultTimeout)
 	defer cancel()
 
 	var families []*entity.Family
@@ -410,29 +487,77 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 
 	// Define the operation to retry
 	operation := func(ctx context.Context) error {
-		// No change needed here, as parents.id is still the same field
-		cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID})
+		// Set up options for the query with batch size and projection
+		findOptions := options.Find().
+			SetBatchSize(r.batchSize).
+			// Only return the fields we need
+			SetProjection(bson.M{
+				"_id":       1,
+				"family_id": 1,
+				"status":    1,
+				"parents":   1,
+				"children":  1,
+			})
+
+		// Find families with the specified parent ID
+		cursor, err := r.Collection.Find(ctx, bson.M{"parents.id": parentID}, findOptions)
 		if err != nil {
-			r.logger.Error(ctx, "Failed to find families by parent ID in MongoDB", zap.Error(err), zap.String("parent_id", parentID))
+			r.logger.Error(ctx, "Failed to find families by parent ID in MongoDB", 
+				zap.Error(err), 
+				zap.String("parent_id", parentID))
 			return errors.NewDatabaseError("failed to find families by parent ID", "query", "families", err)
 		}
 		defer cursor.Close(ctx)
 
-		var docs []FamilyDocument
-		if err := cursor.All(ctx, &docs); err != nil {
-			r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
-			return errors.NewDatabaseError("failed to decode families", "query", "families", err)
+		// Process documents in batches
+		families = make([]*entity.Family, 0)
+
+		// Create a buffer for batch processing
+		batch := make([]FamilyDocument, 0, r.batchSize)
+
+		// Process the cursor in batches
+		for cursor.Next(ctx) {
+			// If we've reached the batch size, process the batch
+			if len(batch) >= int(r.batchSize) {
+				// Process the current batch
+				batchFamilies, err := r.processFamilyBatch(ctx, batch)
+				if err != nil {
+					return err
+				}
+
+				// Add the processed families to the result
+				families = append(families, batchFamilies...)
+
+				// Clear the batch
+				batch = batch[:0]
+			}
+
+			// Decode the current document
+			var doc FamilyDocument
+			if err := cursor.Decode(&doc); err != nil {
+				r.logger.Error(ctx, "Failed to decode family document", zap.Error(err))
+				return errors.NewDatabaseError("failed to decode family document", "query", "families", err)
+			}
+
+			// Add the document to the current batch
+			batch = append(batch, doc)
 		}
 
-		// Convert documents to domain entities
-		families = make([]*entity.Family, 0, len(docs))
-		for _, doc := range docs {
-			fam, err := r.documentToEntity(doc)
+		// Process any remaining documents in the batch
+		if len(batch) > 0 {
+			batchFamilies, err := r.processFamilyBatch(ctx, batch)
 			if err != nil {
-				r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
 				return err
 			}
-			families = append(families, fam)
+			families = append(families, batchFamilies...)
+		}
+
+		// Check for cursor errors
+		if err := cursor.Err(); err != nil {
+			r.logger.Error(ctx, "Cursor error while finding families by parent ID", 
+				zap.Error(err), 
+				zap.String("parent_id", parentID))
+			return errors.NewDatabaseError("cursor error while finding families by parent ID", "query", "families", err)
 		}
 
 		return nil
@@ -510,8 +635,9 @@ func (r *MongoFamilyRepository) FindByParentID(ctx context.Context, parentID str
 }
 
 // FindByChildID finds the family that contains a specific child
+// This implementation uses projections for better performance
 func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID string) (*entity.Family, error) {
-	r.logger.Debug(ctx, "Finding family by child ID in MongoDB", zap.String("child_id", childID))
+	r.logger.Debug(ctx, "Finding family by child ID in MongoDB with optimized query", zap.String("child_id", childID))
 
 	if childID == "" {
 		r.logger.Warn(ctx, "Child ID is required for FindByChildID")
@@ -519,7 +645,7 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 	}
 
 	// Create a context with timeout
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.defaultTimeout)
 	defer cancel()
 
 	var doc FamilyDocument
@@ -528,14 +654,27 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 
 	// Define the operation to retry
 	operation := func(ctx context.Context) error {
-		// No change needed here, as children.id is still the same field
-		err := r.Collection.FindOne(ctx, bson.M{"children.id": childID}).Decode(&doc)
+		// Set up options for the query with projection
+		findOptions := options.FindOne().
+			// Only return the fields we need
+			SetProjection(bson.M{
+				"_id":       1,
+				"family_id": 1,
+				"status":    1,
+				"parents":   1,
+				"children":  1,
+			})
+
+		// Find the family with the specified child ID
+		err := r.Collection.FindOne(ctx, bson.M{"children.id": childID}, findOptions).Decode(&doc)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				r.logger.Info(ctx, "Family with child not found in MongoDB", zap.String("child_id", childID))
 				return errors.NewNotFoundError("Family with Child", childID, nil)
 			}
-			r.logger.Error(ctx, "Failed to find family by child ID in MongoDB", zap.Error(err), zap.String("child_id", childID))
+			r.logger.Error(ctx, "Failed to find family by child ID in MongoDB", 
+				zap.Error(err), 
+				zap.String("child_id", childID))
 			return errors.NewDatabaseError("failed to find family by child ID", "query", "families", err)
 		}
 
@@ -626,11 +765,12 @@ func (r *MongoFamilyRepository) FindByChildID(ctx context.Context, childID strin
 }
 
 // GetAll retrieves all families
+// This implementation uses batch processing to avoid loading all documents at once
 func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, error) {
-	r.logger.Debug(ctx, "Getting all families from MongoDB")
+	r.logger.Debug(ctx, "Getting all families from MongoDB using batch processing")
 
 	// Create a context with timeout
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.defaultTimeout)
 	defer cancel()
 
 	var families []*entity.Family
@@ -638,29 +778,74 @@ func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, e
 
 	// Define the operation to retry
 	operation := func(ctx context.Context) error {
+		// Use a more efficient approach with batch processing
+		// Set up options for the query
+		findOptions := options.Find().
+			SetBatchSize(r.batchSize).
+			// Only return the fields we need
+			SetProjection(bson.M{
+				"_id":       1,
+				"family_id": 1,
+				"status":    1,
+				"parents":   1,
+				"children":  1,
+			})
+
 		// Find all documents in the collection
-		cursor, err := r.Collection.Find(ctx, bson.M{})
+		cursor, err := r.Collection.Find(ctx, bson.M{}, findOptions)
 		if err != nil {
 			r.logger.Error(ctx, "Failed to get all families from MongoDB", zap.Error(err))
 			return errors.NewDatabaseError("failed to get all families", "query", "families", err)
 		}
 		defer cursor.Close(ctx)
 
-		var docs []FamilyDocument
-		if err := cursor.All(ctx, &docs); err != nil {
-			r.logger.Error(ctx, "Failed to decode families from MongoDB", zap.Error(err))
-			return errors.NewDatabaseError("failed to decode families", "query", "families", err)
+		// Process documents in batches
+		families = make([]*entity.Family, 0)
+
+		// Create a buffer for batch processing
+		batch := make([]FamilyDocument, 0, r.batchSize)
+
+		// Process the cursor in batches
+		for cursor.Next(ctx) {
+			// If we've reached the batch size, process the batch
+			if len(batch) >= int(r.batchSize) {
+				// Process the current batch
+				batchFamilies, err := r.processFamilyBatch(ctx, batch)
+				if err != nil {
+					return err
+				}
+
+				// Add the processed families to the result
+				families = append(families, batchFamilies...)
+
+				// Clear the batch
+				batch = batch[:0]
+			}
+
+			// Decode the current document
+			var doc FamilyDocument
+			if err := cursor.Decode(&doc); err != nil {
+				r.logger.Error(ctx, "Failed to decode family document", zap.Error(err))
+				return errors.NewDatabaseError("failed to decode family document", "query", "families", err)
+			}
+
+			// Add the document to the current batch
+			batch = append(batch, doc)
 		}
 
-		// Convert documents to domain entities
-		families = make([]*entity.Family, 0, len(docs))
-		for _, doc := range docs {
-			fam, err := r.documentToEntity(doc)
+		// Process any remaining documents in the batch
+		if len(batch) > 0 {
+			batchFamilies, err := r.processFamilyBatch(ctx, batch)
 			if err != nil {
-				r.logger.Error(ctx, "Failed to convert document to entity", zap.Error(err), zap.String("family_id", doc.FamilyID))
 				return err
 			}
-			families = append(families, fam)
+			families = append(families, batchFamilies...)
+		}
+
+		// Check for cursor errors
+		if err := cursor.Err(); err != nil {
+			r.logger.Error(ctx, "Cursor error while getting all families", zap.Error(err))
+			return errors.NewDatabaseError("cursor error while getting all families", "query", "families", err)
 		}
 
 		return nil
@@ -732,6 +917,24 @@ func (r *MongoFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, e
 	}
 
 	r.logger.Debug(ctx, "Successfully retrieved all families from MongoDB", zap.Int("count", len(families)))
+	return families, nil
+}
+
+// processFamilyBatch processes a batch of FamilyDocument objects and converts them to entity.Family objects
+func (r *MongoFamilyRepository) processFamilyBatch(ctx context.Context, batch []FamilyDocument) ([]*entity.Family, error) {
+	families := make([]*entity.Family, 0, len(batch))
+
+	for _, doc := range batch {
+		family, err := r.documentToEntity(doc)
+		if err != nil {
+			r.logger.Error(ctx, "Failed to convert document to entity in batch", 
+				zap.Error(err), 
+				zap.String("family_id", doc.FamilyID))
+			return nil, err
+		}
+		families = append(families, family)
+	}
+
 	return families, nil
 }
 

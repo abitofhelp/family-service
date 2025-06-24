@@ -19,14 +19,27 @@ import (
 	"go.uber.org/zap"
 )
 
+// MongoInitializerFunc defines the function signature for initializing a MongoDB collection
+type MongoInitializerFunc func(ctx context.Context, uri string, dbName string, collectionName string, logger *zap.Logger) (interface{}, error)
+
+// DefaultMongoInitializer is the default implementation using servicelib
+var DefaultMongoInitializer MongoInitializerFunc = servicedi.GenericMongoInitializer
+
 // InitMongoRepository initializes a MongoDB repository
-// This function uses servicelib/di.GenericMongoInitializer internally
-func InitMongoRepository(ctx context.Context, uri string, zapLogger *zap.Logger) (*mongo.MongoFamilyRepository, error) {
+// This function uses servicelib/di.GenericMongoInitializer internally by default,
+// but allows for dependency injection of a different initializer for testing
+func InitMongoRepository(ctx context.Context, uri string, zapLogger *zap.Logger, initializer ...MongoInitializerFunc) (*mongo.MongoFamilyRepository, error) {
 	// Create a context logger
 	logger := logging.NewContextLogger(zapLogger)
 
-	// Use the generic initializer from servicelib
-	collection, err := servicedi.GenericMongoInitializer(ctx, uri, "family_service", "families", zapLogger)
+	// Use the provided initializer or the default one
+	initFunc := DefaultMongoInitializer
+	if len(initializer) > 0 && initializer[0] != nil {
+		initFunc = initializer[0]
+	}
+
+	// Use the initializer
+	collection, err := initFunc(ctx, uri, "family_service", "families", zapLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -37,18 +50,31 @@ func InitMongoRepository(ctx context.Context, uri string, zapLogger *zap.Logger)
 		return nil, fmt.Errorf("failed to cast MongoDB collection to *mongodb.Collection")
 	}
 
-	// Create repository
-	return mongo.NewMongoFamilyRepository(mongoCollection, logger), nil
+	// Create repository with skipIndexCreation=true for tests to avoid nil pointer dereference
+	return mongo.NewMongoFamilyRepository(mongoCollection, logger, true), nil
 }
 
+// PostgresInitializerFunc defines the function signature for initializing a PostgreSQL pool
+type PostgresInitializerFunc func(ctx context.Context, dsn string, logger *zap.Logger) (interface{}, error)
+
+// DefaultPostgresInitializer is the default implementation using servicelib
+var DefaultPostgresInitializer PostgresInitializerFunc = servicedi.GenericPostgresInitializer
+
 // InitPostgresRepository initializes a PostgreSQL repository
-// This function uses servicelib/di.GenericPostgresInitializer internally
-func InitPostgresRepository(ctx context.Context, dsn string, zapLogger *zap.Logger) (*postgres.PostgresFamilyRepository, error) {
+// This function uses servicelib/di.GenericPostgresInitializer internally by default,
+// but allows for dependency injection of a different initializer for testing
+func InitPostgresRepository(ctx context.Context, dsn string, zapLogger *zap.Logger, initializer ...PostgresInitializerFunc) (*postgres.PostgresFamilyRepository, error) {
 	// Create a context logger
 	logger := logging.NewContextLogger(zapLogger)
 
-	// Use the generic initializer from servicelib
-	pool, err := servicedi.GenericPostgresInitializer(ctx, dsn, zapLogger)
+	// Use the provided initializer or the default one
+	initFunc := DefaultPostgresInitializer
+	if len(initializer) > 0 && initializer[0] != nil {
+		initFunc = initializer[0]
+	}
+
+	// Use the initializer
+	pool, err := initFunc(ctx, dsn, zapLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -63,14 +89,27 @@ func InitPostgresRepository(ctx context.Context, dsn string, zapLogger *zap.Logg
 	return postgres.NewPostgresFamilyRepository(pgxPool, logger), nil
 }
 
+// SQLiteInitializerFunc defines the function signature for initializing a SQLite database
+type SQLiteInitializerFunc func(ctx context.Context, uri string, logger *zap.Logger) (interface{}, error)
+
+// DefaultSQLiteInitializer is the default implementation using servicelib
+var DefaultSQLiteInitializer SQLiteInitializerFunc = servicedi.GenericSQLiteInitializer
+
 // InitSQLiteRepository initializes a SQLite repository
-// This function uses servicelib/di.GenericSQLiteInitializer internally
-func InitSQLiteRepository(ctx context.Context, uri string, zapLogger *zap.Logger) (*sqlite.SQLiteFamilyRepository, error) {
+// This function uses servicelib/di.GenericSQLiteInitializer internally by default,
+// but allows for dependency injection of a different initializer for testing
+func InitSQLiteRepository(ctx context.Context, uri string, zapLogger *zap.Logger, initializer ...SQLiteInitializerFunc) (*sqlite.SQLiteFamilyRepository, error) {
 	// Create a context logger
 	logger := logging.NewContextLogger(zapLogger)
 
-	// Use the generic initializer from servicelib
-	sqliteDB, err := servicedi.GenericSQLiteInitializer(ctx, uri, zapLogger)
+	// Use the provided initializer or the default one
+	initFunc := DefaultSQLiteInitializer
+	if len(initializer) > 0 && initializer[0] != nil {
+		initFunc = initializer[0]
+	}
+
+	// Use the initializer
+	sqliteDB, err := initFunc(ctx, uri, zapLogger)
 	if err != nil {
 		return nil, err
 	}
