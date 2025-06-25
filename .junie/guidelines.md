@@ -15,3 +15,4 @@ This project follows the following coding guidelines:
 * Always update the documentation whenever there are relevant architecture changes or code changes.  This includes /docs, and any relevant .md files throughout the packages in the codebase.
 * Do not embed examples in the documentation.  Rather, link to them in /examples.
 * All new or existing README.md files must adhere to the COMPONENT_README_TEMPLATE.md structure.
+* Every package must have a README.md file, even if it is empty.

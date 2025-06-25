@@ -111,7 +111,7 @@ func InitSQLiteRepository(ctx context.Context, uri string, zapLogger *zap.Logger
 	// Use the initializer
 	sqliteDB, err := initFunc(ctx, uri, zapLogger)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open SQLite database file at %s: %w", uri, err)
 	}
 
 	// Cast the result to *sql.DB

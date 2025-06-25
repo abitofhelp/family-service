@@ -1,6 +1,9 @@
 FROM golang:1.24-alpine3.21 AS builder
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
+
+# Install build dependencies for CGO
+RUN apk add --no-cache gcc musl-dev
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -9,10 +12,10 @@ COPY dev.docker.env ./
 COPY "cmd/" "./cmd/"
 COPY config/ ./config/
 COPY core/ ./core/
-COPY data/dev/sqlite/family_service.db.or ./
+RUN mkdir -p /app/data/dev/sqlite
+COPY data/dev/sqlite/family_service.db /app/data/dev/sqlite/family_service.db
 COPY infrastructure/ ./infrastructure/
 COPY interface/ ./interface/
-#COPY pkg/ ./pkg/
 
 RUN go build -o family_service "./cmd/server/graphql"
 
@@ -22,18 +25,21 @@ LABEL maintainer="mjgardner@abitofhelp.com"
 LABEL version="1.0.0"
 LABEL description="Family Service application"
 
-RUN apk --no-cache add ca-certificates
+# Add necessary runtime dependencies
+RUN apk --no-cache add ca-certificates sqlite-libs
 
 WORKDIR /app
 COPY --from=builder /app/family_service .
 COPY --from=builder /app/dev.docker.env .
 COPY --from=builder /app/config ./config
-COPY --from=builder /app/data/dev/sqlite/family_service.db ./
+RUN mkdir -p /app/data/dev/sqlite
+COPY --from=builder /app/data/dev/sqlite/family_service.db /app/data/dev/sqlite/family_service.db
 COPY entrypoint.sh .
 COPY secrets ./secrets
 
 RUN chmod +x /app/entrypoint.sh
 RUN mkdir -p /app/secrets && chmod -R 755 /app/secrets
+RUN chmod -R 755 /app/data/dev/sqlite && chmod 644 /app/data/dev/sqlite/family_service.db
 
 RUN adduser -D appuser
 USER appuser

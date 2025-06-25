@@ -549,7 +549,7 @@ func getDefaultsMap() map[string]interface{} {
 
 		// Auth defaults
 		"auth.oidc_timeout": "30s", // 30 seconds
-		"auth.jwt.secret_key": "your-secret-key-here", // Default secret key, should be overridden in production
+		"auth.jwt.secret_key": "your-secret-key-here-with-32-chars", // Default secret key, should be overridden in production
 		"auth.jwt.token_duration": "24h", // 24 hours
 		"auth.jwt.issuer": "family-service", // Default issuer
 

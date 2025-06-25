@@ -161,6 +161,8 @@ func TestInitSQLiteRepository(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, repo)
 	assert.Contains(t, err.Error(), "connection error")
+	assert.Contains(t, err.Error(), "failed to open SQLite database file at")
+	assert.Contains(t, err.Error(), "file:data/dev/sqlite/family_service.db?cache=shared&mode=rwc")
 
 	// Test error case: Initializer returns wrong type
 	wrongTypeInitializer := func(ctx context.Context, uri string, logger *zap.Logger) (interface{}, error) {
