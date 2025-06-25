@@ -601,7 +601,100 @@ Errors are propagated up the call stack and transformed as needed:
 - All implementations use ServiceLib's database utilities for connection pooling, retries, and error handling
 - All implementations support efficient lookups by ID
 
-##### 7.1.1 Retry Configuration
+#### 7.2 Circuit Breaker Pattern
+
+The application implements the Circuit Breaker pattern to prevent cascading failures when external dependencies (such as databases) are unavailable or experiencing high latency. This pattern helps to maintain system stability and responsiveness.
+
+##### 7.2.1 Circuit Breaker Implementation
+
+The circuit breaker is implemented in the `infrastructure/adapters/circuit` package, which provides a wrapper around the ServiceLib circuit breaker:
+
+```
+// CircuitBreaker implements the circuit breaker pattern to protect against
+// cascading failures when external dependencies are unavailable.
+type CircuitBreaker struct {
+    name   string
+    cb     *circuit.CircuitBreaker
+    logger *zap.Logger
+}
+```
+
+The circuit breaker can be in one of three states:
+- **Closed**: Normal operation, requests are allowed through
+- **Open**: Circuit is tripped, requests are immediately rejected
+- **HalfOpen**: Testing if the dependency has recovered, allowing a limited number of requests through
+
+##### 7.2.2 Circuit Breaker Configuration
+
+The circuit breaker is configured through the application configuration:
+
+```
+circuit:
+  enabled: true              # Whether the circuit breaker is enabled
+  timeout: 1s                # Maximum time allowed for a request
+  max_concurrent: 100        # Maximum number of concurrent requests
+  error_threshold: 0.5       # Error rate threshold (0.0-1.0) that trips the circuit
+  volume_threshold: 10       # Minimum number of requests before error threshold is considered
+  sleep_window: 5s           # Time to wait before allowing requests when circuit is open
+```
+
+The configuration can be overridden using environment variables:
+
+```
+APP_CIRCUIT_ENABLED=true
+APP_CIRCUIT_TIMEOUT=1s
+APP_CIRCUIT_MAX_CONCURRENT=100
+APP_CIRCUIT_ERROR_THRESHOLD=0.5
+APP_CIRCUIT_VOLUME_THRESHOLD=10
+APP_CIRCUIT_SLEEP_WINDOW=5s
+```
+
+##### 7.2.3 Usage in Repository Implementations
+
+The circuit breaker is used in the MongoDB and SQLite repository implementations to protect against database failures:
+
+```
+// Execute with circuit breaker
+_, err := circuit.Execute(ctx, r.circuitBreaker, "GetByID", circuitOpWrapper)
+```
+
+Each repository operation is wrapped with the circuit breaker, which will:
+1. Check if the circuit is open (if so, immediately return an error)
+2. Execute the operation if the circuit is closed or half-open
+3. Update circuit state based on the result (success or failure)
+4. Return the result or an error
+
+##### 7.2.4 Error Handling
+
+When the circuit is open, operations return a specific error that is converted to a database error:
+
+```
+// Check for errors from circuit breaker
+if err == recovery.ErrCircuitBreakerOpen {
+    return nil, errors.NewDatabaseError("circuit breaker is open", "query", "families", err)
+}
+```
+
+This allows the application to distinguish between actual database errors and circuit breaker rejections.
+
+##### 7.2.5 Fallback Mechanism
+
+The circuit breaker implementation also supports a fallback mechanism, which allows the application to provide alternative behavior when the circuit is open:
+
+```
+// Execute with fallback
+err := cb.ExecuteWithFallback(ctx, "operation", func(ctx context.Context) error {
+    // Primary operation
+    return primaryOperation(ctx)
+}, func(ctx context.Context, err error) error {
+    // Fallback operation
+    return fallbackOperation(ctx)
+})
+```
+
+This is useful for operations that can be gracefully degraded, such as returning cached data instead of querying the database.
+
+#### 7.3 Retry Configuration
 The application includes configurable retry logic for database operations to handle transient errors:
 
 ```yaml
@@ -725,6 +818,7 @@ The application uses the OpenTelemetry SDK to collect various metrics:
 - **Domain Operation Metrics**: Counts and durations for domain operations
 - **Repository Operation Metrics**: Counts and durations for repository operations
 - **Family Metrics**: Counts of family members and families by status
+- **Circuit Breaker Metrics**: Circuit state changes, rejection counts, success/failure rates
 - **Application Metrics**: Business-specific metrics and error counts
 
 Example metrics implementation:
@@ -819,6 +913,44 @@ var RepositoryOperationsDuration = prometheus.NewHistogramVec(
 These metrics track:
 - Success and failure counts for all repository operations (save, get_by_id, get_all, find_by_parent_id, find_by_child_id)
 - Duration of repository operations
+
+###### Circuit Breaker Metrics
+
+The application also tracks metrics for circuit breakers:
+
+```
+// Circuit breaker state metrics
+var CircuitBreakerState = prometheus.NewGaugeVec(
+    prometheus.GaugeOpts{
+        Name: "circuit_breaker_state",
+        Help: "Current state of circuit breakers (0=closed, 1=open, 2=half-open)",
+    },
+    []string{"name"},
+)
+
+// Circuit breaker rejection metrics
+var CircuitBreakerRejections = prometheus.NewCounterVec(
+    prometheus.CounterOpts{
+        Name: "circuit_breaker_rejections_total",
+        Help: "Total number of requests rejected by circuit breakers",
+    },
+    []string{"name"},
+)
+
+// Circuit breaker success/failure metrics
+var CircuitBreakerResults = prometheus.NewCounterVec(
+    prometheus.CounterOpts{
+        Name: "circuit_breaker_results_total",
+        Help: "Total number of circuit breaker results",
+    },
+    []string{"name", "result"},
+)
+```
+
+These metrics track:
+- Current state of each circuit breaker (closed, open, half-open)
+- Number of requests rejected by each circuit breaker
+- Success and failure counts for operations protected by circuit breakers
 
 ##### 9.2.2 Middleware Integration
 
@@ -927,6 +1059,7 @@ The dashboard includes panels specifically for the new domain operation metrics:
 - Family operation duration distributions
 - Repository operation success/failure rates
 - Repository operation duration distributions
+- Circuit breaker state changes and rejection rates
 - Family member counts by type (parents/children)
 - Family status distribution (single/married/divorced/widowed)
 
@@ -942,6 +1075,8 @@ The monitoring system supports alerting based on metric thresholds:
 - Elevated operation durations
 - Memory usage spikes
 - Database connection pool exhaustion
+- Circuit breaker state changes (open, half-open)
+- High rejection rates from circuit breakers
 - High failure rates for specific operations (e.g., divorce process)
 - Unusual changes in family member counts
 - Unusual changes in family status distribution

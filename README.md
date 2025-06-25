@@ -1,5 +1,4 @@
 # Family Service GraphQL
-[![codecov](https://codecov.io/gh/abitofhelp/family-service/graph/badge.svg?token=KQI02N7OS7)](https://codecov.io/gh/abitofhelp/family-service)
 
 ## 📖 Overview
 
@@ -926,3 +925,22 @@ UML References:
 - Family state transitions include divorce, death, remarriage
 - Transactional support for both databases
 - Context propagation and OS signal handling integrated
+
+## 📄 Component README Files
+
+All component README.md files in this project follow a standardized structure defined in the [COMPONENT_README_TEMPLATE.md](./COMPONENT_README_TEMPLATE.md) file. This ensures consistency and makes it easier for developers to find information.
+
+### README Validation
+
+The project includes a validation tool that checks all component README.md files against the template structure. This tool is run as part of the CI process and can also be run locally:
+
+```bash
+make validate-readme
+```
+
+The validation checks for:
+- Required sections (Overview, Architecture, Implementation Details, etc.)
+- Consistent example paths (always using lowercase `/examples/`)
+- Proper formatting
+
+When creating a new component, copy the template file and fill in the sections with relevant information for your component.

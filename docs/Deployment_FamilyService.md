@@ -85,6 +85,14 @@ POSTGRES_DB=familydb
 APP_AUTH_JWT_SECRET_KEY=your-secret-key-here  # Should be overridden in production
 APP_AUTH_JWT_TOKEN_DURATION=24h
 APP_AUTH_JWT_ISSUER=family-service
+
+# Circuit breaker configuration
+APP_CIRCUIT_ENABLED=true
+APP_CIRCUIT_TIMEOUT=1s
+APP_CIRCUIT_MAX_CONCURRENT=100
+APP_CIRCUIT_ERROR_THRESHOLD=0.5
+APP_CIRCUIT_VOLUME_THRESHOLD=10
+APP_CIRCUIT_SLEEP_WINDOW=5s
 ```
 
 ### 4. Docker Configuration
@@ -530,6 +538,12 @@ For a production environment, consider:
 | APP_AUTH_JWT_SECRET_KEY | JWT secret key for token signing and validation | your-secret-key-here |
 | APP_AUTH_JWT_TOKEN_DURATION | JWT token validity period | 24h |
 | APP_AUTH_JWT_ISSUER | JWT token issuer | family-service |
+| APP_CIRCUIT_ENABLED | Whether the circuit breaker is enabled | true |
+| APP_CIRCUIT_TIMEOUT | Maximum time allowed for a request | 1s |
+| APP_CIRCUIT_MAX_CONCURRENT | Maximum number of concurrent requests | 100 |
+| APP_CIRCUIT_ERROR_THRESHOLD | Error rate threshold (0.0-1.0) that trips the circuit | 0.5 |
+| APP_CIRCUIT_VOLUME_THRESHOLD | Minimum number of requests before error threshold is considered | 10 |
+| APP_CIRCUIT_SLEEP_WINDOW | Time to wait before allowing requests when circuit is open | 5s |
 
 #### 12.2 Docker Compose Commands Reference
 | Command | Description |

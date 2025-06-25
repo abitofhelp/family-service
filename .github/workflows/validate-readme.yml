@@ -1,0 +1,31 @@
+name: Validate README Files
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'tools/readme_validator/**'
+      - '.github/workflows/validate-readme.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'tools/readme_validator/**'
+      - '.github/workflows/validate-readme.yml'
+
+jobs:
+  validate:
+    name: Validate README Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Validate README files
+        run: make validate-readme

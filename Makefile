@@ -102,6 +102,7 @@ help:
 	@echo "  make docs              - Show documentation information"
 	@echo "  make docs-pkgsite      - Generate and serve documentation with pkgsite"
 	@echo "  make docs-static       - Generate static documentation"
+	@echo "  make validate-readme   - Validate README.md files against the template"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make dockerfile        - Create a basic Dockerfile"
@@ -397,7 +398,7 @@ vuln-check:
 
 # Pre-commit checks
 .PHONY: pre-commit
-pre-commit: tidy fmt lint test vuln-check
+pre-commit: tidy fmt lint test vuln-check validate-readme
 	@echo "All pre-commit checks passed!"
 
 # Format code
@@ -445,6 +446,14 @@ docs:
 	@echo "- Software Design Document (SDD): docs/SDD_FamilyService.md"
 	@echo "- Software Test Plan (STP): docs/STP_FamilyService.md"
 	@echo "- Deployment Document: docs/Deployment_FamilyService.md"
+	@echo "- Component README Template: COMPONENT_README_TEMPLATE.md"
+
+# Validate README.md files against the template
+.PHONY: validate-readme
+validate-readme:
+	@echo "Validating README.md files against the template..."
+	$(GORUN) tools/readme_validator/main.go
+	@echo "README validation completed successfully"
 
 .PHONY: docs-pkgsite
 docs-pkgsite:
