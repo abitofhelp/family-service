@@ -8,8 +8,8 @@ import (
 
 	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 	"github.com/google/uuid"
 )
 
@@ -27,7 +27,7 @@ const (
 
 // Family is the root aggregate that represents a family unit
 type Family struct {
-	id       identificationwrapper.ID
+	id       identification.ID
 	status   Status
 	parents  []*Parent
 	children []*Child
@@ -46,7 +46,7 @@ func NewFamily(id string, status Status, parents []*Parent, children []*Child) (
 	}
 
 	// Create ID value object
-	idVO, err := identificationwrapper.NewIDFromString(id)
+	idVO, err := identification.NewID(id)
 	if err != nil {
 		return nil, errorswrapper.NewValidationError("invalid ID: "+err.Error(), "ID", err)
 	}
@@ -207,7 +207,7 @@ func (f *Family) Validate() error {
 
 // ID returns the family's ID
 func (f *Family) ID() string {
-	return f.id.String()
+	return string(f.id)
 }
 
 // Status returns the family's status
@@ -410,7 +410,7 @@ func (f *Family) ToDTO() FamilyDTO {
 	}
 
 	return FamilyDTO{
-		ID:            f.id.String(),
+		ID:            string(f.id),
 		Status:        string(f.status),
 		Parents:       parentDTOs,
 		Children:      childDTOs,

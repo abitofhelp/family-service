@@ -11,11 +11,12 @@ import (
 	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper"
+	"github.com/abitofhelp/servicelib/valueobject/identification"
 )
 
 // Parent represents a parent entity in the family domain
 type Parent struct {
-	id        identificationwrapper.ID
+	id        identification.ID
 	firstName identificationwrapper.Name
 	lastName  identificationwrapper.Name
 	birthDate identificationwrapper.DateOfBirth
@@ -25,7 +26,7 @@ type Parent struct {
 // NewParent creates a new Parent entity with validation
 func NewParent(id, firstName, lastName string, birthDate time.Time, deathDate *time.Time) (*Parent, error) {
 	// Create ID value object
-	idVO, err := identificationwrapper.NewIDFromString(id)
+	idVO, err := identification.NewID(id)
 	if err != nil {
 		return nil, errorswrapper.NewValidationError("invalid ID: "+err.Error(), "ID", err)
 	}
@@ -140,7 +141,7 @@ func (p *Parent) Validate() error {
 
 // ID returns the parent's ID
 func (p *Parent) ID() string {
-	return p.id.String()
+	return string(p.id)
 }
 
 // FirstName returns the parent's first name
@@ -205,7 +206,7 @@ func (p *Parent) Equals(other *Parent) bool {
 	if other == nil {
 		return false
 	}
-	return p.id.Equals(other.id)
+	return p.id == other.id
 }
 
 // ToDTO converts the Parent entity to a data transfer object for external use
@@ -217,7 +218,7 @@ func (p *Parent) ToDTO() ParentDTO {
 	}
 
 	dto := ParentDTO{
-		ID:        p.id.String(),
+		ID:        string(p.id),
 		FirstName: p.firstName.String(),
 		LastName:  p.lastName.String(),
 		BirthDate: p.birthDate.Date(),
