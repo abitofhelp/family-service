@@ -26,44 +26,9 @@ The Family Service GraphQL application follows a combination of three architectu
 
 #### 2.2 High-Level Architecture Diagram
 
-    ┌─────────────────────────────────────────────────────────────────────────────┐
-    │                                                                             │
-    │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌───────────┐ │
-    │  │             │     │             │     │             │     │           │ │
-    │  │  GraphQL    │     │ Application │     │  Domain     │     │           │ │
-    │  │  API        │────▶│  Services   │────▶│  Services   │────▶│  Domain   │ │
-    │  │  (Adapters) │     │  Layer      │     │  Layer      │     │  Entities │ │
-    │  │             │     │             │     │             │     │           │ │
-    │  └─────────────┘     └─────────────┘     └─────────────┘     └───────────┘ │
-    │         │                   │                   │                   │       │
-    │         │                   │                   │                   │       │
-    │         │                   │                   │                   │       │
-    │         │                   │                   │                   ▼       │
-    │         │                   │                   │           ┌───────────┐   │
-    │         │                   │                   │           │           │   │
-    │         │                   │                   │           │ ServiceLib│   │
-    │         │                   │                   │           │ Value     │   │
-    │         │                   │                   │           │ Objects   │   │
-    │         │                   │                   │           │           │   │
-    │         │                   │                   │           └───────────┘   │
-    │         │                   │                   │                           │
-    │         ▼                   ▼                   ▼                           │
-    │  ┌─────────────────────────────────────────────────────────────────────┐   │
-    │  │                                                                     │   │
-    │  │                    Ports (ServiceLib Interfaces)                    │   │
-    │  │                                                                     │   │
-    │  └─────────────────────────────────────────────────────────────────────┘   │
-    │         │                   │                   │                           │
-    │         │                   │                   │                           │
-    │         ▼                   ▼                   ▼                           │
-    │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                   │
-    │  │             │     │             │     │             │                   │
-    │  │  MongoDB    │     │  PostgreSQL │     │  SQLite     │                   │
-    │  │  Adapter    │     │  Adapter    │     │  Adapter    │                   │
-    │  │             │     │             │     │             │                   │
-    │  └─────────────┘     └─────────────┘     └─────────────┘                   │
-    │                                                                             │
-    └─────────────────────────────────────────────────────────────────────────────┘
+![Architecture Overview Diagram](diagrams/architecture_overview_diagram.svg)
+
+This diagram illustrates the high-level architecture of the Family Service application, showing the layers of Clean Architecture and how they interact. The diagram demonstrates how the application follows the dependency rule, with all dependencies pointing inward toward the domain layer.
 
 #### 2.3 Design Principles
 - **Separation of Concerns**: Each component has a single responsibility
@@ -76,6 +41,10 @@ The Family Service GraphQL application follows a combination of three architectu
 ### 3. Component Design
 
 #### 3.1 Core Domain Layer
+
+![Domain-Driven Design Concepts](diagrams/ddd_concepts_diagram.svg)
+
+This diagram illustrates the Domain-Driven Design concepts used in the Family Service application. It shows the Family Aggregate (with Family as the Aggregate Root, and Parent and Child as Entities), Value Objects (ID, Name, DateOfBirth, DateOfDeath), Domain Services, and Repository interfaces. The diagram also explains key DDD concepts such as Aggregates, Entities, Value Objects, Domain Services, and Repositories.
 
 ##### 3.1.1 Aggregates
 The domain layer is organized around aggregates, which are clusters of domain objects treated as a single unit:
@@ -535,6 +504,10 @@ SQLite uses a similar model to PostgreSQL, with JSON for parent and child data:
 #### 4.2 Data Flow
 
 ##### 4.2.1 Create Family Sequence
+
+![Create Family Sequence Diagram](diagrams/create_family_sequence_diagram.svg)
+
+This sequence diagram illustrates the flow of creating a family in the application:
 1. GraphQL resolver receives createFamily mutation
 2. Input is converted to domain DTO
 3. FamilyApplicationService delegates to FamilyDomainService
@@ -790,21 +763,9 @@ The Family Service implements a comprehensive monitoring and observability solut
 
 ##### 9.1.2 Architecture Diagram
 
-```
-┌─────────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                     │     │                 │     │                 │
-│  Family Service     │     │  Prometheus     │     │  Grafana        │
-│  ┌───────────────┐  │     │                 │     │                 │
-│  │ OpenTelemetry │  │     │  ┌───────────┐  │     │  ┌───────────┐  │
-│  │ SDK           │──┼────▶│  │ Metrics   │──┼────▶│  │ Dashboard │  │
-│  └───────────────┘  │     │  │ Database  │  │     │  │           │  │
-│                     │     │  └───────────┘  │     │  └───────────┘  │
-│  ┌───────────────┐  │     │                 │     │                 │
-│  │ /metrics      │◀─┼─────│  Scraper        │     │                 │
-│  │ Endpoint      │  │     │                 │     │                 │
-│  └───────────────┘  │     │                 │     │                 │
-└─────────────────────┘     └─────────────────┘     └─────────────────┘
-```
+![Hexagonal Architecture Diagram](diagrams/hexagonal_architecture_diagram.svg)
+
+This diagram illustrates the hexagonal architecture (ports and adapters pattern) of the Family Service application. It shows how the domain core is isolated from external concerns through ports (interfaces) and adapters. The primary adapters drive the application by calling the application services, while the secondary adapters are driven by the application and connect to external systems.
 
 #### 9.2 Instrumentation Design
 
@@ -1121,12 +1082,43 @@ These secrets are mounted into the application container at runtime and are used
 
 ### 12. Appendices
 
-#### 12.1 UML Class Diagram
+#### 12.1 Architecture Diagrams
+
+##### 12.1.1 Clean Architecture Overview
+![Architecture Overview Diagram](diagrams/architecture_overview_diagram.svg)
+
+This diagram illustrates the high-level architecture of the Family Service application, showing the layers of Clean Architecture and how they interact. The diagram demonstrates how the application follows the dependency rule, with all dependencies pointing inward toward the domain layer.
+
+##### 12.1.2 Hexagonal Architecture (Ports and Adapters)
+![Hexagonal Architecture Diagram](diagrams/hexagonal_architecture_diagram.svg)
+
+This diagram illustrates the hexagonal architecture (ports and adapters pattern) of the Family Service application. It shows how the domain core is isolated from external concerns through ports (interfaces) and adapters. The primary adapters drive the application by calling the application services, while the secondary adapters are driven by the application and connect to external systems.
+
+##### 12.1.3 Deployment Container Diagram
+![Deployment Container Diagram](diagrams/deployment_container_diagram.svg)
+
+This diagram shows the Docker Compose environment for the Family Service application, including the main service container, database containers, volumes, and network configuration.
+
+#### 12.2 Domain Model Diagrams
+
+##### 12.2.1 Domain-Driven Design Concepts
+![Domain-Driven Design Concepts](diagrams/ddd_concepts_diagram.svg)
+
+This diagram illustrates the Domain-Driven Design concepts used in the Family Service application. It shows the Family Aggregate (with Family as the Aggregate Root, and Parent and Child as Entities), Value Objects (ID, Name, DateOfBirth, DateOfDeath), Domain Services, and Repository interfaces. The diagram also explains key DDD concepts such as Aggregates, Entities, Value Objects, Domain Services, and Repositories.
+
+##### 12.2.2 UML Class Diagram
 ![Class Diagram](diagrams/sdd_class_diagram.svg)
 
 This class diagram illustrates the detailed structure of the system, showing the classes in each layer (Domain, Service, Ports, Adapters) and the relationships between them. It demonstrates how the system follows the architectural patterns described in this document.
 
-#### 12.2 UML Sequence Diagram
-![Sequence Diagram](diagrams/sdd_sequence_diagram.svg)
+#### 12.3 Sequence Diagrams
+
+##### 12.3.1 Create Family Sequence
+![Create Family Sequence Diagram](diagrams/create_family_sequence_diagram.svg)
+
+This sequence diagram illustrates the flow of creating a family in the application, from the API request through the application and domain layers to the database, and back to the client.
+
+##### 12.3.2 Divorce Operation Sequence
+![Divorce Sequence Diagram](diagrams/sdd_sequence_diagram.svg)
 
 This sequence diagram shows the interactions between components during the Divorce operation, one of the more complex workflows in the system. It illustrates how the different layers work together to process this operation, from the API request to the database updates.

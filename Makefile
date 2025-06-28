@@ -717,24 +717,24 @@ db-init:
 .PHONY: plantuml
 plantuml:
 	@echo "Generating SVG files from PlantUML files..."
-	@if [ ! -f docs/tools/plantuml.jar ]; then \
+	@if [ ! -f DOCS/tools/plantuml.jar ]; then \
 		echo "Downloading PlantUML JAR file..."; \
-		curl -L https://sourceforge.net/projects/plantuml/files/plantuml.jar/download -o docs/tools/plantuml.jar; \
+		curl -L https://sourceforge.net/projects/plantuml/files/plantuml.jar/download -o DOCS/tools/plantuml.jar; \
 	fi
 	@echo "Generating SVG files..."
-	@for file in docs/diagrams/*.puml; do \
+	@for file in DOCS/diagrams/*.puml; do \
 		echo "Processing $$file..."; \
-		java -jar docs/tools/plantuml.jar -tsvg $$file; \
+		java -jar DOCS/tools/plantuml.jar -tsvg $$file; \
 	done
 	@echo "SVG files generated successfully."
 
 .PHONY: plantuml-deployment-container
 plantuml-deployment-container:
 	@echo "Regenerating Deployment Container Diagram SVG file..."
-	@if [ ! -f docs/tools/plantuml.jar ]; then \
+	@if [ ! -f DOCS/tools/plantuml.jar ]; then \
 		echo "Downloading PlantUML JAR file..."; \
-		curl -L https://sourceforge.net/projects/plantuml/files/plantuml.jar/download -o docs/tools/plantuml.jar; \
+		curl -L https://sourceforge.net/projects/plantuml/files/plantuml.jar/download -o DOCS/tools/plantuml.jar; \
 	fi
-	@echo "Processing docs/diagrams/deployment_container_diagram.puml..."
-	@java -jar docs/tools/plantuml.jar -tsvg docs/diagrams/deployment_container_diagram.puml
+	@echo "Processing DOCS/diagrams/deployment_container_diagram.puml..."
+	@java -jar DOCS/tools/plantuml.jar -tsvg DOCS/diagrams/deployment_container_diagram.puml
 	@echo "Deployment Container Diagram SVG file regenerated successfully."

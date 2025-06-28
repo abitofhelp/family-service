@@ -1,0 +1,199 @@
+@startuml DDD Concepts Diagram
+
+skinparam {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+  ComponentStyle uml2
+  PackageStyle rectangle
+}
+
+title Family Service - Domain-Driven Design Concepts
+
+' Define the domain model
+package "Domain Model" as DomainModel {
+  ' Define the Family Aggregate
+  package "Family Aggregate" as FamilyAggregate {
+    class "Family" as Family <<Aggregate Root>> {
+      -id: ID
+      -status: Status
+      -parents: []*Parent
+      -children: []*Child
+      +NewFamily()
+      +AddParent()
+      +AddChild()
+      +RemoveChild()
+      +MarkParentDeceased()
+      +Divorce()
+      +Validate()
+    }
+    
+    class "Parent" as Parent <<Entity>> {
+      -id: ID
+      -firstName: Name
+      -lastName: Name
+      -birthDate: DateOfBirth
+      -deathDate: DateOfDeath
+      +NewParent()
+      +MarkDeceased()
+      +Validate()
+    }
+    
+    class "Child" as Child <<Entity>> {
+      -id: ID
+      -firstName: Name
+      -lastName: Name
+      -birthDate: DateOfBirth
+      -deathDate: DateOfDeath
+      +NewChild()
+      +MarkDeceased()
+      +Validate()
+    }
+    
+    enum "Status" as Status <<Enumeration>> {
+      SINGLE
+      MARRIED
+      DIVORCED
+      WIDOWED
+      ABANDONED
+    }
+  }
+  
+  ' Define Value Objects
+  package "Value Objects" as ValueObjects {
+    class "ID" as ID <<Value Object>> {
+      -value: string
+      +NewID()
+      +GenerateID()
+      +String()
+      +Equals()
+      +IsEmpty()
+    }
+    
+    class "Name" as Name <<Value Object>> {
+      -value: string
+      +NewName()
+      +String()
+      +Equals()
+      +IsEmpty()
+    }
+    
+    class "DateOfBirth" as DateOfBirth <<Value Object>> {
+      -date: time.Time
+      +NewDateOfBirth()
+      +String()
+      +Equals()
+      +IsEmpty()
+      +Date()
+    }
+    
+    class "DateOfDeath" as DateOfDeath <<Value Object>> {
+      -date: time.Time
+      +NewDateOfDeath()
+      +String()
+      +Equals()
+      +IsEmpty()
+      +Date()
+    }
+  }
+  
+  ' Define Domain Services
+  package "Domain Services" as DomainServices {
+    class "FamilyDomainService" as FamilyDomainService <<Domain Service>> {
+      -repo: FamilyRepository
+      -logger: ContextLogger
+      +CreateFamily()
+      +GetFamily()
+      +AddParent()
+      +AddChild()
+      +RemoveChild()
+      +MarkParentDeceased()
+      +Divorce()
+    }
+  }
+  
+  ' Define Repositories (Ports)
+  package "Repository Interfaces" as RepositoryInterfaces {
+    interface "FamilyRepository" as FamilyRepository <<Repository>> {
+      +GetByID()
+      +GetAll()
+      +Save()
+      +FindByParentID()
+      +FindByChildID()
+    }
+  }
+}
+
+' Define relationships
+Family "1" *-- "1..2" Parent : contains
+Family "1" *-- "0..*" Child : contains
+Family -- Status : has status
+
+Parent -- ID : has identity
+Parent -- Name : has first name
+Parent -- Name : has last name
+Parent -- DateOfBirth : has birth date
+Parent -- DateOfDeath : may have death date
+
+Child -- ID : has identity
+Child -- Name : has first name
+Child -- Name : has last name
+Child -- DateOfBirth : has birth date
+Child -- DateOfDeath : may have death date
+
+FamilyDomainService --> FamilyRepository : uses
+FamilyDomainService --> Family : creates/manipulates
+
+' Add notes to explain DDD concepts
+note right of Family
+  <b>Aggregate Root</b>
+  - Entry point to the aggregate
+  - Ensures consistency of the aggregate
+  - External references only to the root
+  - Responsible for enforcing invariants
+end note
+
+note right of Parent
+  <b>Entity</b>
+  - Has identity (ID)
+  - Mutable
+  - Lifecycle tracked
+  - Defined by continuity and identity
+end note
+
+note right of ID
+  <b>Value Object</b>
+  - Immutable
+  - No identity
+  - Defined by attributes
+  - Interchangeable when attributes are equal
+  - Used to describe aspects of a domain
+end note
+
+note right of FamilyDomainService
+  <b>Domain Service</b>
+  - Stateless operations
+  - Operations that don't belong to entities
+  - Coordinates multiple aggregates
+  - Contains domain logic
+end note
+
+note right of FamilyRepository
+  <b>Repository</b>
+  - Provides collection-like interface
+  - Abstracts persistence details
+  - Works with aggregates
+  - Part of the domain model
+end note
+
+note bottom of DomainModel
+  <b>Domain-Driven Design Principles</b>
+  - Ubiquitous Language: Shared language between developers and domain experts
+  - Bounded Context: Clear boundaries for models
+  - Aggregates: Consistency boundaries
+  - Entities vs Value Objects: Different modeling approaches based on identity
+  - Domain Services: Operations that don't belong to entities
+  - Repositories: Collection-like interfaces for persistence
+end note
+
+@enduml

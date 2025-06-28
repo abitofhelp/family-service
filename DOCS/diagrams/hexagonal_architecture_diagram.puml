@@ -1,0 +1,115 @@
+@startuml Hexagonal Architecture Diagram
+
+skinparam {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+  ComponentStyle uml2
+  PackageStyle rectangle
+}
+
+title Family Service - Hexagonal Architecture (Ports and Adapters)
+
+' Define the core hexagon
+hexagon "Domain Core" as DomainCore {
+  package "Domain Model" as DomainModel {
+    [Family Aggregate] as FamilyAggregate
+    [Parent Entity] as ParentEntity
+    [Child Entity] as ChildEntity
+    [Value Objects] as ValueObjects
+  }
+  
+  package "Domain Services" as DomainServices {
+    [Family Domain Service] as FamilyDomainService
+  }
+}
+
+' Define the application layer
+package "Application Layer" as ApplicationLayer {
+  [Family Application Service] as FamilyAppService
+}
+
+' Define the ports (interfaces)
+interface "FamilyRepository" as FamilyRepoPort
+interface "FamilyApplicationServicePort" as FamilyAppServicePort
+
+' Define the primary adapters (driving adapters)
+package "Primary Adapters" as PrimaryAdapters {
+  [GraphQL Resolver] as GraphQLResolver
+  [REST Controller] as RESTController
+  [CLI Commands] as CLICommands
+}
+
+' Define the secondary adapters (driven adapters)
+package "Secondary Adapters" as SecondaryAdapters {
+  [MongoDB Repository] as MongoRepo
+  [PostgreSQL Repository] as PostgresRepo
+  [SQLite Repository] as SQLiteRepo
+  [Logging Adapter] as LoggingAdapter
+  [Config Adapter] as ConfigAdapter
+  [Cache Adapter] as CacheAdapter
+  [Circuit Breaker Adapter] as CircuitBreakerAdapter
+}
+
+' Define external systems
+cloud "External Systems" as ExternalSystems {
+  database "MongoDB" as MongoDB
+  database "PostgreSQL" as PostgreSQL
+  database "SQLite" as SQLite
+  [Logging Service] as LoggingService
+  [Monitoring Service] as MonitoringService
+}
+
+' Define the relationships
+' Application connects to domain
+ApplicationLayer --> DomainCore
+ApplicationLayer --> FamilyRepoPort : uses
+ApplicationLayer ..|> FamilyAppServicePort : implements
+
+' Domain uses ports
+DomainCore --> FamilyRepoPort : uses
+
+' Primary adapters use application ports
+PrimaryAdapters --> FamilyAppServicePort : uses
+
+' Secondary adapters implement ports
+SecondaryAdapters ..|> FamilyRepoPort : implements
+
+' Secondary adapters connect to external systems
+MongoRepo --> MongoDB : connects to
+PostgresRepo --> PostgreSQL : connects to
+SQLiteRepo --> SQLite : connects to
+LoggingAdapter --> LoggingService : connects to
+CircuitBreakerAdapter --> MonitoringService : reports to
+
+' Add notes to explain the architecture
+note right of DomainCore
+  The Domain Core contains the business logic and rules.
+  It defines ports (interfaces) that it needs to interact
+  with the outside world.
+end note
+
+note right of PrimaryAdapters
+  Primary Adapters (Driving Adapters) drive the application
+  by calling the application services through their ports.
+  They convert external requests to internal calls.
+end note
+
+note right of SecondaryAdapters
+  Secondary Adapters (Driven Adapters) are driven by the
+  application. They implement the ports defined by the
+  domain and connect to external systems.
+end note
+
+note bottom of ExternalSystems
+  External Systems are infrastructure components that
+  the application interacts with through secondary adapters.
+end note
+
+note bottom of ApplicationLayer
+  The Application Layer orchestrates the flow between
+  primary adapters and the domain core. It uses the domain
+  and implements ports for primary adapters.
+end note
+
+@enduml

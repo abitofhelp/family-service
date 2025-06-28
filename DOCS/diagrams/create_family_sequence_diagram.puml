@@ -1,0 +1,94 @@
+@startuml Create Family Sequence Diagram
+
+skinparam {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+}
+
+title Family Service - Create Family Operation
+
+actor "API Client" as client
+participant "GraphQL Resolver" as resolver
+participant "FamilyApplicationService" as appService
+participant "FamilyDomainService" as domainService
+participant "Family Aggregate" as family
+participant "FamilyRepository" as repo
+database "Database" as db
+
+client -> resolver: createFamily(input)
+activate resolver
+note right of resolver
+  GraphQL mutation to create a family
+  with parents and children
+end note
+
+resolver -> appService: Create(ctx, familyDTO)
+activate appService
+note right of appService
+  Application service orchestrates
+  the use case and handles DTOs
+end note
+
+appService -> domainService: CreateFamily(ctx, familyDTO)
+activate domainService
+note right of domainService
+  Domain service contains
+  business logic and rules
+end note
+
+domainService -> family: NewFamily(...)
+activate family
+note right of family
+  Family aggregate ensures
+  internal consistency
+end note
+
+family --> domainService: family, nil
+deactivate family
+
+domainService -> family: Validate()
+activate family
+family --> domainService: nil
+deactivate family
+
+domainService -> repo: Save(ctx, family)
+activate repo
+note right of repo
+  Repository abstracts
+  persistence details
+end note
+
+repo -> db: Insert family data
+activate db
+db --> repo: success
+deactivate db
+
+repo --> domainService: nil
+deactivate repo
+
+domainService -> family: ToDTO()
+activate family
+family --> domainService: familyDTO
+deactivate family
+
+domainService --> appService: familyDTO, nil
+deactivate domainService
+
+appService --> resolver: familyDTO, nil
+deactivate appService
+
+resolver --> client: family data
+deactivate resolver
+
+note over client, db
+  This sequence diagram shows the flow of creating a family:
+  1. Client sends GraphQL mutation
+  2. Resolver converts to DTO and calls application service
+  3. Application service delegates to domain service
+  4. Domain service creates and validates the Family aggregate
+  5. Repository saves the aggregate to the database
+  6. Family data is returned through the layers back to the client
+end note
+
+@enduml

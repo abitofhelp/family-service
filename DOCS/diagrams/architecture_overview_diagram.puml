@@ -1,0 +1,121 @@
+@startuml Architecture Overview Diagram
+
+skinparam {
+  BackgroundColor white
+  ArrowColor black
+  BorderColor black
+  ComponentStyle uml2
+  PackageStyle rectangle
+}
+
+title Family Service - Clean Architecture Overview
+
+' Define the layers
+package "Interface Layer" as InterfaceLayer {
+  [GraphQL API] as GraphQL
+  [REST API] as REST
+  [CLI] as CLI
+}
+
+package "Application Layer" as ApplicationLayer {
+  [Application Services] as AppServices
+  [DTOs] as DTOs
+  [Use Cases] as UseCases
+}
+
+package "Domain Layer" as DomainLayer {
+  [Domain Services] as DomainServices
+  [Entities] as Entities
+  [Value Objects] as ValueObjects
+  [Domain Events] as DomainEvents
+  [Aggregates] as Aggregates
+}
+
+package "Infrastructure Layer" as InfrastructureLayer {
+  [Repositories] as Repositories
+  [External Services] as ExternalServices
+  [Persistence] as Persistence
+  [Logging] as Logging
+  [Authentication] as Auth
+  [Configuration] as Config
+  [Telemetry] as Telemetry
+  [Circuit Breaker] as CircuitBreaker
+  [Caching] as Caching
+}
+
+' Define the dependencies (arrows point to dependencies)
+InterfaceLayer --> ApplicationLayer
+ApplicationLayer --> DomainLayer
+InfrastructureLayer --> DomainLayer
+InfrastructureLayer --> ApplicationLayer
+
+' Define specific components
+package "Domain Model" as DomainModel {
+  [Family Aggregate] as FamilyAggregate
+  [Parent Entity] as ParentEntity
+  [Child Entity] as ChildEntity
+  [Family Status] as FamilyStatus
+  [ID] as ID
+  [Name] as Name
+  [DateOfBirth] as DateOfBirth
+  [DateOfDeath] as DateOfDeath
+}
+
+package "Application Services" as AppServicesDetail {
+  [Family Application Service] as FamilyAppService
+}
+
+package "Infrastructure Adapters" as InfraAdapters {
+  [MongoDB Repository] as MongoRepo
+  [PostgreSQL Repository] as PostgresRepo
+  [SQLite Repository] as SQLiteRepo
+  [GraphQL Resolver] as GraphQLResolver
+}
+
+' Place components in their respective layers
+DomainLayer +-- DomainModel
+ApplicationLayer +-- AppServicesDetail
+InfrastructureLayer +-- InfraAdapters
+InterfaceLayer +-- GraphQLResolver
+
+' Add notes to explain the architecture
+note right of DomainLayer
+  The Domain Layer contains the business logic and rules.
+  It is independent of other layers and frameworks.
+  - Entities: Business objects with identity
+  - Value Objects: Immutable objects without identity
+  - Aggregates: Clusters of entities and value objects
+  - Domain Services: Stateless operations on multiple entities
+end note
+
+note right of ApplicationLayer
+  The Application Layer orchestrates the flow of data and
+  coordinates high-level business operations.
+  - Application Services: Orchestrate use cases
+  - DTOs: Data Transfer Objects for external communication
+  - Use Cases: Business operations from user perspective
+end note
+
+note right of InterfaceLayer
+  The Interface Layer handles external interactions.
+  - GraphQL API: Main API for client applications
+  - REST API: Alternative API (if implemented)
+  - CLI: Command Line Interface for admin operations
+end note
+
+note right of InfrastructureLayer
+  The Infrastructure Layer provides technical capabilities.
+  - Repositories: Data access implementations
+  - External Services: Integration with external systems
+  - Persistence: Database connections and ORM
+  - Authentication: Security and access control
+  - Logging, Telemetry, etc.: Cross-cutting concerns
+end note
+
+note bottom of InfrastructureLayer
+  All dependencies point inward, following the Dependency Rule
+  of Clean Architecture. The inner layers don't know about
+  the outer layers.
+end note
+
+@enduml
