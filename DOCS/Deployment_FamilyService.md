@@ -557,12 +557,12 @@ For a production environment, consider:
 #### 12.3 Deployment Diagrams
 
 ##### 12.3.1 Physical Deployment Diagram
-![Deployment Diagram](diagrams/Deployment%20Diagram.svg)
+![Deployment Diagram](diagrams/deployment_diagram.svg)
 
 This deployment diagram illustrates the physical architecture of the system, showing the Docker host, containers, volumes, and connections between components. It includes details about exposed ports and environment variables.
 
 ##### 12.3.2 Container Diagram
-![Container Diagram](diagrams/Deployment%20Container%20Diagram.svg)
+![Container Diagram](diagrams/deployment_container_diagram.svg)
 
 This container diagram focuses on the Docker Compose configuration, showing the relationships between containers, networks, and volumes. It includes details about service dependencies, port forwarding, and deployment commands.
 

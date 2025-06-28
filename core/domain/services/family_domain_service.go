@@ -10,8 +10,8 @@ import (
 	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
 	"github.com/abitofhelp/family-service/core/domain/metrics"
 	"github.com/abitofhelp/family-service/core/domain/ports"
-	"github.com/abitofhelp/servicelib/errors"
-	"github.com/abitofhelp/servicelib/logging"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -20,12 +20,12 @@ import (
 // FamilyDomainService is a domain service that coordinates operations on the Family aggregate
 type FamilyDomainService struct {
 	repo   ports.FamilyRepository
-	logger *logging.ContextLogger
+	logger *loggingwrapper.ContextLogger
 	tracer trace.Tracer
 }
 
 // NewFamilyDomainService creates a new FamilyDomainService
-func NewFamilyDomainService(repo ports.FamilyRepository, logger *logging.ContextLogger) *FamilyDomainService {
+func NewFamilyDomainService(repo ports.FamilyRepository, logger *loggingwrapper.ContextLogger) *FamilyDomainService {
 	if repo == nil {
 		panic("repository cannot be nil")
 	}
@@ -58,7 +58,7 @@ func (s *FamilyDomainService) CreateFamily(ctx context.Context, dto entity.Famil
 		metrics.FamilyOperationsTotal.WithLabelValues("create_family", metrics.StatusFailure).Inc()
 
 		s.logger.Error(ctx, "Invalid family data", zap.Error(err), zap.String("family_id", dto.ID))
-		return nil, errors.NewValidationError("invalid family data", "family", err)
+		return nil, errorswrapper.NewValidationError("invalid family data", "family", err)
 	}
 
 	// Create a span for repository operation
@@ -74,7 +74,7 @@ func (s *FamilyDomainService) CreateFamily(ctx context.Context, dto entity.Famil
 		metrics.FamilyOperationsTotal.WithLabelValues("create_family", metrics.StatusFailure).Inc()
 
 		s.logger.Error(ctx, "Failed to save family to repository", zap.Error(err), zap.String("family_id", fam.ID()))
-		return nil, errors.NewDatabaseError("failed to create family", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to create family", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -118,7 +118,7 @@ func (s *FamilyDomainService) GetFamily(ctx context.Context, id string) (*entity
 		metrics.FamilyOperationsTotal.WithLabelValues("get_family", metrics.StatusFailure).Inc()
 
 		s.logger.Warn(ctx, "Family ID is required")
-		return nil, errors.NewValidationError("family ID is required", "id", nil)
+		return nil, errorswrapper.NewValidationError("family ID is required", "id", nil)
 	}
 
 	// Create a span for repository operation
@@ -133,12 +133,12 @@ func (s *FamilyDomainService) GetFamily(ctx context.Context, id string) (*entity
 		// Record metrics for operation failure
 		metrics.FamilyOperationsTotal.WithLabelValues("get_family", metrics.StatusFailure).Inc()
 
-		if _, ok := err.(*errors.NotFoundError); ok {
+		if errorswrapper.IsNotFoundError(err) {
 			s.logger.Info(ctx, "Family not found", zap.String("family_id", id))
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family from repository", zap.Error(err), zap.String("family_id", id))
-		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -177,7 +177,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		metrics.FamilyOperationsTotal.WithLabelValues("add_parent", metrics.StatusFailure).Inc()
 
 		s.logger.Warn(ctx, "Family ID is required for AddParent")
-		return nil, errors.NewValidationError("family ID is required", "familyID", nil)
+		return nil, errorswrapper.NewValidationError("family ID is required", "familyID", nil)
 	}
 
 	// Create a span for retrieving the family
@@ -193,14 +193,14 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		// Record metrics for operation failure
 		metrics.FamilyOperationsTotal.WithLabelValues("add_parent", metrics.StatusFailure).Inc()
 
-		if _, ok := err.(*errors.NotFoundError); ok {
+		if errorswrapper.IsNotFoundError(err) {
 			s.logger.Info(ctx, "Family not found for AddParent", zap.String("family_id", familyID))
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family for AddParent", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -221,7 +221,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		s.logger.Error(ctx, "Invalid parent data for AddParent", 
 			zap.Error(err), 
 			zap.String("parent_id", parentDTO.ID))
-		return nil, errors.NewValidationError("invalid parent data", "parent", err)
+		return nil, errorswrapper.NewValidationError("invalid parent data", "parent", err)
 	}
 
 	parentSpan.End()
@@ -285,7 +285,7 @@ func (s *FamilyDomainService) AddParent(ctx context.Context, familyID string, pa
 		s.logger.Error(ctx, "Failed to save family after adding parent", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -335,7 +335,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		metrics.FamilyOperationsTotal.WithLabelValues("add_child", metrics.StatusFailure).Inc()
 
 		s.logger.Warn(ctx, "Family ID is required for AddChild")
-		return nil, errors.NewValidationError("family ID is required", "familyID", nil)
+		return nil, errorswrapper.NewValidationError("family ID is required", "familyID", nil)
 	}
 
 	// Create a span for retrieving the family
@@ -351,14 +351,14 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		// Record metrics for operation failure
 		metrics.FamilyOperationsTotal.WithLabelValues("add_child", metrics.StatusFailure).Inc()
 
-		if _, ok := err.(*errors.NotFoundError); ok {
+		if errorswrapper.IsNotFoundError(err) {
 			s.logger.Info(ctx, "Family not found for AddChild", zap.String("family_id", familyID))
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family for AddChild", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -379,7 +379,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		s.logger.Error(ctx, "Invalid child data for AddChild", 
 			zap.Error(err), 
 			zap.String("child_id", childDTO.ID))
-		return nil, errors.NewValidationError("invalid child data", "child", err)
+		return nil, errorswrapper.NewValidationError("invalid child data", "child", err)
 	}
 
 	childSpan.End()
@@ -417,7 +417,7 @@ func (s *FamilyDomainService) AddChild(ctx context.Context, familyID string, chi
 		s.logger.Error(ctx, "Failed to save family after adding child", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -460,7 +460,7 @@ func (s *FamilyDomainService) RemoveChild(ctx context.Context, familyID string, 
 		s.logger.Warn(ctx, "Family ID and child ID are required for RemoveChild", 
 			zap.String("family_id", familyID), 
 			zap.String("child_id", childID))
-		return nil, errors.NewValidationError("family ID and child ID are required", "familyID/childID", nil)
+		return nil, errorswrapper.NewValidationError("family ID and child ID are required", "familyID/childID", nil)
 	}
 
 	// Create a span for retrieving the family
@@ -476,14 +476,14 @@ func (s *FamilyDomainService) RemoveChild(ctx context.Context, familyID string, 
 		// Record metrics for operation failure
 		metrics.FamilyOperationsTotal.WithLabelValues("remove_child", metrics.StatusFailure).Inc()
 
-		if _, ok := err.(*errors.NotFoundError); ok {
+		if errorswrapper.IsNotFoundError(err) {
 			s.logger.Info(ctx, "Family not found for RemoveChild", zap.String("family_id", familyID))
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family for RemoveChild", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -524,7 +524,7 @@ func (s *FamilyDomainService) RemoveChild(ctx context.Context, familyID string, 
 		s.logger.Error(ctx, "Failed to save family after removing child", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -568,7 +568,7 @@ func (s *FamilyDomainService) MarkParentDeceased(ctx context.Context, familyID s
 		s.logger.Warn(ctx, "Family ID and parent ID are required for MarkParentDeceased", 
 			zap.String("family_id", familyID), 
 			zap.String("parent_id", parentID))
-		return nil, errors.NewValidationError("family ID and parent ID are required", "familyID/parentID", nil)
+		return nil, errorswrapper.NewValidationError("family ID and parent ID are required", "familyID/parentID", nil)
 	}
 
 	// Create a span for retrieving the family
@@ -584,14 +584,14 @@ func (s *FamilyDomainService) MarkParentDeceased(ctx context.Context, familyID s
 		// Record metrics for operation failure
 		metrics.FamilyOperationsTotal.WithLabelValues("mark_parent_deceased", metrics.StatusFailure).Inc()
 
-		if _, ok := err.(*errors.NotFoundError); ok {
+		if errorswrapper.IsNotFoundError(err) {
 			s.logger.Info(ctx, "Family not found for MarkParentDeceased", zap.String("family_id", familyID))
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family for MarkParentDeceased", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -635,7 +635,7 @@ func (s *FamilyDomainService) MarkParentDeceased(ctx context.Context, familyID s
 		s.logger.Error(ctx, "Failed to save family after marking parent as deceased", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to save family", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to save family", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -688,7 +688,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 		s.logger.Warn(ctx, "Family ID and custodial parent ID are required for Divorce", 
 			zap.String("family_id", familyID), 
 			zap.String("custodial_parent_id", custodialParentID))
-		return nil, errors.NewValidationError("family ID and custodial parent ID are required", "familyID/custodialParentID", nil)
+		return nil, errorswrapper.NewValidationError("family ID and custodial parent ID are required", "familyID/custodialParentID", nil)
 	}
 
 	// Create a span for retrieving the family
@@ -704,14 +704,14 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 		// Record metrics for operation failure
 		metrics.FamilyOperationsTotal.WithLabelValues("divorce", metrics.StatusFailure).Inc()
 
-		if _, ok := err.(*errors.NotFoundError); ok {
+		if errorswrapper.IsNotFoundError(err) {
 			s.logger.Info(ctx, "Family not found for Divorce", zap.String("family_id", familyID))
 			return nil, err // Pass through not found errors
 		}
 		s.logger.Error(ctx, "Failed to retrieve family for Divorce", 
 			zap.Error(err), 
 			zap.String("family_id", familyID))
-		return nil, errors.NewDatabaseError("failed to retrieve family", "query", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to retrieve family", "query", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -760,7 +760,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 		s.logger.Error(ctx, "Failed to save family with custodial parent after divorce", 
 			zap.Error(err), 
 			zap.String("family_id", fam.ID()))
-		return nil, errors.NewDatabaseError("failed to save family with custodial parent", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to save family with custodial parent", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success
@@ -788,7 +788,7 @@ func (s *FamilyDomainService) Divorce(ctx context.Context, familyID string, cust
 			zap.Error(err), 
 			zap.String("family_id", remainingFam.ID()),
 			zap.String("custodial_parent_family_id", fam.ID()))
-		return nil, errors.NewDatabaseError("failed to save family with remaining parent", "save", "families", err)
+		return nil, errorswrapper.NewDatabaseError("failed to save family with remaining parent", "save", "families", err)
 	}
 
 	// Record metrics for repository operation success

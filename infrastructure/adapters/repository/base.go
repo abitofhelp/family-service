@@ -7,14 +7,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abitofhelp/family-service/infrastructure/adapters/circuit"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	repoerrors "github.com/abitofhelp/family-service/infrastructure/adapters/errors"
-	"github.com/abitofhelp/servicelib/circuit"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/rate"
 	"github.com/abitofhelp/servicelib/errors"
-	"github.com/abitofhelp/servicelib/logging"
-	"github.com/abitofhelp/servicelib/rate"
 	"github.com/abitofhelp/servicelib/retry"
-	"go.uber.org/zap"
 )
 
 var (
@@ -47,15 +46,17 @@ func GetRetryConfig() retry.Config {
 }
 
 // BaseRepository provides common functionality for all repository implementations
+// It uses the family-service's wrapper implementations for circuit and rate packages
+// to ensure consistent usage of these features throughout the codebase.
 type BaseRepository struct {
-	Logger         *logging.ContextLogger
+	Logger         *loggingwrapper.ContextLogger
 	CircuitBreaker *circuit.CircuitBreaker
 	RateLimiter    *rate.RateLimiter
 	DefaultTimeout time.Duration
 }
 
 // NewBaseRepository creates a new BaseRepository with the given logger
-func NewBaseRepository(logger *logging.ContextLogger, dbName string) *BaseRepository {
+func NewBaseRepository(logger *loggingwrapper.ContextLogger, dbName string) *BaseRepository {
 	if logger == nil {
 		panic("logger cannot be nil")
 	}
@@ -89,40 +90,11 @@ func NewBaseRepository(logger *logging.ContextLogger, dbName string) *BaseReposi
 		}
 	}
 
-	// Create a new zap logger for the circuit breaker and rate limiter
-	zapLogger, _ := zap.NewProduction()
-	contextLogger := logging.NewContextLogger(zapLogger)
+	// Create circuit breaker using the family-service wrapper
+	cb := circuit.NewCircuitBreaker(dbName, circuitConfig, logger.Logger())
 
-	// Create circuit breaker config
-	circuitBreakerConfig := circuit.DefaultConfig().
-		WithEnabled(circuitConfig.Enabled).
-		WithTimeout(circuitConfig.Timeout).
-		WithMaxConcurrent(circuitConfig.MaxConcurrent).
-		WithErrorThreshold(circuitConfig.ErrorThreshold).
-		WithVolumeThreshold(circuitConfig.VolumeThreshold).
-		WithSleepWindow(circuitConfig.SleepWindow)
-
-	// Create circuit breaker options
-	circuitBreakerOptions := circuit.DefaultOptions().
-		WithName(dbName).
-		WithLogger(contextLogger)
-
-	// Create circuit breaker
-	cb := circuit.NewCircuitBreaker(circuitBreakerConfig, circuitBreakerOptions)
-
-	// Create rate limiter config
-	rateLimiterConfig := rate.DefaultConfig().
-		WithEnabled(rateConfig.Enabled).
-		WithRequestsPerSecond(rateConfig.RequestsPerSecond).
-		WithBurstSize(rateConfig.BurstSize)
-
-	// Create rate limiter options
-	rateLimiterOptions := rate.DefaultOptions().
-		WithName(dbName).
-		WithLogger(contextLogger)
-
-	// Create rate limiter
-	rl := rate.NewRateLimiter(rateLimiterConfig, rateLimiterOptions)
+	// Create rate limiter using the family-service wrapper
+	rl := rate.NewRateLimiter(dbName, rateConfig, logger.Logger())
 
 	return &BaseRepository{
 		Logger:         logger,
@@ -149,6 +121,8 @@ func IsRetryableError(err error) bool {
 }
 
 // ExecuteWithResilience executes an operation with retry, circuit breaker, and rate limiter
+// It uses the family-service's wrapper implementations for circuit and rate packages
+// to ensure consistent usage of these features throughout the codebase.
 func (r *BaseRepository) ExecuteWithResilience(
 	ctx context.Context,
 	operation func(context.Context) error,
@@ -173,22 +147,11 @@ func (r *BaseRepository) ExecuteWithResilience(
 	// Wrap the circuit breaker operation with rate limiter
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
-		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
-			err := circuitOperation(ctx)
-			return nil, err
-		}
-		_, err := circuit.Execute(ctx, r.CircuitBreaker, operationName, circuitOpWrapper)
-		return err
+		return r.CircuitBreaker.Execute(ctx, operationName, circuitOperation)
 	}
 
 	// Execute with rate limiter
-	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
-		err := rateOperation(ctx)
-		return nil, err
-	}
-	_, err := rate.Execute(ctxWithTimeout, r.RateLimiter, operationName, rateOpWrapper)
+	err := r.RateLimiter.Execute(ctxWithTimeout, operationName, rateOperation)
 
 	// Check for errors from rate limiter or circuit breaker
 	if err != nil && retryErr == nil {

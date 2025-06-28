@@ -184,12 +184,12 @@ The system provides the following key functions:
 ### 5. Appendices
 
 #### 5.1 Use Case Diagrams
-![Use Case Diagram](diagrams/SRS%20Use%20Case%20Diagram.svg)
+![Use Case Diagram](diagrams/srs_use_case_diagram.svg)
 
 This use case diagram illustrates the interactions between the API client and the Family Service GraphQL system, showing all the main operations that can be performed.
 
 #### 5.2 Data Models
-![Data Model Diagram](diagrams/SRS%20Data%20Model%20Diagram.svg)
+![Data Model Diagram](diagrams/srs_data_model_diagram.svg)
 
 This data model diagram shows the key entities in the system (Family, Parent, Child) and their relationships, along with the business rules that govern them.
 

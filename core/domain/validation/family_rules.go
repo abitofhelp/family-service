@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
-	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
 )
 
 // ParentAgeRule validates that parents meet minimum age requirements
@@ -26,7 +26,7 @@ func NewParentAgeRule(minimumAge int) *ParentAgeRule {
 func (r *ParentAgeRule) Validate(ctx context.Context, e interface{}) error {
 	family, ok := e.(*entity.Family)
 	if !ok {
-		return errors.NewValidationError("entity is not a Family", "entity", nil)
+		return errorswrapper.NewValidationError("entity is not a Family", "entity", nil)
 	}
 
 	now := time.Now()
@@ -40,7 +40,7 @@ func (r *ParentAgeRule) Validate(ctx context.Context, e interface{}) error {
 		}
 
 		if age < r.minimumAge {
-			return errors.NewValidationError("parent does not meet minimum age requirement", "Parent", nil)
+			return errorswrapper.NewValidationError("parent does not meet minimum age requirement", "Parent", nil)
 		}
 	}
 
@@ -59,7 +59,7 @@ func NewChildBirthDateRule() *ChildBirthDateRule {
 func (r *ChildBirthDateRule) Validate(ctx context.Context, e interface{}) error {
 	family, ok := e.(*entity.Family)
 	if !ok {
-		return errors.NewValidationError("entity is not a Family", "entity", nil)
+		return errorswrapper.NewValidationError("entity is not a Family", "entity", nil)
 	}
 
 	parents := family.Parents()
@@ -72,7 +72,7 @@ func (r *ChildBirthDateRule) Validate(ctx context.Context, e interface{}) error 
 			parentBirthDate := parent.BirthDate()
 
 			if !childBirthDate.After(parentBirthDate) {
-				return errors.NewValidationError("child's birth date before parent's birth date", "Child", nil)
+				return errorswrapper.NewValidationError("child's birth date before parent's birth date", "Child", nil)
 			}
 		}
 	}
@@ -92,18 +92,18 @@ func NewFamilyStatusRule() *FamilyStatusRule {
 func (r *FamilyStatusRule) Validate(ctx context.Context, e interface{}) error {
 	family, ok := e.(*entity.Family)
 	if !ok {
-		return errors.NewValidationError("entity is not a Family", "entity", nil)
+		return errorswrapper.NewValidationError("entity is not a Family", "entity", nil)
 	}
 
 	status := family.Status()
 	parentCount := family.CountParents()
 
 	if status == entity.Status("MARRIED") && parentCount != 2 {
-		return errors.NewValidationError("married family must have exactly two parents", "Status", nil)
+		return errorswrapper.NewValidationError("married family must have exactly two parents", "Status", nil)
 	}
 
 	if status == entity.Status("SINGLE") && parentCount > 1 {
-		return errors.NewValidationError("single family cannot have more than one parent", "Status", nil)
+		return errorswrapper.NewValidationError("single family cannot have more than one parent", "Status", nil)
 	}
 
 	return nil

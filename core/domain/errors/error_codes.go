@@ -4,7 +4,7 @@
 package errors
 
 import (
-	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
 )
 
 // Domain-specific error codes for family-related errors
@@ -31,55 +31,55 @@ const (
 
 // NewFamilyTooManyParentsError creates a new domain error for when a family has too many parents
 func NewFamilyTooManyParentsError(message string, cause error) error {
-	return errors.NewDomainError(FamilyTooManyParentsCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyTooManyParentsCode, message, cause)
 }
 
 // NewFamilyParentExistsError creates a new domain error for when a parent already exists in a family
 func NewFamilyParentExistsError(message string, cause error) error {
-	return errors.NewDomainError(FamilyParentExistsCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyParentExistsCode, message, cause)
 }
 
 // NewFamilyParentDuplicateError creates a new domain error for when a parent with the same name and birthdate already exists
 func NewFamilyParentDuplicateError(message string, cause error) error {
-	return errors.NewDomainError(FamilyParentDuplicateCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyParentDuplicateCode, message, cause)
 }
 
 // NewFamilyChildExistsError creates a new domain error for when a child already exists in a family
 func NewFamilyChildExistsError(message string, cause error) error {
-	return errors.NewDomainError(FamilyChildExistsCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyChildExistsCode, message, cause)
 }
 
 // NewFamilyCannotRemoveLastParentError creates a new domain error for when attempting to remove the only parent
 func NewFamilyCannotRemoveLastParentError(message string, cause error) error {
-	return errors.NewDomainError(FamilyCannotRemoveLastParent, message, cause)
+	return errorswrapper.NewDomainError(FamilyCannotRemoveLastParent, message, cause)
 }
 
 // NewFamilyNotMarriedError creates a new domain error for when a family is not in a married state
 func NewFamilyNotMarriedError(message string, cause error) error {
-	return errors.NewDomainError(FamilyNotMarriedCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyNotMarriedCode, message, cause)
 }
 
 // NewFamilyDivorceRequiresTwoParentsError creates a new domain error for when a divorce is attempted without two parents
 func NewFamilyDivorceRequiresTwoParentsError(message string, cause error) error {
-	return errors.NewDomainError(FamilyDivorceRequiresTwoCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyDivorceRequiresTwoCode, message, cause)
 }
 
 // NewFamilyCreateFailedError creates a new domain error for when family creation fails
 func NewFamilyCreateFailedError(message string, cause error) error {
-	return errors.NewDomainError(FamilyCreateFailedCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyCreateFailedCode, message, cause)
 }
 
 // NewParentAlreadyDeceasedError creates a new domain error for when a parent is already marked as deceased
 func NewParentAlreadyDeceasedError(message string, cause error) error {
-	return errors.NewDomainError(ParentAlreadyDeceasedCode, message, cause)
+	return errorswrapper.NewDomainError(ParentAlreadyDeceasedCode, message, cause)
 }
 
 // NewChildAlreadyDeceasedError creates a new domain error for when a child is already marked as deceased
 func NewChildAlreadyDeceasedError(message string, cause error) error {
-	return errors.NewDomainError(ChildAlreadyDeceasedCode, message, cause)
+	return errorswrapper.NewDomainError(ChildAlreadyDeceasedCode, message, cause)
 }
 
 // NewFamilyStatusUpdateFailedError creates a new domain error for when family status update fails
 func NewFamilyStatusUpdateFailedError(message string, cause error) error {
-	return errors.NewDomainError(FamilyStatusUpdateFailedCode, message, cause)
+	return errorswrapper.NewDomainError(FamilyStatusUpdateFailedCode, message, cause)
 }

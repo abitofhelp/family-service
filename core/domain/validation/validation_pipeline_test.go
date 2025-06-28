@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -85,7 +85,7 @@ func TestValidate_Failure(t *testing.T) {
 
 	// Create a mock rule that will fail
 	rule2 := new(MockRule)
-	validationErr := errors.NewValidationError("validation failed", "field", nil)
+	validationErr := errorswrapper.NewValidationError("validation failed", "field", nil)
 	rule2.On("Validate", mock.Anything, mock.Anything).Return(validationErr)
 
 	// Create a pipeline with the mock rules
@@ -107,11 +107,11 @@ func TestValidate_Failure(t *testing.T) {
 func TestValidate_MultipleFailures(t *testing.T) {
 	// Create mock rules that will fail
 	rule1 := new(MockRule)
-	validationErr1 := errors.NewValidationError("validation failed 1", "field1", nil)
+	validationErr1 := errorswrapper.NewValidationError("validation failed 1", "field1", nil)
 	rule1.On("Validate", mock.Anything, mock.Anything).Return(validationErr1)
 
 	rule2 := new(MockRule)
-	validationErr2 := errors.NewValidationError("validation failed 2", "field2", nil)
+	validationErr2 := errorswrapper.NewValidationError("validation failed 2", "field2", nil)
 	rule2.On("Validate", mock.Anything, mock.Anything).Return(validationErr2)
 
 	// Create a pipeline with the mock rules
@@ -177,7 +177,7 @@ func TestCompositeRule_Validate_Failure(t *testing.T) {
 
 	// Create a mock rule that will fail
 	rule2 := new(MockRule)
-	validationErr := errors.NewValidationError("validation failed", "field", nil)
+	validationErr := errorswrapper.NewValidationError("validation failed", "field", nil)
 	rule2.On("Validate", mock.Anything, mock.Anything).Return(validationErr)
 
 	// Create a composite rule with the mock rules

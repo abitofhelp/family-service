@@ -1,2 +1,63 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# This file configures how Git handles different file types in your repository.
+# It ensures consistent line endings and proper file handling across different operating systems.
+
+# Default behavior: normalize line endings for all text files
+# - text=auto: Git will detect if a file is text or binary
+# - eol=lf: Use Linux/Mac style line endings (LF) for text files
+* text=auto eol=lf
+
+# Go source files
+# - text: Treat as text files
+# - diff=golang: Use Go-aware diff processing for better change visualization
+*.go text diff=golang
+
+# Documentation files
+# - text: Handle as text files with line-ending normalization
+# - diff=markdown: Better diff view for markdown files
+# Binary docs won't have line-ending conversion
+*.md text diff=markdown
+*.txt text
+*.doc binary
+*.docx binary
+*.pdf binary
+
+# Script handling
+# - Shell scripts must have LF endings to work on Linux/Mac
+# - Windows batch/cmd files must have CRLF endings to work on Windows
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Configuration and data files
+# These should be normalized and treated as text
+# This ensures they're readable and editable on all platforms
+*.json text
+*.yaml text
+*.yml text
+*.toml text
+*.lock text
+go.mod text    # Go module definition
+go.sum text    # Go module checksums
+
+# Graphics and binary assets
+# These should never have line-ending conversion
+# 'binary' is an alias for -text -diff
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.svg text    # SVG is actually XML (text) format
+
+# Git configuration files
+# These should always be normalized and treated as text
+.gitattributes text
+.gitignore text
+.gitconfig text
+
+# Binary executables and libraries
+# These should never have line-ending conversion
+# Different formats for Windows (.exe, .dll) and Unix (.so, .dylib)
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary

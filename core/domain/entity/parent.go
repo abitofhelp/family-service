@@ -8,54 +8,54 @@ import (
 	"time"
 
 	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
-	"github.com/abitofhelp/servicelib/errors"
-	"github.com/abitofhelp/servicelib/validation"
-	"github.com/abitofhelp/servicelib/valueobject/identification"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper"
 )
 
 // Parent represents a parent entity in the family domain
 type Parent struct {
-	id        identification.ID
-	firstName identification.Name
-	lastName  identification.Name
-	birthDate identification.DateOfBirth
-	deathDate *identification.DateOfDeath
+	id        identificationwrapper.ID
+	firstName identificationwrapper.Name
+	lastName  identificationwrapper.Name
+	birthDate identificationwrapper.DateOfBirth
+	deathDate *identificationwrapper.DateOfDeath
 }
 
 // NewParent creates a new Parent entity with validation
 func NewParent(id, firstName, lastName string, birthDate time.Time, deathDate *time.Time) (*Parent, error) {
 	// Create ID value object
-	idVO, err := identification.NewID(id)
+	idVO, err := identificationwrapper.NewIDFromString(id)
 	if err != nil {
-		return nil, errors.NewValidationError("invalid ID: "+err.Error(), "ID", err)
+		return nil, errorswrapper.NewValidationError("invalid ID: "+err.Error(), "ID", err)
 	}
 
 	// Create FirstName value object
-	firstNameVO, err := identification.NewName(firstName)
+	firstNameVO, err := identificationwrapper.NewName(firstName)
 	if err != nil {
-		return nil, errors.NewValidationError("invalid FirstName: "+err.Error(), "FirstName", err)
+		return nil, errorswrapper.NewValidationError("invalid FirstName: "+err.Error(), "FirstName", err)
 	}
 
 	// Create LastName value object
-	lastNameVO, err := identification.NewName(lastName)
+	lastNameVO, err := identificationwrapper.NewName(lastName)
 	if err != nil {
-		return nil, errors.NewValidationError("invalid LastName: "+err.Error(), "LastName", err)
+		return nil, errorswrapper.NewValidationError("invalid LastName: "+err.Error(), "LastName", err)
 	}
 
 	// Create BirthDate value object
 	year, month, day := birthDate.Date()
-	birthDateVO, err := identification.NewDateOfBirth(year, int(month), day)
+	birthDateVO, err := identificationwrapper.NewDateOfBirth(year, int(month), day)
 	if err != nil {
-		return nil, errors.NewValidationError("invalid BirthDate: "+err.Error(), "BirthDate", err)
+		return nil, errorswrapper.NewValidationError("invalid BirthDate: "+err.Error(), "BirthDate", err)
 	}
 
 	// Create DeathDate value object if provided
-	var deathDateVO *identification.DateOfDeath
+	var deathDateVO *identificationwrapper.DateOfDeath
 	if deathDate != nil {
 		year, month, day := deathDate.Date()
-		dod, err := identification.NewDateOfDeath(year, int(month), day)
+		dod, err := identificationwrapper.NewDateOfDeath(year, int(month), day)
 		if err != nil {
-			return nil, errors.NewValidationError("invalid DeathDate: "+err.Error(), "DeathDate", err)
+			return nil, errorswrapper.NewValidationError("invalid DeathDate: "+err.Error(), "DeathDate", err)
 		}
 		deathDateVO = &dod
 	}
@@ -77,7 +77,7 @@ func NewParent(id, firstName, lastName string, birthDate time.Time, deathDate *t
 
 // Validate ensures the Parent entity is valid
 func (p *Parent) Validate() error {
-	result := validation.NewValidationResult()
+	result := validationwrapper.NewValidationResult()
 
 	// Value objects already have their own validation, but we can add additional validation here
 	// For example, we can validate that the death date is after the birth date
@@ -186,14 +186,14 @@ func (p *Parent) MarkDeceased(deathDate time.Time) error {
 
 	// Validate death date is after birth date
 	if !deathDate.After(p.birthDate.Date()) {
-		return errors.NewValidationError("death date must be after birth date", "DeathDate", nil)
+		return errorswrapper.NewValidationError("death date must be after birth date", "DeathDate", nil)
 	}
 
 	// Create DateOfDeath value object
 	year, month, day := deathDate.Date()
-	dod, err := identification.NewDateOfDeath(year, int(month), day)
+	dod, err := identificationwrapper.NewDateOfDeath(year, int(month), day)
 	if err != nil {
-		return errors.NewValidationError("invalid death date: "+err.Error(), "DeathDate", err)
+		return errorswrapper.NewValidationError("invalid death date: "+err.Error(), "DeathDate", err)
 	}
 
 	p.deathDate = &dod

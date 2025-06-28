@@ -12,12 +12,12 @@ import (
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/circuit"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	repoerrors "github.com/abitofhelp/family-service/infrastructure/adapters/errors"
-	"github.com/abitofhelp/servicelib/circuit"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/rate"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
-	"github.com/abitofhelp/servicelib/rate"
 	"github.com/abitofhelp/servicelib/retry"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 	"go.uber.org/zap"
@@ -120,40 +120,11 @@ func NewSQLiteFamilyRepository(db *sql.DB, logger *logging.ContextLogger) *SQLit
 		}
 	}
 
-	// Create a new zap logger for the circuit breaker and rate limiter
-	zapLogger, _ := zap.NewProduction()
-	contextLogger := logging.NewContextLogger(zapLogger)
+	// Create circuit breaker using the family-service wrapper
+	cb := circuit.NewCircuitBreaker("sqlite", circuitConfig, logger.Logger)
 
-	// Create circuit breaker config
-	circuitBreakerConfig := circuit.DefaultConfig().
-		WithEnabled(circuitConfig.Enabled).
-		WithTimeout(circuitConfig.Timeout).
-		WithMaxConcurrent(circuitConfig.MaxConcurrent).
-		WithErrorThreshold(circuitConfig.ErrorThreshold).
-		WithVolumeThreshold(circuitConfig.VolumeThreshold).
-		WithSleepWindow(circuitConfig.SleepWindow)
-
-	// Create circuit breaker options
-	circuitBreakerOptions := circuit.DefaultOptions().
-		WithName("sqlite").
-		WithLogger(contextLogger)
-
-	// Create circuit breaker
-	cb := circuit.NewCircuitBreaker(circuitBreakerConfig, circuitBreakerOptions)
-
-	// Create rate limiter config
-	rateLimiterConfig := rate.DefaultConfig().
-		WithEnabled(rateConfig.Enabled).
-		WithRequestsPerSecond(rateConfig.RequestsPerSecond).
-		WithBurstSize(rateConfig.BurstSize)
-
-	// Create rate limiter options
-	rateLimiterOptions := rate.DefaultOptions().
-		WithName("sqlite").
-		WithLogger(contextLogger)
-
-	// Create rate limiter
-	rl := rate.NewRateLimiter(rateLimiterConfig, rateLimiterOptions)
+	// Create rate limiter using the family-service wrapper
+	rl := rate.NewRateLimiter("sqlite", rateConfig, logger.Logger)
 
 	return &SQLiteFamilyRepository{
 		DB:             db,

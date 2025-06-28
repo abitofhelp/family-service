@@ -5,13 +5,16 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/circuit"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	repoerrors "github.com/abitofhelp/family-service/infrastructure/adapters/errors"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/rate"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
 	"github.com/abitofhelp/servicelib/retry"
@@ -70,8 +73,10 @@ func NewRepositoryError(err error, message string, code string) error {
 
 // PostgresFamilyRepository implements the ports.FamilyRepository interface for PostgreSQL
 type PostgresFamilyRepository struct {
-	DB     *pgxpool.Pool
-	logger *logging.ContextLogger
+	DB             *pgxpool.Pool
+	logger         *logging.ContextLogger
+	circuitBreaker *circuit.CircuitBreaker
+	rateLimiter    *rate.RateLimiter
 }
 
 // Ensure PostgresFamilyRepository implements ports.FamilyRepository
@@ -85,9 +90,47 @@ func NewPostgresFamilyRepository(db *pgxpool.Pool, logger *logging.ContextLogger
 	if logger == nil {
 		panic("logger cannot be nil")
 	}
+
+	// Get circuit breaker configuration
+	var circuitConfig *config.CircuitConfig
+	if globalConfig != nil {
+		circuitConfig = &globalConfig.Circuit
+	} else {
+		// Default configuration if global config is not available
+		circuitConfig = &config.CircuitConfig{
+			Enabled:         true,
+			Timeout:         5 * time.Second,
+			MaxConcurrent:   100,
+			ErrorThreshold:  0.5,
+			VolumeThreshold: 20,
+			SleepWindow:     10 * time.Second,
+		}
+	}
+
+	// Get rate limiter configuration
+	var rateConfig *config.RateConfig
+	if globalConfig != nil {
+		rateConfig = &globalConfig.Rate
+	} else {
+		// Default configuration if global config is not available
+		rateConfig = &config.RateConfig{
+			Enabled:           true,
+			RequestsPerSecond: 100,
+			BurstSize:         50,
+		}
+	}
+
+	// Create circuit breaker using the family-service wrapper
+	cb := circuit.NewCircuitBreaker("postgres", circuitConfig, logger.Logger)
+
+	// Create rate limiter using the family-service wrapper
+	rl := rate.NewRateLimiter("postgres", rateConfig, logger.Logger)
+
 	return &PostgresFamilyRepository{
-		DB:     db,
-		logger: logger,
+		DB:             db,
+		logger:         logger,
+		circuitBreaker: cb,
+		rateLimiter:    rl,
 	}
 }
 
@@ -174,6 +217,7 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 	var famID string
 	var statusStr string
 	var parentsData, childrenData []byte
+	var retryErr error
 
 	// Define the operation to retry
 	operation := func(ctx context.Context) error {
@@ -211,22 +255,58 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 	// Configure retry with backoff
 	retryConfig := getRetryConfig()
 
-	// Execute with retry
-	err := retry.Do(ctxWithTimeout, operation, retryConfig, isRetryable)
-	if err != nil {
+	// Wrap the retry operation with circuit breaker
+	circuitOperation := func(ctx context.Context) error {
+		// Execute with retry
+		retryErr = retry.Do(ctx, operation, retryConfig, isRetryable)
+		return retryErr
+	}
+
+	// Wrap the circuit breaker operation with rate limiter
+	rateOperation := func(ctx context.Context) error {
+		// Execute with circuit breaker
+		// We need to wrap the circuitOperation to match the generic function signature
+		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
+			err := circuitOperation(ctx)
+			return nil, err
+		}
+		_, err := circuit.Execute(ctx, r.circuitBreaker, "GetByID", circuitOpWrapper)
+		return err
+	}
+
+	// Execute with rate limiter
+	// We need to wrap the rateOperation to match the generic function signature
+	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
+		err := rateOperation(ctx)
+		return nil, err
+	}
+	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "GetByID", rateOpWrapper)
+
+	// Check for errors from rate limiter or circuit breaker
+	if err != nil && retryErr == nil {
+		// Check if it's a rate limiter error
+		if strings.Contains(err.Error(), "rate limit exceeded") {
+			return nil, NewRepositoryError(err, "rate limit exceeded", "POSTGRES_ERROR")
+		}
+		// Otherwise, assume it's a circuit breaker error
+		return nil, NewRepositoryError(err, "circuit breaker is open", "POSTGRES_ERROR")
+	}
+
+	// Handle retry errors
+	if retryErr != nil {
 		// If it's already a typed error, return it directly
-		if _, ok := err.(*errors.NotFoundError); ok {
-			return nil, err
+		if _, ok := retryErr.(*errors.NotFoundError); ok {
+			return nil, retryErr
 		}
-		if _, ok := err.(*errors.ValidationError); ok {
-			return nil, err
+		if _, ok := retryErr.(*errors.ValidationError); ok {
+			return nil, retryErr
 		}
-		if _, ok := err.(*errors.DatabaseError); ok {
-			return nil, err
+		if _, ok := retryErr.(*errors.DatabaseError); ok {
+			return nil, retryErr
 		}
 
 		// Otherwise, wrap it in a database error
-		return nil, NewRepositoryError(err, "failed to get family from PostgreSQL after retries", "POSTGRES_ERROR")
+		return nil, NewRepositoryError(retryErr, "failed to get family from PostgreSQL after retries", "POSTGRES_ERROR")
 	}
 
 	r.logger.Debug(ctx, "Successfully retrieved family data from PostgreSQL", zap.String("family_id", id))

@@ -4,7 +4,7 @@
 package errors
 
 import (
-	"github.com/abitofhelp/servicelib/errors"
+	serviceerrors "github.com/abitofhelp/servicelib/errors"
 )
 
 // Common error codes used across repository adapters
@@ -45,15 +45,5 @@ func NewRepositoryError(err error, message string, code string, table string) er
 		operation = "convert"
 	}
 
-	return errors.NewDatabaseError(message, operation, table, err)
-}
-
-// NewValidationError creates a new validation error with the given message, field, and cause.
-func NewValidationError(message string, field string, cause error) error {
-	return errors.NewValidationError(message, field, cause)
-}
-
-// NewNotFoundError creates a new not found error with the given resource type, resource ID, and cause.
-func NewNotFoundError(resourceType string, resourceID string, cause error) error {
-	return errors.NewNotFoundError(resourceType, resourceID, cause)
+	return serviceerrors.NewDatabaseError(message, operation, table, err)
 }

@@ -6,7 +6,7 @@ import (
 	"context"
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
-	"github.com/abitofhelp/servicelib/errors"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
 )
 
 // ComplexRuleValidator is a service that validates complex business rules
@@ -46,27 +46,27 @@ func NewFamilyConsistencyRule() *FamilyConsistencyRule {
 func (r *FamilyConsistencyRule) Validate(ctx context.Context, e interface{}) error {
 	family, ok := e.(*entity.Family)
 	if !ok {
-		return errors.NewValidationError("entity is not a Family", "entity", nil)
+		return errorswrapper.NewValidationError("entity is not a Family", "entity", nil)
 	}
 
  // Check that married families have exactly two parents
 	if family.Status() == entity.Status("MARRIED") && family.CountParents() != 2 {
-		return errors.NewValidationError("married family must have exactly two parents", "Family", nil)
+		return errorswrapper.NewValidationError("married family must have exactly two parents", "Family", nil)
 	}
 
 	// Check that single families have exactly one parent
 	if family.Status() == entity.Status("SINGLE") && family.CountParents() != 1 {
-		return errors.NewValidationError("single family must have exactly one parent", "Family", nil)
+		return errorswrapper.NewValidationError("single family must have exactly one parent", "Family", nil)
 	}
 
 	// Check that divorced families have exactly one parent
 	if family.Status() == entity.Status("DIVORCED") && family.CountParents() != 1 {
-		return errors.NewValidationError("divorced family must have exactly one parent", "Family", nil)
+		return errorswrapper.NewValidationError("divorced family must have exactly one parent", "Family", nil)
 	}
 
 	// Check that widowed families have exactly one parent
 	if family.Status() == entity.Status("WIDOWED") && family.CountParents() != 1 {
-		return errors.NewValidationError("widowed family must have exactly one parent", "Family", nil)
+		return errorswrapper.NewValidationError("widowed family must have exactly one parent", "Family", nil)
 	}
 
 	return nil
@@ -88,7 +88,7 @@ func NewParentChildAgeGapRule() *ParentChildAgeGapRule {
 func (r *ParentChildAgeGapRule) Validate(ctx context.Context, e interface{}) error {
 	family, ok := e.(*entity.Family)
 	if !ok {
-		return errors.NewValidationError("entity is not a Family", "entity", nil)
+		return errorswrapper.NewValidationError("entity is not a Family", "entity", nil)
 	}
 
 	parents := family.Parents()
@@ -110,7 +110,7 @@ func (r *ParentChildAgeGapRule) Validate(ctx context.Context, e interface{}) err
 			}
 
 			if ageGap < r.minimumAgeGap {
-				return errors.NewValidationError("too small age gap between parent and child", "Family", nil)
+				return errorswrapper.NewValidationError("too small age gap between parent and child", "Family", nil)
 			}
 		}
 	}
@@ -130,21 +130,21 @@ func NewFamilyStatusConsistencyRule() *FamilyStatusConsistencyRule {
 func (r *FamilyStatusConsistencyRule) Validate(ctx context.Context, e interface{}) error {
 	family, ok := e.(*entity.Family)
 	if !ok {
-		return errors.NewValidationError("entity is not a Family", "entity", nil)
+		return errorswrapper.NewValidationError("entity is not a Family", "entity", nil)
 	}
 
 	// Check that widowed families don't have deceased parents
 	if family.Status() == entity.Status("WIDOWED") {
 		for _, parent := range family.Parents() {
 			if parent.IsDeceased() {
-				return errors.NewValidationError("widowed family cannot have a deceased parent", "Family", nil)
+				return errorswrapper.NewValidationError("widowed family cannot have a deceased parent", "Family", nil)
 			}
 		}
 	}
 
 	// Check that abandoned families have at least one child
 	if family.Status() == entity.Status("ABANDONED") && family.CountChildren() == 0 {
-		return errors.NewValidationError("abandoned family must have at least one child", "Family", nil)
+		return errorswrapper.NewValidationError("abandoned family must have at least one child", "Family", nil)
 	}
 
 	return nil

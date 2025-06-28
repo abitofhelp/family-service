@@ -1122,11 +1122,11 @@ These secrets are mounted into the application container at runtime and are used
 ### 12. Appendices
 
 #### 12.1 UML Class Diagram
-![Class Diagram](diagrams/SDD%20Class%20Diagram.svg)
+![Class Diagram](diagrams/sdd_class_diagram.svg)
 
 This class diagram illustrates the detailed structure of the system, showing the classes in each layer (Domain, Service, Ports, Adapters) and the relationships between them. It demonstrates how the system follows the architectural patterns described in this document.
 
 #### 12.2 UML Sequence Diagram
-![Sequence Diagram](diagrams/SDD%20Sequence%20Diagram%20-%20Divorce%20Operation.svg)
+![Sequence Diagram](diagrams/sdd_sequence_diagram.svg)
 
 This sequence diagram shows the interactions between components during the Divorce operation, one of the more complex workflows in the system. It illustrates how the different layers work together to process this operation, from the API request to the database updates.

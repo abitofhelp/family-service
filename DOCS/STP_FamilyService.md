@@ -312,12 +312,12 @@ End-to-end tests focus on testing the entire system from the API to the database
 ### 12. Appendices
 
 #### 12.1 Test Process Diagram
-![Test Process Diagram](diagrams/STP%20Test%20Process%20Activity%20Diagram.svg)
+![Test Process Diagram](diagrams/stp_test_process_diagram.svg)
 
 This activity diagram illustrates the test execution process, showing the flow through unit testing, integration testing, and end-to-end testing phases. It includes decision points for test failures and coverage targets.
 
 #### 12.2 Test Coverage Diagram
-![Test Coverage Diagram](diagrams/STP%20Test%20Coverage%20Component%20Diagram.svg)
+![Test Coverage Diagram](diagrams/stp_test_coverage_diagram.svg)
 
 This component diagram shows which parts of the system are covered by different types of tests, with coverage targets for each component. It illustrates the comprehensive testing strategy described in this document.
 

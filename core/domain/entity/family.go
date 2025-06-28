@@ -7,9 +7,9 @@ import (
 	"time"
 
 	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
-	"github.com/abitofhelp/servicelib/errors"
-	"github.com/abitofhelp/servicelib/validation"
-	"github.com/abitofhelp/servicelib/valueobject/identification"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper"
 	"github.com/google/uuid"
 )
 
@@ -27,7 +27,7 @@ const (
 
 // Family is the root aggregate that represents a family unit
 type Family struct {
-	id       identification.ID
+	id       identificationwrapper.ID
 	status   Status
 	parents  []*Parent
 	children []*Child
@@ -46,9 +46,9 @@ func NewFamily(id string, status Status, parents []*Parent, children []*Child) (
 	}
 
 	// Create ID value object
-	idVO, err := identification.NewID(id)
+	idVO, err := identificationwrapper.NewIDFromString(id)
 	if err != nil {
-		return nil, errors.NewValidationError("invalid ID: "+err.Error(), "ID", err)
+		return nil, errorswrapper.NewValidationError("invalid ID: "+err.Error(), "ID", err)
 	}
 
 	f := &Family{
@@ -67,7 +67,7 @@ func NewFamily(id string, status Status, parents []*Parent, children []*Child) (
 
 // Validate ensures the Family aggregate is valid
 func (f *Family) Validate() error {
-	result := validation.NewValidationResult()
+	result := validationwrapper.NewValidationResult()
 
 	// ID value object has its own validation, so we don't need to validate it here
 
@@ -242,7 +242,7 @@ func (f *Family) CountChildren() int {
 // AddParent adds a parent to the family
 func (f *Family) AddParent(p *Parent) error {
 	if p == nil {
-		return errors.NewValidationError("parent cannot be nil", "Parent", nil)
+		return errorswrapper.NewValidationError("parent cannot be nil", "Parent", nil)
 	}
 
 	if len(f.parents) >= 2 {
@@ -274,7 +274,7 @@ func (f *Family) AddParent(p *Parent) error {
 // AddChild adds a child to the family
 func (f *Family) AddChild(c *Child) error {
 	if c == nil {
-		return errors.NewValidationError("child cannot be nil", "Child", nil)
+		return errorswrapper.NewValidationError("child cannot be nil", "Child", nil)
 	}
 
 	// Check for duplicate child
@@ -297,7 +297,7 @@ func (f *Family) RemoveChild(childID string) error {
 			return nil
 		}
 	}
-	return errors.NewNotFoundError("Child", childID, nil)
+	return errorswrapper.NewNotFoundError("Child", childID, nil)
 }
 
 // RemoveParent removes a parent from the family
@@ -319,7 +319,7 @@ func (f *Family) RemoveParent(parentID string) error {
 			return nil
 		}
 	}
-	return errors.NewNotFoundError("Parent", parentID, nil)
+	return errorswrapper.NewNotFoundError("Parent", parentID, nil)
 }
 
 // MarkParentDeceased marks a parent as deceased and updates family status if needed
@@ -334,7 +334,7 @@ func (f *Family) MarkParentDeceased(parentID string, deathDate time.Time) error 
 	}
 
 	if foundParent == nil {
-		return errors.NewNotFoundError("Parent", parentID, nil)
+		return errorswrapper.NewNotFoundError("Parent", parentID, nil)
 	}
 
 	if err := foundParent.MarkDeceased(deathDate); err != nil {
@@ -372,7 +372,7 @@ func (f *Family) Divorce(custodialParentID string) (*Family, error) {
 	}
 
 	if custodialParent == nil {
-		return nil, errors.NewNotFoundError("Parent", custodialParentID, nil)
+		return nil, errorswrapper.NewNotFoundError("Parent", custodialParentID, nil)
 	}
 
 	// Create a new family for the remaining parent (this will get a new ID)
