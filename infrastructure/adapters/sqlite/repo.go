@@ -121,10 +121,10 @@ func NewSQLiteFamilyRepository(db *sql.DB, logger *logging.ContextLogger) *SQLit
 	}
 
 	// Create circuit breaker using the family-service wrapper
-	cb := circuit.NewCircuitBreaker("sqlite", circuitConfig, logger.Logger)
+	cb := circuit.NewCircuitBreaker("sqlite", circuitConfig, zap.NewNop())
 
 	// Create rate limiter using the family-service wrapper
-	rl := rate.NewRateLimiter("sqlite", rateConfig, logger.Logger)
+	rl := rate.NewRateLimiter("sqlite", rateConfig, zap.NewNop())
 
 	return &SQLiteFamilyRepository{
 		DB:             db,
@@ -224,22 +224,11 @@ func (r *SQLiteFamilyRepository) GetByID(ctx context.Context, id string) (*entit
 	// Wrap the circuit breaker operation with rate limiter
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
-		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
-			err := circuitOperation(ctx)
-			return nil, err
-		}
-		_, err := circuit.Execute(ctx, r.circuitBreaker, "GetByID", circuitOpWrapper)
-		return err
+		return r.circuitBreaker.Execute(ctx, "GetByID", circuitOperation)
 	}
 
 	// Execute with rate limiter
-	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
-		err := rateOperation(ctx)
-		return nil, err
-	}
-	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "GetByID", rateOpWrapper)
+	err := r.rateLimiter.Execute(ctxWithTimeout, "GetByID", rateOperation)
 
 	// Check for errors from rate limiter or circuit breaker
 	if err != nil && retryErr == nil {
@@ -487,22 +476,11 @@ func (r *SQLiteFamilyRepository) Save(ctx context.Context, fam *entity.Family) e
 	// Wrap the circuit breaker operation with rate limiter
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
-		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
-			err := circuitOperation(ctx)
-			return nil, err
-		}
-		_, err := circuit.Execute(ctx, r.circuitBreaker, "Save", circuitOpWrapper)
-		return err
+		return r.circuitBreaker.Execute(ctx, "Save", circuitOperation)
 	}
 
 	// Execute with rate limiter
-	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
-		err := rateOperation(ctx)
-		return nil, err
-	}
-	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "Save", rateOpWrapper)
+	err := r.rateLimiter.Execute(ctxWithTimeout, "Save", rateOperation)
 
 	// Check for errors from rate limiter or circuit breaker
 	if err != nil && retryErr == nil {
@@ -689,22 +667,11 @@ func (r *SQLiteFamilyRepository) FindByParentID(ctx context.Context, parentID st
 	// Wrap the circuit breaker operation with rate limiter
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
-		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
-			err := circuitOperation(ctx)
-			return nil, err
-		}
-		_, err := circuit.Execute(ctx, r.circuitBreaker, "FindByParentID", circuitOpWrapper)
-		return err
+		return r.circuitBreaker.Execute(ctx, "FindByParentID", circuitOperation)
 	}
 
 	// Execute with rate limiter
-	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
-		err := rateOperation(ctx)
-		return nil, err
-	}
-	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "FindByParentID", rateOpWrapper)
+	err := r.rateLimiter.Execute(ctxWithTimeout, "FindByParentID", rateOperation)
 
 	// Check for errors from rate limiter or circuit breaker
 	if err != nil && retryErr == nil {
@@ -866,22 +833,11 @@ func (r *SQLiteFamilyRepository) GetAll(ctx context.Context) ([]*entity.Family, 
 	// Wrap the circuit breaker operation with rate limiter
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
-		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
-			err := circuitOperation(ctx)
-			return nil, err
-		}
-		_, err := circuit.Execute(ctx, r.circuitBreaker, "GetAll", circuitOpWrapper)
-		return err
+		return r.circuitBreaker.Execute(ctx, "GetAll", circuitOperation)
 	}
 
 	// Execute with rate limiter
-	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
-		err := rateOperation(ctx)
-		return nil, err
-	}
-	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "GetAll", rateOpWrapper)
+	err := r.rateLimiter.Execute(ctxWithTimeout, "GetAll", rateOperation)
 
 	// Check for errors from rate limiter or circuit breaker
 	if err != nil && retryErr == nil {
@@ -1079,22 +1035,11 @@ func (r *SQLiteFamilyRepository) FindByChildID(ctx context.Context, childID stri
 	// Wrap the circuit breaker operation with rate limiter
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
-		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
-			err := circuitOperation(ctx)
-			return nil, err
-		}
-		_, err := circuit.Execute(ctx, r.circuitBreaker, "FindByChildID", circuitOpWrapper)
-		return err
+		return r.circuitBreaker.Execute(ctx, "FindByChildID", circuitOperation)
 	}
 
 	// Execute with rate limiter
-	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
-		err := rateOperation(ctx)
-		return nil, err
-	}
-	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "FindByChildID", rateOpWrapper)
+	err := r.rateLimiter.Execute(ctxWithTimeout, "FindByChildID", rateOperation)
 
 	// Check for errors from rate limiter or circuit breaker
 	if err != nil && retryErr == nil {

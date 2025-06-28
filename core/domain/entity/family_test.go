@@ -56,7 +56,7 @@ func TestParentValidationMinimumAge(t *testing.T) {
 	t.Logf("Error type: %T", err)
 
 	// Just check if the error message contains the expected text
-	assert.True(t, strings.Contains(err.Error(), "Validation failed"), 
+	assert.True(t, strings.Contains(err.Error(), "parent does not meet minimum age requirement"), 
 		"error should mention validation failure")
 }
 
@@ -86,7 +86,7 @@ func TestFamilyValidationChildBirthDate(t *testing.T) {
 	// Should fail validation
 	assert.NotNil(t, err, "expected validation error for child birth date")
 	t.Logf("Error message: %s", err.Error())
-	assert.True(t, strings.Contains(err.Error(), "Validation failed"), 
+	assert.True(t, strings.Contains(err.Error(), "child at index 0 has birth date before parent at index 0"), 
 		"error should mention validation failure")
 }
 
@@ -111,7 +111,7 @@ func TestFamilyValidationParentChildAgeGap(t *testing.T) {
 	// Should fail validation
 	assert.NotNil(t, err, "expected validation error for parent-child age gap")
 	t.Logf("Error message: %s", err.Error())
-	assert.True(t, strings.Contains(err.Error(), "Validation failed"), 
+	assert.True(t, strings.Contains(err.Error(), "child at index 0 has too small age gap with parent at index 0"), 
 		"error should mention validation failure")
 }
 
@@ -128,7 +128,7 @@ func TestFamilyValidationAbandonedStatus(t *testing.T) {
 	// Should fail validation
 	assert.NotNil(t, err, "expected validation error for abandoned family with no children")
 	t.Logf("Error message: %s", err.Error())
-	assert.True(t, strings.Contains(err.Error(), "Validation failed"), 
+	assert.True(t, strings.Contains(err.Error(), "abandoned family must have at least one child"), 
 		"error should mention validation failure")
 }
 
@@ -147,6 +147,6 @@ func TestFamilyValidationWidowedStatus(t *testing.T) {
 	// Should fail validation
 	assert.NotNil(t, err, "expected validation error for widowed family with deceased parent")
 	t.Logf("Error message: %s", err.Error())
-	assert.True(t, strings.Contains(err.Error(), "Validation failed"), 
+	assert.True(t, strings.Contains(err.Error(), "widowed family cannot have a deceased parent"), 
 		"error should mention validation failure")
 }

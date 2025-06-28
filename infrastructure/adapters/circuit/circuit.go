@@ -162,3 +162,16 @@ func (cb *CircuitBreaker) Reset() {
 
 	cb.cb.Reset()
 }
+
+// Execute is a package-level function that executes the given function with circuit breaking
+// It's a wrapper around the servicelib circuit.Execute function
+// This function is used by the repository implementations
+func Execute(ctx context.Context, cb *CircuitBreaker, operation string, fn func(ctx context.Context) (bool, error)) (bool, error) {
+	if cb == nil || cb.cb == nil {
+		// If circuit breaker is disabled, just execute the function
+		return fn(ctx)
+	}
+
+	// Execute the function with circuit breaking using the servicelib circuit.Execute
+	return circuit.Execute(ctx, cb.cb, operation, fn)
+}

@@ -11,65 +11,111 @@ import (
 	"github.com/abitofhelp/servicelib/valueobject/identification"
 )
 
-// Input for creating a child
+// Input for creating or adding a child to a family.
 type ChildInput struct {
-	ID        identification.ID `json:"id"`
-	FirstName string            `json:"firstName"`
-	LastName  string            `json:"lastName"`
-	BirthDate string            `json:"birthDate"`
-	DeathDate *string           `json:"deathDate,omitempty"`
+	// Unique identifier for the child
+	ID identification.ID `json:"id"`
+	// First name of the child (1-50 characters)
+	FirstName string `json:"firstName"`
+	// Last name of the child (1-50 characters)
+	LastName string `json:"lastName"`
+	// Birth date of the child in ISO 8601 format (YYYY-MM-DD).
+	// Must not be in the future.
+	BirthDate string `json:"birthDate"`
+	// Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable.
+	// Must be after the birth date and not in the future.
+	DeathDate *string `json:"deathDate,omitempty"`
 }
 
-// Error represents an error that occurred during a GraphQL operation
+// Error represents an error that occurred during a GraphQL operation.
+// Errors provide information about what went wrong and where.
 type Error struct {
-	Message string   `json:"message"`
-	Code    *string  `json:"code,omitempty"`
-	Path    []string `json:"path,omitempty"`
+	// Human-readable error message
+	Message string `json:"message"`
+	// Error code for programmatic handling (e.g., NOT_FOUND, VALIDATION_ERROR)
+	Code *string `json:"code,omitempty"`
+	// Path to the field that caused the error
+	Path []string `json:"path,omitempty"`
 }
 
-// Family represents a family unit with parents and children
+// Family represents a family unit with parents and children.
+// A family must have at least one parent and can have zero or more children.
+// A family can have at most two parents.
 type Family struct {
-	ID            identification.ID `json:"id"`
-	Status        FamilyStatus      `json:"status"`
-	Parents       []*Parent         `json:"parents"`
-	Children      []*Child          `json:"children"`
-	ParentCount   int               `json:"parentCount"`
-	ChildrenCount int               `json:"childrenCount"`
+	// Unique identifier for the family
+	ID identification.ID `json:"id"`
+	// Current status of the family (SINGLE, MARRIED, DIVORCED, WIDOWED, or ABANDONED)
+	Status FamilyStatus `json:"status"`
+	// List of parents in the family (1-2 parents)
+	Parents []*Parent `json:"parents"`
+	// List of children in the family (0 or more)
+	Children []*Child `json:"children"`
+	// Number of parents in the family
+	ParentCount int `json:"parentCount"`
+	// Number of children in the family
+	ChildrenCount int `json:"childrenCount"`
 }
 
-// Input for creating a family
+// Input for creating a new family.
+// A family must have at least one parent and can have zero or more children.
+// A family can have at most two parents.
 type FamilyInput struct {
-	ID       identification.ID `json:"id"`
-	Status   FamilyStatus      `json:"status"`
-	Parents  []*ParentInput    `json:"parents"`
-	Children []*ChildInput     `json:"children"`
+	// Unique identifier for the family
+	ID identification.ID `json:"id"`
+	// Status of the family (SINGLE, MARRIED, DIVORCED, WIDOWED, or ABANDONED).
+	// Must be consistent with the number of parents:
+	// - SINGLE: One parent
+	// - MARRIED: Two parents
+	// - Other statuses have specific business rules
+	Status FamilyStatus `json:"status"`
+	// List of parents in the family (1-2 parents).
+	// Parents must be at least 18 years old.
+	Parents []*ParentInput `json:"parents"`
+	// List of children in the family (0 or more).
+	Children []*ChildInput `json:"children"`
 }
 
-// Mutations for modifying family data
+// Mutations for modifying family data.
+// All mutations require appropriate authorization.
 type Mutation struct {
 }
 
-// Input for creating a parent
+// Input for creating or adding a parent to a family.
+// Parents must be at least 18 years old.
 type ParentInput struct {
-	ID        identification.ID `json:"id"`
-	FirstName string            `json:"firstName"`
-	LastName  string            `json:"lastName"`
-	BirthDate string            `json:"birthDate"`
-	DeathDate *string           `json:"deathDate,omitempty"`
+	// Unique identifier for the parent
+	ID identification.ID `json:"id"`
+	// First name of the parent (1-50 characters)
+	FirstName string `json:"firstName"`
+	// Last name of the parent (1-50 characters)
+	LastName string `json:"lastName"`
+	// Birth date of the parent in ISO 8601 format (YYYY-MM-DD).
+	// Must be at least 18 years before the current date.
+	BirthDate string `json:"birthDate"`
+	// Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable.
+	// Must be after the birth date and not in the future.
+	DeathDate *string `json:"deathDate,omitempty"`
 }
 
-// Queries for retrieving family data
+// Queries for retrieving family data.
+// All queries require appropriate authorization.
 type Query struct {
 }
 
-// FamilyStatus represents the current status of a family
+// FamilyStatus represents the current status of a family.
+// The status affects what operations can be performed on the family.
 type FamilyStatus string
 
 const (
-	FamilyStatusSingle    FamilyStatus = "SINGLE"
-	FamilyStatusMarried   FamilyStatus = "MARRIED"
-	FamilyStatusDivorced  FamilyStatus = "DIVORCED"
-	FamilyStatusWidowed   FamilyStatus = "WIDOWED"
+	// Single parent family with one parent
+	FamilyStatusSingle FamilyStatus = "SINGLE"
+	// Family with two parents who are married
+	FamilyStatusMarried FamilyStatus = "MARRIED"
+	// Family where the parents have divorced
+	FamilyStatusDivorced FamilyStatus = "DIVORCED"
+	// Family where one parent has died
+	FamilyStatusWidowed FamilyStatus = "WIDOWED"
+	// Family that has been abandoned
 	FamilyStatusAbandoned FamilyStatus = "ABANDONED"
 )
 
@@ -124,13 +170,17 @@ func (e FamilyStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Resource represents the resource type being accessed
+// Resource represents the resource type being accessed.
+// Different resources may have different access controls.
 type Resource string
 
 const (
+	// Family resource type
 	ResourceFamily Resource = "FAMILY"
+	// Parent resource type
 	ResourceParent Resource = "PARENT"
-	ResourceChild  Resource = "CHILD"
+	// Child resource type
+	ResourceChild Resource = "CHILD"
 )
 
 var AllResource = []Resource{
@@ -182,12 +232,16 @@ func (e Resource) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Role represents the authorization role of a user
+// Role represents the authorization role of a user.
+// Different roles have different levels of access to the system.
 type Role string
 
 const (
-	RoleAdmin  Role = "ADMIN"
+	// Administrator with full access to all operations
+	RoleAdmin Role = "ADMIN"
+	// Editor with permission to modify data but not administer the system
 	RoleEditor Role = "EDITOR"
+	// Viewer with read-only access to data
 	RoleViewer Role = "VIEWER"
 )
 
@@ -240,13 +294,18 @@ func (e Role) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Scope represents the permission scope for a resource
+// Scope represents the permission scope for a resource.
+// Scopes define what actions can be performed on resources.
 type Scope string
 
 const (
-	ScopeRead   Scope = "READ"
-	ScopeWrite  Scope = "WRITE"
+	// Permission to read/view a resource
+	ScopeRead Scope = "READ"
+	// Permission to modify an existing resource
+	ScopeWrite Scope = "WRITE"
+	// Permission to delete a resource
 	ScopeDelete Scope = "DELETE"
+	// Permission to create a new resource
 	ScopeCreate Scope = "CREATE"
 )
 

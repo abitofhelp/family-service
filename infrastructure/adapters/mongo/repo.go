@@ -131,11 +131,14 @@ func NewMongoFamilyRepository(collection *mongo.Collection, logger *logging.Cont
 		}
 	}
 
+	// Create a new zap logger for the circuit breaker and rate limiter
+	zapLogger := zap.NewExample()
+
 	// Create circuit breaker using the family-service wrapper
-	cb := circuit.NewCircuitBreaker("mongodb", circuitConfig, logger.Logger)
+	cb := circuit.NewCircuitBreaker("mongodb", circuitConfig, zapLogger)
 
 	// Create rate limiter using the family-service wrapper
-	rl := rate.NewRateLimiter("mongodb", rateConfig, logger.Logger)
+	rl := rate.NewRateLimiter("mongodb", rateConfig, zapLogger)
 
 	repo := &MongoFamilyRepository{
 		Collection:     collection,

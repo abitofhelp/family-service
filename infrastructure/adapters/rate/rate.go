@@ -116,3 +116,16 @@ func (rl *RateLimiter) Reset() {
 
 	rl.rl.Reset()
 }
+
+// Execute is a package-level function that executes the given function with rate limiting
+// It's a wrapper around the servicelib rate.Execute function
+// This function is used by the repository implementations
+func Execute(ctx context.Context, rl *RateLimiter, operation string, fn func(ctx context.Context) (bool, error)) (bool, error) {
+	if rl == nil || rl.rl == nil {
+		// If rate limiter is disabled, just execute the function
+		return fn(ctx)
+	}
+
+	// Execute the function with rate limiting using the servicelib rate.Execute
+	return rate.Execute(ctx, rl.rl, operation, fn)
+}

@@ -28,11 +28,11 @@ func TestCreateFamily(t *testing.T) {
 
 	// Create test data
 	dto := entity.FamilyDTO{
-		ID:     "test-family-id",
+		ID:     "f47ac10b-58cc-4372-a567-0e02b2c3d479", // Valid UUID
 		Status: "SINGLE",
 		Parents: []entity.ParentDTO{
 			{
-				ID:        "test-parent-id",
+				ID:        "38f5b8ed-1eb0-4a20-9f0e-7c3b3c3f3f3f", // Valid UUID
 				FirstName: "John",
 				LastName:  "Doe",
 				BirthDate: time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -66,8 +66,9 @@ func TestGetFamily(t *testing.T) {
 	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create test data
-	familyID := "test-family-id"
-	family, _ := entity.NewFamily(familyID, entity.Single, []*entity.Parent{}, []*entity.Child{})
+	familyID := "f47ac10b-58cc-4372-a567-0e02b2c3d479" // Valid UUID
+	parent, _ := entity.NewParent("38f5b8ed-1eb0-4a20-9f0e-7c3b3c3f3f3f", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
+	family, _ := entity.NewFamily(familyID, entity.Single, []*entity.Parent{parent}, []*entity.Child{})
 
 	// Setup expectations
 	mockRepo.EXPECT().GetByID(gomock.Any(), familyID).Return(family, nil)
@@ -92,12 +93,12 @@ func TestAddParent(t *testing.T) {
 	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create test data
-	familyID := "test-family-id"
-	parent1, _ := entity.NewParent("parent1", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
+	familyID := "f47ac10b-58cc-4372-a567-0e02b2c3d479" // Valid UUID
+	parent1, _ := entity.NewParent("38f5b8ed-1eb0-4a20-9f0e-7c3b3c3f3f3f", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
 	family, _ := entity.NewFamily(familyID, entity.Single, []*entity.Parent{parent1}, []*entity.Child{})
 
 	parentDTO := entity.ParentDTO{
-		ID:        "parent2",
+		ID:        "a47ac10b-58cc-4372-a567-0e02b2c3d480", // Valid UUID
 		FirstName: "Jane",
 		LastName:  "Doe",
 		BirthDate: time.Date(1982, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -129,12 +130,12 @@ func TestAddChild(t *testing.T) {
 	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create test data
-	familyID := "test-family-id"
-	parent, _ := entity.NewParent("parent1", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
+	familyID := "f47ac10b-58cc-4372-a567-0e02b2c3d479" // Valid UUID
+	parent, _ := entity.NewParent("38f5b8ed-1eb0-4a20-9f0e-7c3b3c3f3f3f", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
 	family, _ := entity.NewFamily(familyID, entity.Single, []*entity.Parent{parent}, []*entity.Child{})
 
 	childDTO := entity.ChildDTO{
-		ID:        "child1",
+		ID:        "b47ac10b-58cc-4372-a567-0e02b2c3d481", // Valid UUID
 		FirstName: "Baby",
 		LastName:  "Doe",
 		BirthDate: time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -166,10 +167,10 @@ func TestDivorce(t *testing.T) {
 	svc := NewFamilyDomainService(mockRepo, contextLogger)
 
 	// Create test data
-	familyID := "test-family-id"
-	parent1, _ := entity.NewParent("parent1", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
-	parent2, _ := entity.NewParent("parent2", "Jane", "Doe", time.Date(1982, 1, 1, 0, 0, 0, 0, time.UTC), nil)
-	child, _ := entity.NewChild("child1", "Baby", "Doe", time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), nil)
+	familyID := "f47ac10b-58cc-4372-a567-0e02b2c3d479" // Valid UUID
+	parent1, _ := entity.NewParent("38f5b8ed-1eb0-4a20-9f0e-7c3b3c3f3f3f", "John", "Doe", time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC), nil)
+	parent2, _ := entity.NewParent("a47ac10b-58cc-4372-a567-0e02b2c3d480", "Jane", "Doe", time.Date(1982, 1, 1, 0, 0, 0, 0, time.UTC), nil)
+	child, _ := entity.NewChild("b47ac10b-58cc-4372-a567-0e02b2c3d481", "Baby", "Doe", time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), nil)
 	family, _ := entity.NewFamily(familyID, entity.Married, []*entity.Parent{parent1, parent2}, []*entity.Child{child})
 
 	// Setup expectations
@@ -177,7 +178,7 @@ func TestDivorce(t *testing.T) {
 	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(2) // Save both families
 
 	// Execute
-	result, err := svc.Divorce(context.Background(), familyID, "parent1")
+	result, err := svc.Divorce(context.Background(), familyID, "38f5b8ed-1eb0-4a20-9f0e-7c3b3c3f3f3f")
 
 	// Verify
 	require.NoError(t, err)

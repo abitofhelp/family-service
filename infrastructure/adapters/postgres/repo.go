@@ -120,11 +120,14 @@ func NewPostgresFamilyRepository(db *pgxpool.Pool, logger *logging.ContextLogger
 		}
 	}
 
+	// Create a new zap logger for the circuit breaker and rate limiter
+	zapLogger := zap.NewExample()
+
 	// Create circuit breaker using the family-service wrapper
-	cb := circuit.NewCircuitBreaker("postgres", circuitConfig, logger.Logger)
+	cb := circuit.NewCircuitBreaker("postgres", circuitConfig, zapLogger)
 
 	// Create rate limiter using the family-service wrapper
-	rl := rate.NewRateLimiter("postgres", rateConfig, logger.Logger)
+	rl := rate.NewRateLimiter("postgres", rateConfig, zapLogger)
 
 	return &PostgresFamilyRepository{
 		DB:             db,
@@ -266,9 +269,9 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 	rateOperation := func(ctx context.Context) error {
 		// Execute with circuit breaker
 		// We need to wrap the circuitOperation to match the generic function signature
-		circuitOpWrapper := func(ctx context.Context) (interface{}, error) {
+		circuitOpWrapper := func(ctx context.Context) (bool, error) {
 			err := circuitOperation(ctx)
-			return nil, err
+			return err == nil, err
 		}
 		_, err := circuit.Execute(ctx, r.circuitBreaker, "GetByID", circuitOpWrapper)
 		return err
@@ -276,9 +279,9 @@ func (r *PostgresFamilyRepository) GetByID(ctx context.Context, id string) (*ent
 
 	// Execute with rate limiter
 	// We need to wrap the rateOperation to match the generic function signature
-	rateOpWrapper := func(ctx context.Context) (interface{}, error) {
+	rateOpWrapper := func(ctx context.Context) (bool, error) {
 		err := rateOperation(ctx)
-		return nil, err
+		return err == nil, err
 	}
 	_, err := rate.Execute(ctxWithTimeout, r.rateLimiter, "GetByID", rateOpWrapper)
 

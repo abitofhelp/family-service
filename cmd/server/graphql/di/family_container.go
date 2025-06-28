@@ -11,7 +11,7 @@ import (
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
-	"github.com/abitofhelp/servicelib/logging"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
 	"go.uber.org/zap"
 )
 
@@ -60,14 +60,14 @@ func NewFamilyContainer[T domainports.FamilyRepository](
 	container.cache = cacheInstance
 
 	// Initialize domain service
-	contextLogger := logging.NewContextLogger(logger)
+	contextLogger := loggingwrapper.NewContextLogger(logger)
 	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo, contextLogger)
 
 	// Initialize application service
 	container.familyAppService = application.NewFamilyApplicationService(
 		container.familyDomainService,
 		container.familyRepo,
-		contextLogger,
+		contextLogger.ToServiceLibLogger(),
 		container.cache,
 	)
 

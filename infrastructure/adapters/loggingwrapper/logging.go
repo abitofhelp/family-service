@@ -137,3 +137,8 @@ func (l *ContextLogger) Error(ctx context.Context, msg string, fields ...zap.Fie
 func (l *ContextLogger) Fatal(ctx context.Context, msg string, fields ...zap.Field) {
 	l.logger.Fatal(ctx, msg, fields...)
 }
+
+// ToServiceLibLogger returns the underlying servicelib logger
+func (l *ContextLogger) ToServiceLibLogger() *logging.ContextLogger {
+	return l.logger
+}

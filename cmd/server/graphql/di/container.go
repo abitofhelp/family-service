@@ -14,6 +14,7 @@ import (
 	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/di"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/mongo"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/postgres"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/sqlite"
@@ -87,14 +88,17 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 	}
 	container.cache = cacheInstance
 
+	// Create a wrapper logger for the domain service
+	wrapperLogger := loggingwrapper.NewContextLogger(logger)
+
 	// Initialize domain service
-	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo, container.GetContextLogger())
+	container.familyDomainService = domainservices.NewFamilyDomainService(container.familyRepo, wrapperLogger)
 
 	// Initialize application service
 	container.familyAppService = application.NewFamilyApplicationService(
 		container.familyDomainService,
 		container.familyRepo,
-		container.GetContextLogger(),
+		wrapperLogger.ToServiceLibLogger(),
 		container.cache,
 	)
 

@@ -528,111 +528,234 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var sources = []*ast.Source{
 	{Name: "../schema.graphql", Input: `"""
-Parent represents a parent in a family
+Parent represents a parent in a family.
+A parent must be at least 18 years old and can be part of one or more families.
 """
 type Parent {
+  """Unique identifier for the parent"""
   id: ID!
+
+  """First name of the parent"""
   firstName: String!
+
+  """Last name of the parent"""
   lastName: String!
+
+  """Birth date of the parent in ISO 8601 format (YYYY-MM-DD)"""
   birthDate: String!
+
+  """Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable"""
   deathDate: String
 }
 
 """
-Child represents a child in a family
+Child represents a child in a family.
+A child can only be part of one family at a time.
 """
 type Child {
+  """Unique identifier for the child"""
   id: ID!
+
+  """First name of the child"""
   firstName: String!
+
+  """Last name of the child"""
   lastName: String!
+
+  """Birth date of the child in ISO 8601 format (YYYY-MM-DD)"""
   birthDate: String!
+
+  """Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable"""
   deathDate: String
 }
 
 """
-FamilyStatus represents the current status of a family
+FamilyStatus represents the current status of a family.
+The status affects what operations can be performed on the family.
 """
 enum FamilyStatus {
+  """Single parent family with one parent"""
   SINGLE
+
+  """Family with two parents who are married"""
   MARRIED
+
+  """Family where the parents have divorced"""
   DIVORCED
+
+  """Family where one parent has died"""
   WIDOWED
+
+  """Family that has been abandoned"""
   ABANDONED
 }
 
 """
-Role represents the authorization role of a user
+Role represents the authorization role of a user.
+Different roles have different levels of access to the system.
 """
 enum Role {
+  """Administrator with full access to all operations"""
   ADMIN
+
+  """Editor with permission to modify data but not administer the system"""
   EDITOR
+
+  """Viewer with read-only access to data"""
   VIEWER
 }
 
 """
-Scope represents the permission scope for a resource
+Scope represents the permission scope for a resource.
+Scopes define what actions can be performed on resources.
 """
 enum Scope {
+  """Permission to read/view a resource"""
   READ
+
+  """Permission to modify an existing resource"""
   WRITE
+
+  """Permission to delete a resource"""
   DELETE
+
+  """Permission to create a new resource"""
   CREATE
 }
 
 """
-Resource represents the resource type being accessed
+Resource represents the resource type being accessed.
+Different resources may have different access controls.
 """
 enum Resource {
+  """Family resource type"""
   FAMILY
+
+  """Parent resource type"""
   PARENT
+
+  """Child resource type"""
   CHILD
 }
 
 """
-isAuthorized directive for role-based access control
+isAuthorized directive for role-based access control.
+This directive is used to protect GraphQL operations with authorization rules.
 """
 directive @isAuthorized(
+  """Roles that are allowed to access this field"""
   allowedRoles: [Role!]!, 
+
+  """Scopes required to access this field (defaults to READ)"""
   requiredScopes: [Scope!] = [READ], 
+
+  """Resource type being accessed (defaults to FAMILY)"""
   resource: Resource = FAMILY
 ) on FIELD_DEFINITION
 
 """
-Family represents a family unit with parents and children
+Family represents a family unit with parents and children.
+A family must have at least one parent and can have zero or more children.
+A family can have at most two parents.
 """
 type Family {
+  """Unique identifier for the family"""
   id: ID!
+
+  """Current status of the family (SINGLE, MARRIED, DIVORCED, WIDOWED, or ABANDONED)"""
   status: FamilyStatus!
+
+  """List of parents in the family (1-2 parents)"""
   parents: [Parent!]!
+
+  """List of children in the family (0 or more)"""
   children: [Child!]!
+
+  """Number of parents in the family"""
   parentCount: Int!
+
+  """Number of children in the family"""
   childrenCount: Int!
 }
 
 """
-Error represents an error that occurred during a GraphQL operation
+Error represents an error that occurred during a GraphQL operation.
+Errors provide information about what went wrong and where.
 """
 type Error {
+  """Human-readable error message"""
   message: String!
+
+  """Error code for programmatic handling (e.g., NOT_FOUND, VALIDATION_ERROR)"""
   code: String
+
+  """Path to the field that caused the error"""
   path: [String!]
 }
 
 """
-Queries for retrieving family data
+Queries for retrieving family data.
+All queries require appropriate authorization.
 """
 type Query {
   """
-  Get a family by ID
+  Get a family by ID.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    getFamily(id: "family-123") {
+      id
+      status
+      parents {
+        id
+        firstName
+        lastName
+      }
+      children {
+        id
+        firstName
+        lastName
+      }
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the family with the specified ID, including its parents and children.
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID
+  - UNAUTHORIZED: If the user doesn't have permission to view the family
   """
-  getFamily(id: ID!): Family @isAuthorized(
+  getFamily(
+    """Unique identifier of the family to retrieve"""
+    id: ID!
+  ): Family @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
     requiredScopes: [READ], 
     resource: FAMILY
   )
 
   """
-  Get all families with their parents and children
+  Get all families with their parents and children.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    getAllFamilies {
+      id
+      status
+      parentCount
+      childrenCount
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns a list of all families. For performance reasons, consider requesting only
+  the fields you need, especially when there are many families.
+
+  Possible errors:
+  - UNAUTHORIZED: If the user doesn't have permission to view families
   """
   getAllFamilies: [Family!]! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
@@ -641,25 +764,97 @@ type Query {
   )
 
   """
-  Find families that contain a specific parent
+  Find families that contain a specific parent.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    findFamiliesByParent(parentId: "parent-456") {
+      id
+      status
+      parents {
+        id
+        firstName
+        lastName
+      }
+      children {
+        id
+        firstName
+        lastName
+      }
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns a list of families that include the specified parent.
+  A parent can be part of multiple families (e.g., after divorce).
+
+  Possible errors:
+  - UNAUTHORIZED: If the user doesn't have permission to view the parent
   """
-  findFamiliesByParent(parentId: ID!): [Family!] @isAuthorized(
+  findFamiliesByParent(
+    """Unique identifier of the parent to search for"""
+    parentId: ID!
+  ): [Family!] @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
     requiredScopes: [READ], 
     resource: PARENT
   )
 
   """
-  Find the family that contains a specific child
+  Find the family that contains a specific child.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    findFamilyByChild(childId: "child-789") {
+      id
+      status
+      parents {
+        id
+        firstName
+        lastName
+      }
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the family that includes the specified child.
+  A child can only be part of one family at a time.
+
+  Possible errors:
+  - NOT_FOUND: If no family contains the specified child
+  - UNAUTHORIZED: If the user doesn't have permission to view the child
   """
-  findFamilyByChild(childId: ID!): Family @isAuthorized(
+  findFamilyByChild(
+    """Unique identifier of the child to search for"""
+    childId: ID!
+  ): Family @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
     requiredScopes: [READ], 
     resource: CHILD
   )
 
   """
-  Get all parents
+  Get all parents across all families.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    parents {
+      id
+      firstName
+      lastName
+      birthDate
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns a list of all parents in the system.
+  This query is useful for populating dropdown menus or autocomplete fields.
+
+  Possible errors:
+  - UNAUTHORIZED: If the user doesn't have permission to view parents
   """
   parents: [Parent!]! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
@@ -668,7 +863,20 @@ type Query {
   )
 
   """
-  Get the total count of families
+  Get the total count of families in the system.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    countFamilies
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns an integer representing the total number of families.
+  This query is useful for pagination or displaying statistics.
+
+  Possible errors:
+  - UNAUTHORIZED: If the user doesn't have permission to view families
   """
   countFamilies: Int! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
@@ -677,7 +885,20 @@ type Query {
   )
 
   """
-  Get the total count of parents
+  Get the total count of parents across all families.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    countParents
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns an integer representing the total number of parents.
+  This query is useful for displaying statistics or monitoring system growth.
+
+  Possible errors:
+  - UNAUTHORIZED: If the user doesn't have permission to view parents
   """
   countParents: Int! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
@@ -686,7 +907,20 @@ type Query {
   )
 
   """
-  Get the total count of children
+  Get the total count of children across all families.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  query {
+    countChildren
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns an integer representing the total number of children.
+  This query is useful for displaying statistics or monitoring system growth.
+
+  Possible errors:
+  - UNAUTHORIZED: If the user doesn't have permission to view children
   """
   countChildren: Int! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR, VIEWER], 
@@ -696,58 +930,296 @@ type Query {
 }
 
 """
-Mutations for modifying family data
+Mutations for modifying family data.
+All mutations require appropriate authorization.
 """
 type Mutation {
   """
-  Create a new family
+  Create a new family with parents and optional children.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    createFamily(input: {
+      id: "family-123",
+      status: MARRIED,
+      parents: [
+        {
+          id: "parent-1",
+          firstName: "John",
+          lastName: "Doe",
+          birthDate: "1980-01-01"
+        },
+        {
+          id: "parent-2",
+          firstName: "Jane",
+          lastName: "Doe",
+          birthDate: "1982-05-15"
+        }
+      ],
+      children: [
+        {
+          id: "child-1",
+          firstName: "Jimmy",
+          lastName: "Doe",
+          birthDate: "2010-03-12"
+        }
+      ]
+    }) {
+      id
+      status
+      parentCount
+      childrenCount
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the newly created family.
+
+  Business rules:
+  - A family must have at least one parent
+  - A family can have at most two parents
+  - Parents must be at least 18 years old
+
+  Possible errors:
+  - VALIDATION_ERROR: If the input violates business rules
+  - UNAUTHORIZED: If the user doesn't have permission to create families
+  - DUPLICATE_ID: If a family with the provided ID already exists
   """
-  createFamily(input: FamilyInput!): Family! @isAuthorized(
+  createFamily(
+    """Input data for creating a new family"""
+    input: FamilyInput!
+  ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
     requiredScopes: [CREATE], 
     resource: FAMILY
   )
 
   """
-  Add a parent to an existing family
+  Add a parent to an existing family.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    addParent(
+      familyId: "family-123",
+      input: {
+        id: "parent-3",
+        firstName: "Bob",
+        lastName: "Smith",
+        birthDate: "1975-08-22"
+      }
+    ) {
+      id
+      status
+      parents {
+        id
+        firstName
+        lastName
+      }
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the updated family with the new parent added.
+
+  Business rules:
+  - A family can have at most two parents
+  - The parent must be at least 18 years old
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID
+  - VALIDATION_ERROR: If adding the parent would violate business rules
+  - UNAUTHORIZED: If the user doesn't have permission to add parents
+  - DUPLICATE_ID: If a parent with the provided ID already exists
   """
-  addParent(familyId: ID!, input: ParentInput!): Family! @isAuthorized(
+  addParent(
+    """ID of the family to add the parent to"""
+    familyId: ID!, 
+
+    """Input data for the new parent"""
+    input: ParentInput!
+  ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
     requiredScopes: [CREATE], 
     resource: PARENT
   )
 
   """
-  Add a child to an existing family
+  Add a child to an existing family.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    addChild(
+      familyId: "family-123",
+      input: {
+        id: "child-2",
+        firstName: "Sally",
+        lastName: "Doe",
+        birthDate: "2015-11-30"
+      }
+    ) {
+      id
+      children {
+        id
+        firstName
+        lastName
+      }
+      childrenCount
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the updated family with the new child added.
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID
+  - UNAUTHORIZED: If the user doesn't have permission to add children
+  - DUPLICATE_ID: If a child with the provided ID already exists
   """
-  addChild(familyId: ID!, input: ChildInput!): Family! @isAuthorized(
+  addChild(
+    """ID of the family to add the child to"""
+    familyId: ID!, 
+
+    """Input data for the new child"""
+    input: ChildInput!
+  ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
     requiredScopes: [CREATE], 
     resource: CHILD
   )
 
   """
-  Remove a child from a family
+  Remove a child from a family.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    removeChild(
+      familyId: "family-123",
+      childId: "child-2"
+    ) {
+      id
+      children {
+        id
+        firstName
+        lastName
+      }
+      childrenCount
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the updated family with the child removed.
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID or the child is not in the family
+  - UNAUTHORIZED: If the user doesn't have permission to remove children
   """
-  removeChild(familyId: ID!, childId: ID!): Family! @isAuthorized(
+  removeChild(
+    """ID of the family to remove the child from"""
+    familyId: ID!, 
+
+    """ID of the child to remove"""
+    childId: ID!
+  ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
     requiredScopes: [DELETE], 
     resource: CHILD
   )
 
   """
-  Mark a parent as deceased
+  Mark a parent as deceased, updating the family status if necessary.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    markParentDeceased(
+      familyId: "family-123",
+      parentId: "parent-1",
+      deathDate: "2023-04-15"
+    ) {
+      id
+      status
+      parents {
+        id
+        firstName
+        lastName
+        deathDate
+      }
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the updated family with the parent marked as deceased.
+  If this was the only parent or one of two parents, the family status will be updated to WIDOWED.
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID or the parent is not in the family
+  - VALIDATION_ERROR: If the death date is invalid (e.g., in the future)
+  - UNAUTHORIZED: If the user doesn't have permission to modify parents
   """
-  markParentDeceased(familyId: ID!, parentId: ID!, deathDate: String!): Family! @isAuthorized(
+  markParentDeceased(
+    """ID of the family containing the parent"""
+    familyId: ID!, 
+
+    """ID of the parent to mark as deceased"""
+    parentId: ID!, 
+
+    """Date of death in ISO 8601 format (YYYY-MM-DD)"""
+    deathDate: String!
+  ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
     requiredScopes: [WRITE], 
     resource: PARENT
   )
 
   """
-  Process a divorce, creating a new family for the custodial parent
+  Process a divorce, creating a new family for the custodial parent and any assigned children.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    divorce(
+      familyId: "family-123",
+      custodialParentId: "parent-2"
+    ) {
+      id
+      status
+      parents {
+        id
+        firstName
+        lastName
+      }
+      children {
+        id
+        firstName
+        lastName
+      }
+    }
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns the original family with updated status (DIVORCED) and membership.
+  The custodial parent and any assigned children will be moved to a new family.
+
+  Business rules:
+  - The family must have two parents (status: MARRIED)
+  - The custodial parent must be a member of the family
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID or the parent is not in the family
+  - VALIDATION_ERROR: If the family doesn't have two parents
+  - UNAUTHORIZED: If the user doesn't have permission to modify families
   """
-  divorce(familyId: ID!, custodialParentId: ID!): Family! @isAuthorized(
+  divorce(
+    """ID of the family to process the divorce for"""
+    familyId: ID!, 
+
+    """ID of the parent who will have custody of children in a new family"""
+    custodialParentId: ID!
+  ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
     requiredScopes: [WRITE], 
     resource: FAMILY
@@ -755,34 +1227,85 @@ type Mutation {
 }
 
 """
-Input for creating a parent
+Input for creating or adding a parent to a family.
+Parents must be at least 18 years old.
 """
 input ParentInput {
+  """Unique identifier for the parent"""
   id: ID!
+
+  """First name of the parent (1-50 characters)"""
   firstName: String!
+
+  """Last name of the parent (1-50 characters)"""
   lastName: String!
+
+  """
+  Birth date of the parent in ISO 8601 format (YYYY-MM-DD).
+  Must be at least 18 years before the current date.
+  """
   birthDate: String!
+
+  """
+  Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable.
+  Must be after the birth date and not in the future.
+  """
   deathDate: String
 }
 
 """
-Input for creating a child
+Input for creating or adding a child to a family.
 """
 input ChildInput {
+  """Unique identifier for the child"""
   id: ID!
+
+  """First name of the child (1-50 characters)"""
   firstName: String!
+
+  """Last name of the child (1-50 characters)"""
   lastName: String!
+
+  """
+  Birth date of the child in ISO 8601 format (YYYY-MM-DD).
+  Must not be in the future.
+  """
   birthDate: String!
+
+  """
+  Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable.
+  Must be after the birth date and not in the future.
+  """
   deathDate: String
 }
 
 """
-Input for creating a family
+Input for creating a new family.
+A family must have at least one parent and can have zero or more children.
+A family can have at most two parents.
 """
 input FamilyInput {
+  """Unique identifier for the family"""
   id: ID!
+
+  """
+  Status of the family (SINGLE, MARRIED, DIVORCED, WIDOWED, or ABANDONED).
+  Must be consistent with the number of parents:
+  - SINGLE: One parent
+  - MARRIED: Two parents
+  - Other statuses have specific business rules
+  """
   status: FamilyStatus!
+
+  """
+  List of parents in the family (1-2 parents).
+  Parents must be at least 18 years old.
+  """
   parents: [ParentInput!]!
+
+  """
+  List of children in the family (0 or more).
+  """
   children: [ChildInput!]!
 }
 `, BuiltIn: false},
