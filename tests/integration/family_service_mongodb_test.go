@@ -119,7 +119,7 @@ func setupMongoDBTestServer(t *testing.T, container *di.Container) *httptest.Ser
 	// Create resolver using the container
 	resolverObj := resolver.NewResolver(
 		container.GetFamilyApplicationService(),
-		container.GetContextLogger(),
+		container.GetFamilyMapper(),
 	)
 
 	// Create GraphQL handler

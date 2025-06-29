@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	// ISO8601DateFormat is the standard date format used across the application
+	// RFC3339DateFormat is the standard date format used across the application
 	// Using RFC3339 format as required by the project guidelines
-	ISO8601DateFormat = time.RFC3339
+	RFC3339DateFormat = time.RFC3339
 )
 
 // FamilyMapper provides methods to convert between domain DTOs and GraphQL models
@@ -42,7 +42,7 @@ func (m *familyMapper) ToDomain(input model.FamilyInput) (entity.FamilyDTO, erro
 
 	// Validate status
 	status := string(input.Status)
-	if status != "ACTIVE" && status != "DIVORCED" {
+	if status != "ACTIVE" && status != "DIVORCED" && status != "MARRIED" {
 		return entity.FamilyDTO{}, fmt.Errorf("invalid family status: %s", status)
 	}
 
@@ -101,7 +101,7 @@ func (m *familyMapper) ToGraphQL(dto entity.FamilyDTO) (*model.Family, error) {
 
 	// Validate and convert status
 	status := model.FamilyStatus(dto.Status)
-	if status != "ACTIVE" && status != "DIVORCED" {
+	if status != "ACTIVE" && status != "DIVORCED" && status != "MARRIED" {
 		return nil, fmt.Errorf("invalid family status: %s", dto.Status)
 	}
 
@@ -118,14 +118,14 @@ func (m *familyMapper) ToParentDTO(input model.ParentInput) (entity.ParentDTO, e
 		return entity.ParentDTO{}, fmt.Errorf("invalid ID: ID cannot be empty")
 	}
 
-	birthDate, err := time.Parse(ISO8601DateFormat, input.BirthDate)
+	birthDate, err := time.Parse(RFC3339DateFormat, input.BirthDate)
 	if err != nil {
 		return entity.ParentDTO{}, fmt.Errorf("invalid birth date: %w", err)
 	}
 
 	var deathDate *time.Time
 	if input.DeathDate != nil {
-		parsed, err := time.Parse(ISO8601DateFormat, *input.DeathDate)
+		parsed, err := time.Parse(RFC3339DateFormat, *input.DeathDate)
 		if err != nil {
 			return entity.ParentDTO{}, fmt.Errorf("invalid death date: %w", err)
 		}
@@ -149,14 +149,14 @@ func (m *familyMapper) ToChildDTO(input model.ChildInput) (entity.ChildDTO, erro
 		return entity.ChildDTO{}, fmt.Errorf("invalid ID: ID cannot be empty")
 	}
 
-	birthDate, err := time.Parse(ISO8601DateFormat, input.BirthDate)
+	birthDate, err := time.Parse(RFC3339DateFormat, input.BirthDate)
 	if err != nil {
 		return entity.ChildDTO{}, fmt.Errorf("invalid birth date: %w", err)
 	}
 
 	var deathDate *time.Time
 	if input.DeathDate != nil {
-		parsed, err := time.Parse(ISO8601DateFormat, *input.DeathDate)
+		parsed, err := time.Parse(RFC3339DateFormat, *input.DeathDate)
 		if err != nil {
 			return entity.ChildDTO{}, fmt.Errorf("invalid death date: %w", err)
 		}
@@ -182,7 +182,7 @@ func (m *familyMapper) ToParent(dto entity.ParentDTO) (*model.Parent, error) {
 
 	var deathDate *string
 	if dto.DeathDate != nil {
-		formatted := dto.DeathDate.Format(ISO8601DateFormat)
+		formatted := dto.DeathDate.Format(RFC3339DateFormat)
 		deathDate = &formatted
 	}
 
@@ -190,7 +190,7 @@ func (m *familyMapper) ToParent(dto entity.ParentDTO) (*model.Parent, error) {
 		ID:        identification.ID(dto.ID),
 		FirstName: dto.FirstName,
 		LastName:  dto.LastName,
-		BirthDate: dto.BirthDate.Format(ISO8601DateFormat),
+		BirthDate: dto.BirthDate.Format(RFC3339DateFormat),
 		DeathDate: deathDate,
 	}, nil
 }
@@ -202,7 +202,7 @@ func (m *familyMapper) ToChild(dto entity.ChildDTO) (*model.Child, error) {
 
 	var deathDate *string
 	if dto.DeathDate != nil {
-		formatted := dto.DeathDate.Format(ISO8601DateFormat)
+		formatted := dto.DeathDate.Format(RFC3339DateFormat)
 		deathDate = &formatted
 	}
 
@@ -210,7 +210,7 @@ func (m *familyMapper) ToChild(dto entity.ChildDTO) (*model.Child, error) {
 		ID:        identification.ID(dto.ID),
 		FirstName: dto.FirstName,
 		LastName:  dto.LastName,
-		BirthDate: dto.BirthDate.Format(ISO8601DateFormat),
+		BirthDate: dto.BirthDate.Format(RFC3339DateFormat),
 		DeathDate: deathDate,
 	}, nil
 }

@@ -9,7 +9,7 @@ import (
 	application "github.com/abitofhelp/family-service/core/application/services"
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/cachewrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
 	"go.uber.org/zap"

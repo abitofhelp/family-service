@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/abitofhelp/family-service/infrastructure/adapters/circuit"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/circuitwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	repoerrors "github.com/abitofhelp/family-service/infrastructure/adapters/errors"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/rate"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/ratewrapper"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/retry"
 )

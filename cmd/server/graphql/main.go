@@ -12,7 +12,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/abitofhelp/family-service/cmd/server/graphql/di"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
-	infratelemetry "github.com/abitofhelp/family-service/infrastructure/adapters/telemetry"
+	infratelemetry "github.com/abitofhelp/family-service/infrastructure/adapters/telemetrywrapper"
 	"github.com/abitofhelp/family-service/infrastructure/server"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/generated"
 	"github.com/abitofhelp/family-service/interface/adapters/graphql/resolver"
@@ -147,7 +147,7 @@ func setupTelemetry(ctx context.Context, mux *http.ServeMux, cfg *config.Config,
 // setupGraphQLEndpoints sets up all GraphQL-related endpoints.
 func setupGraphQLEndpoints(mux *http.ServeMux, container *di.Container) {
 	// Get the resolver
-	resolverInstance := resolver.NewResolver(container.GetFamilyApplicationService(), container.GetContextLogger())
+	resolverInstance := resolver.NewResolver(container.GetFamilyApplicationService(), container.GetFamilyMapper())
 
 	// Initialize GraphQL schema
 	schema := generated.NewExecutableSchema(generated.Config{

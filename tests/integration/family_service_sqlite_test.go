@@ -73,7 +73,7 @@ func setupTestServer(t *testing.T, container *di.Container) *httptest.Server {
 	// Create resolver using the container
 	resolverObj := resolver.NewResolver(
 		container.GetFamilyApplicationService(),
-		container.GetContextLogger(),
+		container.GetFamilyMapper(),
 	)
 
 	// Create GraphQL handler

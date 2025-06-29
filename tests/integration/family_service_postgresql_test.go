@@ -150,7 +150,7 @@ func setupPostgreSQLTestServer(t *testing.T, container *di.Container) *httptest.
 	// Create resolver using the container
 	resolverObj := resolver.NewResolver(
 		container.GetFamilyApplicationService(),
-		container.GetContextLogger(),
+		container.GetFamilyMapper(),
 	)
 
 	// Create GraphQL handler

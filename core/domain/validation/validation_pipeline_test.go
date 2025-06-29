@@ -129,14 +129,14 @@ func TestValidate_MultipleFailures(t *testing.T) {
 	rule2.AssertCalled(t, "Validate", mock.Anything, entity)
 }
 
-// TestNewCompositeRule tests creating a new composite rule
-func TestNewCompositeRule(t *testing.T) {
+// TestNewContextCompositeRule tests creating a new composite rule
+func TestNewContextCompositeRule(t *testing.T) {
 	// Create mock rules
 	rule1 := new(MockRule)
 	rule2 := new(MockRule)
 
 	// Create a new composite rule with the mock rules
-	compositeRule := NewCompositeRule("test composite", rule1, rule2)
+	compositeRule := NewContextCompositeRule("test composite", rule1, rule2)
 
 	// Assert that the composite rule was created with the correct name and rules
 	assert.Equal(t, "test composite", compositeRule.name, "Composite rule should have the correct name")
@@ -145,8 +145,8 @@ func TestNewCompositeRule(t *testing.T) {
 	assert.Equal(t, rule2, compositeRule.rules[1], "Second rule should be rule2")
 }
 
-// TestCompositeRule_Validate_Success tests validating an entity with a composite rule (success case)
-func TestCompositeRule_Validate_Success(t *testing.T) {
+// TestContextCompositeRule_Validate_Success tests validating an entity with a composite rule (success case)
+func TestContextCompositeRule_Validate_Success(t *testing.T) {
 	// Create mock rules that will succeed
 	rule1 := new(MockRule)
 	rule1.On("Validate", mock.Anything, mock.Anything).Return(nil)
@@ -155,7 +155,7 @@ func TestCompositeRule_Validate_Success(t *testing.T) {
 	rule2.On("Validate", mock.Anything, mock.Anything).Return(nil)
 
 	// Create a composite rule with the mock rules
-	compositeRule := NewCompositeRule("test composite", rule1, rule2)
+	compositeRule := NewContextCompositeRule("test composite", rule1, rule2)
 
 	// Validate an entity
 	entity := "test entity"
@@ -169,8 +169,8 @@ func TestCompositeRule_Validate_Success(t *testing.T) {
 	rule2.AssertCalled(t, "Validate", mock.Anything, entity)
 }
 
-// TestCompositeRule_Validate_Failure tests validating an entity with a composite rule (failure case)
-func TestCompositeRule_Validate_Failure(t *testing.T) {
+// TestContextCompositeRule_Validate_Failure tests validating an entity with a composite rule (failure case)
+func TestContextCompositeRule_Validate_Failure(t *testing.T) {
 	// Create a mock rule that will succeed
 	rule1 := new(MockRule)
 	rule1.On("Validate", mock.Anything, mock.Anything).Return(nil)
@@ -181,7 +181,7 @@ func TestCompositeRule_Validate_Failure(t *testing.T) {
 	rule2.On("Validate", mock.Anything, mock.Anything).Return(validationErr)
 
 	// Create a composite rule with the mock rules
-	compositeRule := NewCompositeRule("test composite", rule1, rule2)
+	compositeRule := NewContextCompositeRule("test composite", rule1, rule2)
 
 	// Validate an entity
 	entity := "test entity"
@@ -196,14 +196,14 @@ func TestCompositeRule_Validate_Failure(t *testing.T) {
 	rule2.AssertCalled(t, "Validate", mock.Anything, entity)
 }
 
-// TestCompositeRule_Validate_NonValidationError tests handling non-ValidationError errors
-func TestCompositeRule_Validate_NonValidationError(t *testing.T) {
+// TestContextCompositeRule_Validate_NonValidationError tests handling non-ValidationError errors
+func TestContextCompositeRule_Validate_NonValidationError(t *testing.T) {
 	// Create a mock rule that will return a non-ValidationError
 	rule := new(MockRule)
 	rule.On("Validate", mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Create a composite rule with the mock rule
-	compositeRule := NewCompositeRule("test composite", rule)
+	compositeRule := NewContextCompositeRule("test composite", rule)
 
 	// Validate an entity
 	entity := "test entity"

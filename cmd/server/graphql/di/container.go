@@ -11,13 +11,14 @@ import (
 	application "github.com/abitofhelp/family-service/core/application/services"
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/cachewrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
-	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/di"
+	adaptdi "github.com/abitofhelp/family-service/infrastructure/adapters/diwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/mongo"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/postgres"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/sqlite"
+	"github.com/abitofhelp/family-service/interface/adapters/graphql/dto"
 	"github.com/abitofhelp/servicelib/auth"
 	basedi "github.com/abitofhelp/servicelib/di"
 	"go.uber.org/zap"
@@ -29,6 +30,7 @@ type Container struct {
 	familyRepo          domainports.FamilyRepository
 	familyDomainService *domainservices.FamilyDomainService
 	familyAppService    appports.FamilyApplicationService
+	familyMapper        dto.FamilyMapper
 	authService         *auth.Auth
 	dbType              string
 	cache               *cache.Cache
@@ -102,6 +104,9 @@ func NewContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (
 		container.cache,
 	)
 
+	// Initialize family mapper
+	container.familyMapper = dto.NewFamilyMapper()
+
 	// Initialize auth service
 	// Note: In the future, this should be configured to use a remote authorization server
 	// instead of local token validation for improved security and centralized management.
@@ -153,6 +158,11 @@ func (c *Container) GetAuthorizationService() interface{} {
 // GetAuthService returns the auth service
 func (c *Container) GetAuthService() *auth.Auth {
 	return c.authService
+}
+
+// GetFamilyMapper returns the family mapper
+func (c *Container) GetFamilyMapper() dto.FamilyMapper {
+	return c.familyMapper
 }
 
 // Close closes all resources

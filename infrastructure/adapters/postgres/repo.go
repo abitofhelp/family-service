@@ -11,10 +11,10 @@ import (
 
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	"github.com/abitofhelp/family-service/core/domain/ports"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/circuit"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/circuitwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/config"
 	repoerrors "github.com/abitofhelp/family-service/infrastructure/adapters/errors"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/rate"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/ratewrapper"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
 	"github.com/abitofhelp/servicelib/retry"

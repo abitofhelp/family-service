@@ -19,8 +19,8 @@ func TestFamilyMapper_ToDomain(t *testing.T) {
 	familyID := uuid.New().String()
 	parentID := uuid.New().String()
 	childID := uuid.New().String()
-	birthDate := "2000-01-01"
-	deathDate := "2020-01-01"
+	birthDate := "2000-01-01T00:00:00Z"
+	deathDate := "2020-01-01T00:00:00Z"
 	input := model.FamilyInput{
 		ID:     identification.ID(familyID),
 		Status: model.FamilyStatus("ACTIVE"),
@@ -54,13 +54,13 @@ func TestFamilyMapper_ToDomain(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, input.ID.String(), result.ID)
 	assert.Equal(t, "ACTIVE", result.Status)
-	
+
 	// Assert parents
 	require.Len(t, result.Parents, 1)
 	assert.Equal(t, input.Parents[0].ID.String(), result.Parents[0].ID)
 	assert.Equal(t, input.Parents[0].FirstName, result.Parents[0].FirstName)
 	assert.Equal(t, input.Parents[0].LastName, result.Parents[0].LastName)
-	
+
 	// Assert children
 	require.Len(t, result.Children, 1)
 	assert.Equal(t, input.Children[0].ID.String(), result.Children[0].ID)
@@ -108,30 +108,30 @@ func TestFamilyMapper_ToGraphQL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, identification.ID(input.ID), result.ID)
 	assert.Equal(t, model.FamilyStatus("ACTIVE"), result.Status)
-	
+
 	// Assert parents
 	require.Len(t, result.Parents, 1)
 	assert.Equal(t, identification.ID(input.Parents[0].ID), result.Parents[0].ID)
 	assert.Equal(t, input.Parents[0].FirstName, result.Parents[0].FirstName)
 	assert.Equal(t, input.Parents[0].LastName, result.Parents[0].LastName)
-	assert.Equal(t, "2000-01-01", result.Parents[0].BirthDate)
+	assert.Equal(t, "2000-01-01T00:00:00Z", result.Parents[0].BirthDate)
 	require.NotNil(t, result.Parents[0].DeathDate)
-	assert.Equal(t, "2020-01-01", *result.Parents[0].DeathDate)
-	
+	assert.Equal(t, "2020-01-01T00:00:00Z", *result.Parents[0].DeathDate)
+
 	// Assert children
 	require.Len(t, result.Children, 1)
 	assert.Equal(t, identification.ID(input.Children[0].ID), result.Children[0].ID)
 	assert.Equal(t, input.Children[0].FirstName, result.Children[0].FirstName)
 	assert.Equal(t, input.Children[0].LastName, result.Children[0].LastName)
-	assert.Equal(t, "2000-01-01", result.Children[0].BirthDate)
+	assert.Equal(t, "2000-01-01T00:00:00Z", result.Children[0].BirthDate)
 	assert.Nil(t, result.Children[0].DeathDate)
 }
 
 func TestFamilyMapper_ToParentDTO(t *testing.T) {
 	// Setup test data
 	parentID := uuid.New().String()
-	birthDate := "2000-01-01"
-	deathDate := "2020-01-01"
+	birthDate := "2000-01-01T00:00:00Z"
+	deathDate := "2020-01-01T00:00:00Z"
 	input := model.ParentInput{
 		ID:        identification.ID(parentID),
 		FirstName: "John",
@@ -151,15 +151,15 @@ func TestFamilyMapper_ToParentDTO(t *testing.T) {
 	assert.Equal(t, input.ID.String(), result.ID)
 	assert.Equal(t, input.FirstName, result.FirstName)
 	assert.Equal(t, input.LastName, result.LastName)
-	assert.Equal(t, birthDate, result.BirthDate.Format("2006-01-02"))
+	assert.Equal(t, birthDate, result.BirthDate.Format(time.RFC3339))
 	require.NotNil(t, result.DeathDate)
-	assert.Equal(t, deathDate, result.DeathDate.Format("2006-01-02"))
+	assert.Equal(t, deathDate, result.DeathDate.Format(time.RFC3339))
 }
 
 func TestFamilyMapper_ToChildDTO(t *testing.T) {
 	// Setup test data
 	childID := uuid.New().String()
-	birthDate := "2000-01-01"
+	birthDate := "2000-01-01T00:00:00Z"
 	input := model.ChildInput{
 		ID:        identification.ID(childID),
 		FirstName: "Jane",
@@ -179,7 +179,7 @@ func TestFamilyMapper_ToChildDTO(t *testing.T) {
 	assert.Equal(t, input.ID.String(), result.ID)
 	assert.Equal(t, input.FirstName, result.FirstName)
 	assert.Equal(t, input.LastName, result.LastName)
-	assert.Equal(t, birthDate, result.BirthDate.Format("2006-01-02"))
+	assert.Equal(t, birthDate, result.BirthDate.Format(time.RFC3339))
 	assert.Nil(t, result.DeathDate)
 }
 
@@ -207,9 +207,9 @@ func TestFamilyMapper_ToParent(t *testing.T) {
 	assert.Equal(t, identification.ID(input.ID), result.ID)
 	assert.Equal(t, input.FirstName, result.FirstName)
 	assert.Equal(t, input.LastName, result.LastName)
-	assert.Equal(t, "2000-01-01", result.BirthDate)
+	assert.Equal(t, "2000-01-01T00:00:00Z", result.BirthDate)
 	require.NotNil(t, result.DeathDate)
-	assert.Equal(t, "2020-01-01", *result.DeathDate)
+	assert.Equal(t, "2020-01-01T00:00:00Z", *result.DeathDate)
 }
 
 func TestFamilyMapper_ToChild(t *testing.T) {
@@ -235,7 +235,7 @@ func TestFamilyMapper_ToChild(t *testing.T) {
 	assert.Equal(t, identification.ID(input.ID), result.ID)
 	assert.Equal(t, input.FirstName, result.FirstName)
 	assert.Equal(t, input.LastName, result.LastName)
-	assert.Equal(t, "2000-01-01", result.BirthDate)
+	assert.Equal(t, "2000-01-01T00:00:00Z", result.BirthDate)
 	assert.Nil(t, result.DeathDate)
 }
 
@@ -267,7 +267,7 @@ func TestFamilyMapper_Error_Cases(t *testing.T) {
 				invalidDate := "invalid-date"
 				return model.ParentInput{
 					ID:        identification.ID(uuid.New().String()),
-					BirthDate: "2000-01-01",
+					BirthDate: "2000-01-01T00:00:00Z",
 					DeathDate: &invalidDate,
 				}
 			},
@@ -313,7 +313,7 @@ func TestFamilyMapper_Error_Cases(t *testing.T) {
 			setupInvalid: func() interface{} {
 				return model.ParentInput{
 					ID:        "",
-					BirthDate: "2000-01-01",
+					BirthDate: "2000-01-01T00:00:00Z",
 				}
 			},
 			testFunction: func(input interface{}) error {
@@ -326,10 +326,10 @@ func TestFamilyMapper_Error_Cases(t *testing.T) {
 		{
 			name: "Death date before birth date in ParentInput",
 			setupInvalid: func() interface{} {
-				deathDate := "1999-01-01" // Before birth date
+				deathDate := "1999-01-01T00:00:00Z" // Before birth date
 				return model.ParentInput{
 					ID:        identification.ID(uuid.New().String()),
-					BirthDate: "2000-01-01",
+					BirthDate: "2000-01-01T00:00:00Z",
 					DeathDate: &deathDate,
 				}
 			},
@@ -372,7 +372,7 @@ func TestFamilyMapper_Edge_Cases(t *testing.T) {
 	})
 
 	t.Run("Future dates are allowed", func(t *testing.T) {
-		futureDate := time.Now().AddDate(1, 0, 0).Format(ISO8601DateFormat)
+		futureDate := time.Now().AddDate(1, 0, 0).Format(RFC3339DateFormat)
 		input := model.ParentInput{
 			ID:        identification.ID(uuid.New().String()),
 			FirstName: "John",
@@ -385,7 +385,7 @@ func TestFamilyMapper_Edge_Cases(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, input.ID.String(), result.ID)
-		assert.Equal(t, futureDate, result.BirthDate.Format(ISO8601DateFormat))
+		assert.Equal(t, futureDate, result.BirthDate.Format(RFC3339DateFormat))
 	})
 
 	t.Run("Very long names are allowed", func(t *testing.T) {
@@ -394,7 +394,7 @@ func TestFamilyMapper_Edge_Cases(t *testing.T) {
 			ID:        identification.ID(uuid.New().String()),
 			FirstName: longName,
 			LastName:  longName,
-			BirthDate: "2000-01-01",
+			BirthDate: "2000-01-01T00:00:00Z",
 		}
 
 		mapper := NewFamilyMapper()

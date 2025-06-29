@@ -76,6 +76,7 @@ type ComplexityRoot struct {
 		AddChild           func(childComplexity int, familyID identification.ID, input model.ChildInput) int
 		AddParent          func(childComplexity int, familyID identification.ID, input model.ParentInput) int
 		CreateFamily       func(childComplexity int, input model.FamilyInput) int
+		DeleteFamily       func(childComplexity int, id identification.ID) int
 		Divorce            func(childComplexity int, familyID identification.ID, custodialParentID identification.ID) int
 		MarkParentDeceased func(childComplexity int, familyID identification.ID, parentID identification.ID, deathDate string) int
 		RemoveChild        func(childComplexity int, familyID identification.ID, childID identification.ID) int
@@ -112,6 +113,7 @@ type MutationResolver interface {
 	RemoveChild(ctx context.Context, familyID identification.ID, childID identification.ID) (*model.Family, error)
 	MarkParentDeceased(ctx context.Context, familyID identification.ID, parentID identification.ID, deathDate string) (*model.Family, error)
 	Divorce(ctx context.Context, familyID identification.ID, custodialParentID identification.ID) (*model.Family, error)
+	DeleteFamily(ctx context.Context, id identification.ID) (bool, error)
 }
 type QueryResolver interface {
 	GetFamily(ctx context.Context, id identification.ID) (*model.Family, error)
@@ -276,6 +278,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateFamily(childComplexity, args["input"].(model.FamilyInput)), true
+
+	case "Mutation.deleteFamily":
+		if e.complexity.Mutation.DeleteFamily == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteFamily_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteFamily(childComplexity, args["id"].(identification.ID)), true
 
 	case "Mutation.divorce":
 		if e.complexity.Mutation.Divorce == nil {
@@ -527,7 +541,12 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "../schema.graphql", Input: `"""
+	{Name: "../schema.graphql", Input: `schema {
+  query: Query
+  mutation: Mutation
+}
+
+"""
 Parent represents a parent in a family.
 A parent must be at least 18 years old and can be part of one or more families.
 """
@@ -541,10 +560,10 @@ type Parent {
   """Last name of the parent"""
   lastName: String!
 
-  """Birth date of the parent in ISO 8601 format (YYYY-MM-DD)"""
+  """Birth date of the parent in RFC3339 format"""
   birthDate: String!
 
-  """Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable"""
+  """Death date of the parent in RFC3339 format, if applicable"""
   deathDate: String
 }
 
@@ -562,10 +581,10 @@ type Child {
   """Last name of the child"""
   lastName: String!
 
-  """Birth date of the child in ISO 8601 format (YYYY-MM-DD)"""
+  """Birth date of the child in RFC3339 format (YYYY-MM-DD)"""
   birthDate: String!
 
-  """Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable"""
+  """Death date of the child in RFC3339 format (YYYY-MM-DD), if applicable"""
   deathDate: String
 }
 
@@ -1167,7 +1186,7 @@ type Mutation {
     """ID of the parent to mark as deceased"""
     parentId: ID!, 
 
-    """Date of death in ISO 8601 format (YYYY-MM-DD)"""
+    """Date of death in RFC3339 format (YYYY-MM-DD)"""
     deathDate: String!
   ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
@@ -1224,6 +1243,31 @@ type Mutation {
     requiredScopes: [WRITE], 
     resource: FAMILY
   )
+
+  """
+  Delete a family by ID.
+
+  Example:
+  ` + "`" + `` + "`" + `` + "`" + `
+  mutation {
+    deleteFamily(id: "family-123")
+  }
+  ` + "`" + `` + "`" + `` + "`" + `
+
+  Returns true if the family was successfully deleted.
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID
+  - UNAUTHORIZED: If the user doesn't have permission to delete families
+  """
+  deleteFamily(
+    """ID of the family to delete"""
+    id: ID!
+  ): Boolean! @isAuthorized(
+    allowedRoles: [ADMIN], 
+    requiredScopes: [DELETE], 
+    resource: FAMILY
+  )
 }
 
 """
@@ -1241,13 +1285,13 @@ input ParentInput {
   lastName: String!
 
   """
-  Birth date of the parent in ISO 8601 format (YYYY-MM-DD).
+  Birth date of the parent in RFC3339 format (YYYY-MM-DD).
   Must be at least 18 years before the current date.
   """
   birthDate: String!
 
   """
-  Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable.
+  Death date of the parent in RFC3339 format (YYYY-MM-DD), if applicable.
   Must be after the birth date and not in the future.
   """
   deathDate: String
@@ -1267,13 +1311,13 @@ input ChildInput {
   lastName: String!
 
   """
-  Birth date of the child in ISO 8601 format (YYYY-MM-DD).
+  Birth date of the child in RFC3339 format (YYYY-MM-DD).
   Must not be in the future.
   """
   birthDate: String!
 
   """
-  Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable.
+  Death date of the child in RFC3339 format (YYYY-MM-DD), if applicable.
   Must be after the birth date and not in the future.
   """
   deathDate: String
@@ -1517,6 +1561,34 @@ func (ec *executionContext) field_Mutation_createFamily_argsInput(
 	}
 
 	var zeroVal model.FamilyInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteFamily_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteFamily_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteFamily_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (identification.ID, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal identification.ID
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2githubᚗcomᚋabitofhelpᚋservicelibᚋvalueobjectᚋidentificationᚐID(ctx, tmp)
+	}
+
+	var zeroVal identification.ID
 	return zeroVal, nil
 }
 
@@ -3189,6 +3261,98 @@ func (ec *executionContext) fieldContext_Mutation_divorce(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_divorce_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteFamily(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteFamily(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		directive0 := func(rctx context.Context) (any, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().DeleteFamily(rctx, fc.Args["id"].(identification.ID))
+		}
+
+		directive1 := func(ctx context.Context) (any, error) {
+			allowedRoles, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋabitofhelpᚋfamilyᚑserviceᚋinterfaceᚋadaptersᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+			if err != nil {
+				var zeroVal bool
+				return zeroVal, err
+			}
+			requiredScopes, err := ec.unmarshalOScope2ᚕgithubᚗcomᚋabitofhelpᚋfamilyᚑserviceᚋinterfaceᚋadaptersᚋgraphqlᚋmodelᚐScopeᚄ(ctx, []any{"DELETE"})
+			if err != nil {
+				var zeroVal bool
+				return zeroVal, err
+			}
+			resource, err := ec.unmarshalOResource2ᚖgithubᚗcomᚋabitofhelpᚋfamilyᚑserviceᚋinterfaceᚋadaptersᚋgraphqlᚋmodelᚐResource(ctx, "FAMILY")
+			if err != nil {
+				var zeroVal bool
+				return zeroVal, err
+			}
+			if ec.directives.IsAuthorized == nil {
+				var zeroVal bool
+				return zeroVal, errors.New("directive isAuthorized is not implemented")
+			}
+			return ec.directives.IsAuthorized(ctx, nil, directive0, allowedRoles, requiredScopes, resource)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(bool); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be bool`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteFamily(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteFamily_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6682,6 +6846,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "divorce":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_divorce(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteFamily":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteFamily(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

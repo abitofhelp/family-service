@@ -11,7 +11,7 @@ import (
 	"github.com/abitofhelp/family-service/core/domain/entity"
 	domainports "github.com/abitofhelp/family-service/core/domain/ports"
 	domainservices "github.com/abitofhelp/family-service/core/domain/services"
-	"github.com/abitofhelp/family-service/infrastructure/adapters/cache"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/cachewrapper"
 	"github.com/abitofhelp/servicelib/errors"
 	"github.com/abitofhelp/servicelib/logging"
 	"go.uber.org/zap"
@@ -320,6 +320,89 @@ func (s *FamilyApplicationService) GetFamily(ctx context.Context, id string) (*e
 func (s *FamilyApplicationService) GetAllFamilies(ctx context.Context) ([]*entity.FamilyDTO, error) {
 	s.logger.Info(ctx, "GetAllFamilies called (alias for GetAll)")
 	return s.GetAll(ctx)
+}
+
+// UpdateFamily updates an existing family
+func (s *FamilyApplicationService) UpdateFamily(ctx context.Context, dto entity.FamilyDTO) (*entity.FamilyDTO, error) {
+	s.logger.Info(ctx, "Updating family", zap.String("family_id", dto.ID))
+
+	// Check if the family exists
+	_, err := s.familyRepo.GetByID(ctx, dto.ID)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to get family for update", zap.Error(err), zap.String("family_id", dto.ID))
+		return nil, errors.NewApplicationError(errors.DatabaseErrorCode, "failed to get family for update", err)
+	}
+
+	// Convert DTO to domain entity
+	family, err := entity.FamilyFromDTO(dto)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to convert DTO to domain entity", zap.Error(err), zap.String("family_id", dto.ID))
+		return nil, errors.NewApplicationError(errors.ValidationErrorCode, "failed to convert DTO to domain entity", err)
+	}
+
+	// Save the updated family
+	err = s.familyRepo.Save(ctx, family)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to save updated family", zap.Error(err), zap.String("family_id", dto.ID))
+		return nil, errors.NewApplicationError(errors.DatabaseErrorCode, "failed to save updated family", err)
+	}
+
+	// Clear cache if using caching
+	if s.cache != nil {
+		cacheKey := fmt.Sprintf("family:%s", dto.ID)
+		s.cache.Delete(cacheKey)
+	}
+
+	// Convert the updated entity back to DTO
+	resultDTO := family.ToDTO()
+	s.logger.Info(ctx, "Successfully updated family", zap.String("family_id", dto.ID))
+	return &resultDTO, nil
+}
+
+// DeleteFamily deletes a family by ID
+func (s *FamilyApplicationService) DeleteFamily(ctx context.Context, id string) error {
+	s.logger.Info(ctx, "Deleting family", zap.String("family_id", id))
+
+	// Check if the family exists
+	family, err := s.familyRepo.GetByID(ctx, id)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to get family for deletion", zap.Error(err), zap.String("family_id", id))
+		return errors.NewApplicationError(errors.DatabaseErrorCode, "failed to get family for deletion", err)
+	}
+
+	// Create a new family with the same data but with a "DELETED" status
+	// We can't directly modify the status field because it's private
+	parents := family.Parents()
+	children := family.Children()
+
+	// Create a new family with the same ID but with a "DELETED" status
+	deletedFamily, err := entity.NewFamily(
+		family.ID(),
+		entity.Status("DELETED"), // Use a custom status for deleted families
+		parents,
+		children,
+	)
+
+	if err != nil {
+		s.logger.Error(ctx, "Failed to create deleted family", zap.Error(err), zap.String("family_id", id))
+		return errors.NewApplicationError(errors.InternalErrorCode, "failed to create deleted family", err)
+	}
+
+	// Save the updated family
+	err = s.familyRepo.Save(ctx, deletedFamily)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to save deleted family", zap.Error(err), zap.String("family_id", id))
+		return errors.NewApplicationError(errors.DatabaseErrorCode, "failed to save deleted family", err)
+	}
+
+	// Clear cache if using caching
+	if s.cache != nil {
+		cacheKey := fmt.Sprintf("family:%s", id)
+		s.cache.Delete(cacheKey)
+	}
+
+	s.logger.Info(ctx, "Successfully deleted family", zap.String("family_id", id))
+	return nil
 }
 
 // GetID returns the service ID (implements di.ApplicationService)

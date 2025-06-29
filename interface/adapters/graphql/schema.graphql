@@ -1,3 +1,8 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
 """
 Parent represents a parent in a family.
 A parent must be at least 18 years old and can be part of one or more families.
@@ -12,10 +17,10 @@ type Parent {
   """Last name of the parent"""
   lastName: String!
 
-  """Birth date of the parent in ISO 8601 format (YYYY-MM-DD)"""
+  """Birth date of the parent in RFC3339 format"""
   birthDate: String!
 
-  """Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable"""
+  """Death date of the parent in RFC3339 format, if applicable"""
   deathDate: String
 }
 
@@ -33,10 +38,10 @@ type Child {
   """Last name of the child"""
   lastName: String!
 
-  """Birth date of the child in ISO 8601 format (YYYY-MM-DD)"""
+  """Birth date of the child in RFC3339 format (YYYY-MM-DD)"""
   birthDate: String!
 
-  """Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable"""
+  """Death date of the child in RFC3339 format (YYYY-MM-DD), if applicable"""
   deathDate: String
 }
 
@@ -638,7 +643,7 @@ type Mutation {
     """ID of the parent to mark as deceased"""
     parentId: ID!, 
 
-    """Date of death in ISO 8601 format (YYYY-MM-DD)"""
+    """Date of death in RFC3339 format (YYYY-MM-DD)"""
     deathDate: String!
   ): Family! @isAuthorized(
     allowedRoles: [ADMIN, EDITOR], 
@@ -695,6 +700,86 @@ type Mutation {
     requiredScopes: [WRITE], 
     resource: FAMILY
   )
+
+  """
+  Delete a family by ID.
+
+  Example:
+  ```
+  mutation {
+    deleteFamily(id: "family-123")
+  }
+  ```
+
+  Returns true if the family was successfully deleted.
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID
+  - UNAUTHORIZED: If the user doesn't have permission to delete families
+  """
+  deleteFamily(
+    """ID of the family to delete"""
+    id: ID!
+  ): Boolean! @isAuthorized(
+    allowedRoles: [ADMIN], 
+    requiredScopes: [DELETE], 
+    resource: FAMILY
+  )
+
+  """
+  Update an existing family.
+
+  Example:
+  ```
+  mutation {
+    updateFamily(input: {
+      id: "family-123",
+      status: DIVORCED,
+      parents: [
+        {
+          id: "parent-1",
+          firstName: "John",
+          lastName: "Doe",
+          birthDate: "1980-01-01"
+        }
+      ],
+      children: [
+        {
+          id: "child-1",
+          firstName: "Jimmy",
+          lastName: "Doe",
+          birthDate: "2010-03-12"
+        }
+      ]
+    }) {
+      id
+      status
+      parentCount
+      childrenCount
+    }
+  }
+  ```
+
+  Returns the updated family.
+
+  Business rules:
+  - A family must have at least one parent
+  - A family can have at most two parents
+  - Parents must be at least 18 years old
+
+  Possible errors:
+  - NOT_FOUND: If no family exists with the specified ID
+  - VALIDATION_ERROR: If the input violates business rules
+  - UNAUTHORIZED: If the user doesn't have permission to update families
+  """
+  updateFamily(
+    """Input data for updating the family"""
+    input: FamilyInput!
+  ): Family! @isAuthorized(
+    allowedRoles: [ADMIN, EDITOR], 
+    requiredScopes: [WRITE], 
+    resource: FAMILY
+  )
 }
 
 """
@@ -712,13 +797,13 @@ input ParentInput {
   lastName: String!
 
   """
-  Birth date of the parent in ISO 8601 format (YYYY-MM-DD).
+  Birth date of the parent in RFC3339 format (YYYY-MM-DD).
   Must be at least 18 years before the current date.
   """
   birthDate: String!
 
   """
-  Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable.
+  Death date of the parent in RFC3339 format (YYYY-MM-DD), if applicable.
   Must be after the birth date and not in the future.
   """
   deathDate: String
@@ -738,13 +823,13 @@ input ChildInput {
   lastName: String!
 
   """
-  Birth date of the child in ISO 8601 format (YYYY-MM-DD).
+  Birth date of the child in RFC3339 format (YYYY-MM-DD).
   Must not be in the future.
   """
   birthDate: String!
 
   """
-  Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable.
+  Death date of the child in RFC3339 format (YYYY-MM-DD), if applicable.
   Must be after the birth date and not in the future.
   """
   deathDate: String

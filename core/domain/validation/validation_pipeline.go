@@ -51,22 +51,22 @@ func (p *Pipeline) Validate(ctx context.Context, entity interface{}) error {
 	return result.Error()
 }
 
-// CompositeRule is a rule that combines multiple rules
-type CompositeRule struct {
+// ContextCompositeRule is a rule that combines multiple rules
+type ContextCompositeRule struct {
 	rules []Rule
 	name  string
 }
 
-// NewCompositeRule creates a new composite rule
-func NewCompositeRule(name string, rules ...Rule) *CompositeRule {
-	return &CompositeRule{
+// NewContextCompositeRule creates a new composite rule
+func NewContextCompositeRule(name string, rules ...Rule) *ContextCompositeRule {
+	return &ContextCompositeRule{
 		rules: rules,
 		name:  name,
 	}
 }
 
 // Validate applies all rules in the composite rule to the entity
-func (r *CompositeRule) Validate(ctx context.Context, entity interface{}) error {
+func (r *ContextCompositeRule) Validate(ctx context.Context, entity interface{}) error {
 	result := validationwrapper.NewValidationResult()
 
 	for _, rule := range r.rules {

@@ -14,127 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockFamilyService is a mock implementation of FamilyApplicationService
-type MockFamilyService struct {
-	mock.Mock
-}
-
-func (m *MockFamilyService) Create(ctx context.Context, dto *entity.FamilyDTO) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, dto)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) GetByID(ctx context.Context, id string) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) GetAll(ctx context.Context) ([]*entity.FamilyDTO, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) CreateFamily(ctx context.Context, dto entity.FamilyDTO) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, dto)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) GetFamily(ctx context.Context, id string) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) GetAllFamilies(ctx context.Context) ([]*entity.FamilyDTO, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) UpdateFamily(ctx context.Context, dto entity.FamilyDTO) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, dto)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) DeleteFamily(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockFamilyService) AddParent(ctx context.Context, familyID string, parentDTO entity.ParentDTO) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, familyID, parentDTO)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) AddChild(ctx context.Context, familyID string, childDTO entity.ChildDTO) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, familyID, childDTO)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) RemoveChild(ctx context.Context, familyID string, childID string) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, familyID, childID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) MarkParentDeceased(ctx context.Context, familyID string, parentID string, deathDate time.Time) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, familyID, parentID, deathDate)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) Divorce(ctx context.Context, familyID string, custodialParentID string) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, familyID, custodialParentID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) FindFamiliesByParent(ctx context.Context, parentID string) ([]*entity.FamilyDTO, error) {
-	args := m.Called(ctx, parentID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*entity.FamilyDTO), args.Error(1)
-}
-
-func (m *MockFamilyService) FindFamilyByChild(ctx context.Context, childID string) (*entity.FamilyDTO, error) {
-	args := m.Called(ctx, childID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.FamilyDTO), args.Error(1)
-}
+// MockFamilyService is defined in mock_family_service.go
 
 // Helper function to create a test family DTO
 func createTestFamilyDTO() *entity.FamilyDTO {
@@ -161,9 +41,10 @@ func createTestFamilyDTO() *entity.FamilyDTO {
 }
 
 func TestQueryResolver_GetFamily(t *testing.T) {
-	// Create mock service
+	// Create mock service and mapper
 	mockService := new(MockFamilyService)
-	resolver := NewResolver(mockService)
+	mockMapper := NewMockFamilyMapper()
+	resolver := NewResolver(mockService, mockMapper)
 
 	// Create test data
 	ctx := context.Background()
@@ -172,6 +53,28 @@ func TestQueryResolver_GetFamily(t *testing.T) {
 
 	// Set up mock expectations
 	mockService.On("GetFamily", ctx, familyID.String()).Return(testFamily, nil)
+
+	// Set up mock for ToGraphQL to handle any DTO
+	mockMapper.On("ToGraphQL", mock.AnythingOfType("entity.FamilyDTO")).Return(&model.Family{
+		ID:     identification.ID(testFamily.ID),
+		Status: model.FamilyStatus(testFamily.Status),
+		Parents: []*model.Parent{
+			{
+				ID:        identification.ID(testFamily.Parents[0].ID),
+				FirstName: testFamily.Parents[0].FirstName,
+				LastName:  testFamily.Parents[0].LastName,
+				BirthDate: testFamily.Parents[0].BirthDate.Format(time.RFC3339),
+			},
+		},
+		Children: []*model.Child{
+			{
+				ID:        identification.ID(testFamily.Children[0].ID),
+				FirstName: testFamily.Children[0].FirstName,
+				LastName:  testFamily.Children[0].LastName,
+				BirthDate: testFamily.Children[0].BirthDate.Format(time.RFC3339),
+			},
+		},
+	}, nil)
 
 	// Execute the resolver
 	result, err := resolver.Query().GetFamily(ctx, familyID)
@@ -189,9 +92,10 @@ func TestQueryResolver_GetFamily(t *testing.T) {
 }
 
 func TestQueryResolver_GetFamily_Error(t *testing.T) {
-	// Create mock service
+	// Create mock service and mapper
 	mockService := new(MockFamilyService)
-	resolver := NewResolver(mockService)
+	mockMapper := NewMockFamilyMapper()
+	resolver := NewResolver(mockService, mockMapper)
 
 	// Create test data
 	ctx := context.Background()
@@ -214,9 +118,10 @@ func TestQueryResolver_GetFamily_Error(t *testing.T) {
 }
 
 func TestMutationResolver_CreateFamily(t *testing.T) {
-	// Create mock service
+	// Create mock service and mapper
 	mockService := new(MockFamilyService)
-	resolver := NewResolver(mockService)
+	mockMapper := NewMockFamilyMapper()
+	resolver := NewResolver(mockService, mockMapper)
 
 	// Create test data
 	ctx := context.Background()
@@ -228,7 +133,7 @@ func TestMutationResolver_CreateFamily(t *testing.T) {
 				ID:        identification.ID("parent1"),
 				FirstName: "John",
 				LastName:  "Doe",
-				BirthDate: "1980-01-01",
+				BirthDate: "1980-01-01T00:00:00Z",
 			},
 		},
 		Children: []*model.ChildInput{
@@ -236,7 +141,7 @@ func TestMutationResolver_CreateFamily(t *testing.T) {
 				ID:        identification.ID("child1"),
 				FirstName: "Jane",
 				LastName:  "Doe",
-				BirthDate: "2010-01-01",
+				BirthDate: "2010-01-01T00:00:00Z",
 			},
 		},
 	}
@@ -251,6 +156,28 @@ func TestMutationResolver_CreateFamily(t *testing.T) {
 	// Set up mock expectations
 	mockService.On("CreateFamily", ctx, expectedDTO).Return(testFamily, nil)
 
+	// Set up mock for ToGraphQL to handle any DTO
+	mockMapper.On("ToGraphQL", mock.AnythingOfType("entity.FamilyDTO")).Return(&model.Family{
+		ID:     identification.ID(testFamily.ID),
+		Status: model.FamilyStatus(testFamily.Status),
+		Parents: []*model.Parent{
+			{
+				ID:        identification.ID(testFamily.Parents[0].ID),
+				FirstName: testFamily.Parents[0].FirstName,
+				LastName:  testFamily.Parents[0].LastName,
+				BirthDate: testFamily.Parents[0].BirthDate.Format(time.RFC3339),
+			},
+		},
+		Children: []*model.Child{
+			{
+				ID:        identification.ID(testFamily.Children[0].ID),
+				FirstName: testFamily.Children[0].FirstName,
+				LastName:  testFamily.Children[0].LastName,
+				BirthDate: testFamily.Children[0].BirthDate.Format(time.RFC3339),
+			},
+		},
+	}, nil)
+
 	// Execute the resolver
 	result, err := resolver.Mutation().CreateFamily(ctx, input)
 
@@ -259,6 +186,8 @@ func TestMutationResolver_CreateFamily(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, input.ID, result.ID)
 	assert.Equal(t, input.Status, result.Status)
+
+	// Check if result.Parents and result.Children have the expected lengths
 	assert.Len(t, result.Parents, 1)
 	assert.Len(t, result.Children, 1)
 
@@ -267,9 +196,10 @@ func TestMutationResolver_CreateFamily(t *testing.T) {
 }
 
 func TestMutationResolver_AddChild(t *testing.T) {
-	// Create mock service
+	// Create mock service and mapper
 	mockService := new(MockFamilyService)
-	resolver := NewResolver(mockService)
+	mockMapper := NewMockFamilyMapper()
+	resolver := NewResolver(mockService, mockMapper)
 
 	// Create test data
 	ctx := context.Background()
@@ -278,7 +208,7 @@ func TestMutationResolver_AddChild(t *testing.T) {
 		ID:        identification.ID("child2"),
 		FirstName: "Jim",
 		LastName:  "Doe",
-		BirthDate: "2012-01-01",
+		BirthDate: "2012-01-01T00:00:00Z",
 	}
 
 	testFamily := createTestFamilyDTO()
@@ -297,25 +227,58 @@ func TestMutationResolver_AddChild(t *testing.T) {
 	// Set up mock expectations
 	mockService.On("AddChild", ctx, familyID.String(), expectedDTO).Return(testFamily, nil)
 
+	// Set up mock for ToGraphQL to handle any DTO
+	mockMapper.On("ToGraphQL", mock.AnythingOfType("entity.FamilyDTO")).Return(&model.Family{
+		ID:     identification.ID(testFamily.ID),
+		Status: model.FamilyStatus(testFamily.Status),
+		Parents: []*model.Parent{
+			{
+				ID:        identification.ID(testFamily.Parents[0].ID),
+				FirstName: testFamily.Parents[0].FirstName,
+				LastName:  testFamily.Parents[0].LastName,
+				BirthDate: testFamily.Parents[0].BirthDate.Format(time.RFC3339),
+			},
+		},
+		Children: []*model.Child{
+			{
+				ID:        identification.ID(testFamily.Children[0].ID),
+				FirstName: testFamily.Children[0].FirstName,
+				LastName:  testFamily.Children[0].LastName,
+				BirthDate: testFamily.Children[0].BirthDate.Format(time.RFC3339),
+			},
+			{
+				ID:        identification.ID(testFamily.Children[1].ID),
+				FirstName: testFamily.Children[1].FirstName,
+				LastName:  testFamily.Children[1].LastName,
+				BirthDate: testFamily.Children[1].BirthDate.Format(time.RFC3339),
+			},
+		},
+	}, nil)
+
 	// Execute the resolver
 	result, err := resolver.Mutation().AddChild(ctx, familyID, input)
 
 	// Assert results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Len(t, result.Children, 2)
-	assert.Equal(t, input.ID, result.Children[1].ID)
-	assert.Equal(t, input.FirstName, result.Children[1].FirstName)
-	assert.Equal(t, input.LastName, result.Children[1].LastName)
+
+	// Check if result.Children has the expected length
+	if assert.Len(t, result.Children, 2) {
+		// Only access result.Children[1] if the length is at least 2
+		assert.Equal(t, input.ID, result.Children[1].ID)
+		assert.Equal(t, input.FirstName, result.Children[1].FirstName)
+		assert.Equal(t, input.LastName, result.Children[1].LastName)
+	}
 
 	// Verify mock
 	mockService.AssertExpectations(t)
 }
 
 func TestQueryResolver_CountChildren(t *testing.T) {
-	// Create mock service
+	// Create mock service and mapper
 	mockService := new(MockFamilyService)
-	resolver := NewResolver(mockService)
+	mockMapper := NewMockFamilyMapper()
+	resolver := NewResolver(mockService, mockMapper)
 
 	// Create test data
 	ctx := context.Background()

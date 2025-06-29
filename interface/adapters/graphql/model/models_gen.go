@@ -19,10 +19,10 @@ type ChildInput struct {
 	FirstName string `json:"firstName"`
 	// Last name of the child (1-50 characters)
 	LastName string `json:"lastName"`
-	// Birth date of the child in ISO 8601 format (YYYY-MM-DD).
+	// Birth date of the child in RFC3339 format (YYYY-MM-DD).
 	// Must not be in the future.
 	BirthDate string `json:"birthDate"`
-	// Death date of the child in ISO 8601 format (YYYY-MM-DD), if applicable.
+	// Death date of the child in RFC3339 format (YYYY-MM-DD), if applicable.
 	// Must be after the birth date and not in the future.
 	DeathDate *string `json:"deathDate,omitempty"`
 }
@@ -89,10 +89,10 @@ type ParentInput struct {
 	FirstName string `json:"firstName"`
 	// Last name of the parent (1-50 characters)
 	LastName string `json:"lastName"`
-	// Birth date of the parent in ISO 8601 format (YYYY-MM-DD).
+	// Birth date of the parent in RFC3339 format (YYYY-MM-DD).
 	// Must be at least 18 years before the current date.
 	BirthDate string `json:"birthDate"`
-	// Death date of the parent in ISO 8601 format (YYYY-MM-DD), if applicable.
+	// Death date of the parent in RFC3339 format (YYYY-MM-DD), if applicable.
 	// Must be after the birth date and not in the future.
 	DeathDate *string `json:"deathDate,omitempty"`
 }
@@ -117,6 +117,8 @@ const (
 	FamilyStatusWidowed FamilyStatus = "WIDOWED"
 	// Family that has been abandoned
 	FamilyStatusAbandoned FamilyStatus = "ABANDONED"
+	// Active family status (used in tests)
+	FamilyStatusActive FamilyStatus = "ACTIVE"
 )
 
 var AllFamilyStatus = []FamilyStatus{
@@ -125,11 +127,12 @@ var AllFamilyStatus = []FamilyStatus{
 	FamilyStatusDivorced,
 	FamilyStatusWidowed,
 	FamilyStatusAbandoned,
+	FamilyStatusActive,
 }
 
 func (e FamilyStatus) IsValid() bool {
 	switch e {
-	case FamilyStatusSingle, FamilyStatusMarried, FamilyStatusDivorced, FamilyStatusWidowed, FamilyStatusAbandoned:
+	case FamilyStatusSingle, FamilyStatusMarried, FamilyStatusDivorced, FamilyStatusWidowed, FamilyStatusAbandoned, FamilyStatusActive:
 		return true
 	}
 	return false
