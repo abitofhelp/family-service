@@ -29,7 +29,7 @@ CREATE INDEX idx_families_children USING GIN (children);
 INSERT INTO families (id, status, parents, children) VALUES
 (
     '00000000-0000-0000-0000-000000000100',
-    'active',
+    'MARRIED',
     '[
         {
             "ID": "00000000-0000-0000-0000-000000000101",
@@ -65,7 +65,7 @@ INSERT INTO families (id, status, parents, children) VALUES
 ),
 (
     '00000000-0000-0000-0000-000000000200',
-    'active',
+    'MARRIED',
     '[
         {
             "ID": "00000000-0000-0000-0000-000000000201",
@@ -94,7 +94,7 @@ INSERT INTO families (id, status, parents, children) VALUES
 ),
 (
     '00000000-0000-0000-0000-000000000300',
-    'divorced',
+    'DIVORCED',
     '[
         {
             "ID": "00000000-0000-0000-0000-000000000301",
@@ -108,7 +108,7 @@ INSERT INTO families (id, status, parents, children) VALUES
 ),
 (
     '00000000-0000-0000-0000-000000000400',
-    'active',
+    'WIDOWED',
     '[
         {
             "ID": "00000000-0000-0000-0000-000000000401",

@@ -15,7 +15,7 @@ db.families.createIndex({ "children.id": 1 });
 db.families.insertMany([
   {
     _id: "00000000-0000-0000-0000-000000000100",
-    status: "active",
+    status: "MARRIED",
     parents: [
       {
         id: "00000000-0000-0000-0000-000000000101",
@@ -51,7 +51,7 @@ db.families.insertMany([
   },
   {
     _id: "00000000-0000-0000-0000-000000000200",
-    status: "active",
+    status: "MARRIED",
     parents: [
       {
         id: "00000000-0000-0000-0000-000000000201",
@@ -80,7 +80,7 @@ db.families.insertMany([
   },
   {
     _id: "00000000-0000-0000-0000-000000000300",
-    status: "divorced",
+    status: "DIVORCED",
     parents: [
       {
         id: "00000000-0000-0000-0000-000000000301",
@@ -94,7 +94,7 @@ db.families.insertMany([
   },
   {
     _id: "00000000-0000-0000-0000-000000000400",
-    status: "active",
+    status: "WIDOWED",
     parents: [
       {
         id: "00000000-0000-0000-0000-000000000401",
