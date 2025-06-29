@@ -54,6 +54,7 @@ func loadConfig(logger *zap.Logger) (*config.Config, error) {
 // It returns the logger and any error that occurred.
 func initLogger(cfg *config.Config, basicLogger *zap.Logger) (*zap.Logger, error) {
 	basicLogger.Info("Initializing application logger",
+		zap.String("version", cfg.App.Version),
 		zap.String("level", cfg.Log.Level),
 		zap.Bool("development", cfg.Log.Development))
 

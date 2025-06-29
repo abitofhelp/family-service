@@ -22,7 +22,7 @@ RUN go build -o family_service "./cmd/server/graphql"
 FROM alpine:3.19
 
 LABEL maintainer="mjgardner@abitofhelp.com"
-LABEL version="1.0.0"
+LABEL version="1.1.0"
 LABEL description="Family Service application"
 
 # Add necessary runtime dependencies

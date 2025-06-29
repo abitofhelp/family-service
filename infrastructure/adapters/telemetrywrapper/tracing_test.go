@@ -132,7 +132,7 @@ func TestInitTracing(t *testing.T) {
 			shutdown, err := InitTracing(ctx, &config.Config{
 				Telemetry: *tc.config,
 				App: config.AppConfig{
-					Version: "1.0.0",
+					Version: "1.1.0",
 				},
 			}, logger)
 			require.NoError(t, err)
