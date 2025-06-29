@@ -1,0 +1,4286 @@
+propriate
+-- **Error Handling**: Tests verify that errors are properly propagated and transformed
+-- **Configuration Testing**: Tests verify that configuration options affect circuit breaker behavior
++#### Circuit Never Recovering
+
+-Example of a test case:
++If your circuit breaker never recovers, consider the following:
++- Verify the reset timeout is appropriate
++- Ensure the success threshold is achievable
++- Check that the half-open state is working correctly
++- Implement health checks for dependent services
++- Monitor circuit state transitions
+
+-```
+-// Create a circuit breaker
+-cfg := &config.CircuitConfig{
+-    Enabled: true,
+-    Timeout: 1 * time.Second,
+-    MaxConcurrent: 10,
+-    ErrorThreshold: 0.5,
+-    VolumeThreshold: 5,
+-    SleepWindow: 5 * time.Second,
+-}
+-logger, _ := zap.NewDevelopment()
+-cb := circuit.NewCircuitBreaker("test", cfg, logger)
++## Related Components
+
+-// Test successful execution
+-err := cb.Execute(context.Background(), "test", func(ctx context.Context) error {
+-    return nil
+-})
+-assert.NoError(t, err)
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the circuit breaker ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses circuit breakers
++- [Repository Wrapper](../repositorywrapper/README.md) - The repository wrapper that might use circuit breakers
+
+-// Test failed execution
+-err = cb.Execute(context.Background(), "test", func(ctx context.Context) error {
+-    return fmt.Errorf("test error")
+-})
+-assert.Error(t, err)
+-assert.Equal(t, "test error", err.Error())
+-
+-// Test circuit open
+-// Force the circuit to open by making multiple failed requests
+-for i := 0; i < 10; i++ {
+-    _ = cb.Execute(context.Background(), "test", func(ctx context.Context) error {
+-        return fmt.Errorf("test error")
+-    })
+-}
++## Contributing
+
+-// Verify the circuit is open
+-assert.Equal(t, circuit.Open, cb.GetState())
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-// Test execution with open circuit
+-err = cb.Execute(context.Background(), "test", func(ctx context.Context) error {
+-    return nil
+-})
+-assert.Error(t, err)
+-assert.Contains(t, err.Error(), "circuit breaker test is open")
+-```
++## License
+
+-## Design Notes
+-
+-1. **Dependency Inversion**: The package follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
+-2. **Graceful Degradation**: The package gracefully handles nil circuit breaker by falling back to the original function
+-3. **Context Propagation**: The package supports context-aware circuit breaking operations
+-4. **State Management**: The package manages the state of the circuit breaker based on the results of operations
+-5. **Fallback Support**: The package provides ExecuteWithFallback for handling failures with fallback logic
+-6. **Configuration Integration**: The package uses application configuration to configure the circuit breaker
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Circuit Breaker Pattern](https://martinfowler.com/bliki/CircuitBreaker.html)
+-- [Adapter Pattern](https://en.wikipedia.org/wiki/Adapter_pattern)
+-- [State Pattern](https://en.wikipedia.org/wiki/State_pattern)
+-- [Application Services](../../../core/application/services/README.md) - Uses this circuit wrapper for circuit breaking
+-- [Repository Implementations](../../../infrastructure/adapters/repository/README.md) - Uses this circuit wrapper for database operations
+-- [GraphQL Resolvers](../../../interface/adapters/graphql/resolver/README.md) - Uses this circuit wrapper for GraphQL operations
+\ No newline at end of file
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/config/README.md b/infrastructure/adapters/config/README.md
+index 46a1ed5..68fd3fa 100644
+--- a/infrastructure/adapters/config/README.md
++++ b/infrastructure/adapters/config/README.md
+@@ -1,16 +1,18 @@
+-# Configuration Adapter
++# Infrastructure Adapters - Configuration
+
+ ## Overview
+
+-The Configuration Adapter package provides functionality for loading and accessing application configuration from various sources.
++The Configuration adapter provides implementations for configuration-related ports defined in the core domain and application layers. This adapter connects the application to configuration sources and frameworks, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating configuration implementations in adapter classes, the core business logic remains independent of specific configuration technologies, making the system more maintainable, testable, and flexible.
+
+ ## Features
+
+-- **Environment Variables**: Load configuration from environment variables
+-- **Configuration Files**: Load configuration from YAML, JSON, and TOML files
+-- **Hierarchical Configuration**: Support for nested configuration values
+-- **Default Values**: Provide default values for configuration options
+-- **Validation**: Validate configuration values at startup
++- Loading configuration from various sources (files, environment variables, etc.)
++- Configuration validation
++- Dynamic configuration updates
++- Configuration change notifications
++- Hierarchical configuration support
++- Environment-specific configuration
++- Secure configuration handling (for secrets)
+
+ ## Installation
+
+@@ -18,134 +20,136 @@ ## Installation
+ go get github.com/abitofhelp/family-service/infrastructure/adapters/config
+ ```
+
+-## Quick Start
+-
+-See the [Quick Start example](../../../EXAMPLES/config/basic_usage/README.md) for a complete, runnable example of how to use the configuration adapter.
+-
+ ## Configuration
+
+-The Configuration Adapter can be configured with the following options:
+-- Environment Variables: Configure which environment variables are used
+-- Configuration Files: Configure which configuration files are loaded
+-
+-## API Documentation
+-
+-### Core Types
+-
+-Description of the main types provided by the component.
+-
+-#### Config
+-
+-The main configuration interface that provides access to configuration values.
++The configuration adapter itself can be configured according to specific requirements. Here's an example of setting up the configuration adapter:
+
+ ```
+-// Config interface for accessing configuration values
+-type Config interface {
+-    GetString(key string) string
+-    GetInt(key string) int
+-    GetBool(key string) bool
+-    GetFloat(key string) float64
+-    GetDuration(key string) time.Duration
++// Pseudocode example - not actual Go code
++// This demonstrates how to set up and use a configuration adapter
++
++// 1. Import necessary packages
++import config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the configuration adapter
++configOptions = {
++    configPath: "./config",
++    environment: "development",
++    defaultConfigFile: "config.yaml",
++    envPrefix: "APP_",
++    watchForChanges: true,
++    reloadInterval: 30 seconds
+ }
+-```
+
+-#### ConfigOptions
+-
+-Options for configuring the configuration adapter.
++// 4. Create the configuration adapter
++configAdapter = config.NewConfigAdapter(configOptions, logger)
+
++// 5. Use the configuration adapter
++dbConfig = configAdapter.GetDatabaseConfig()
++serverPort = configAdapter.GetInt("server.port", 8080)
++apiKeys = configAdapter.GetStringMap("security.apiKeys")
+ ```
+-// ConfigOptions for configuring the configuration adapter
+-type ConfigOptions struct {
+-    ConfigFile string
+-    EnvPrefix  string
+-}
+-```
+-
+-### Key Methods
+-
+-Description of the key methods provided by the component.
+
+-#### New
++## API Documentation
+
+-Creates a new configuration instance.
++### Core Concepts
+
+-```
+-// New creates a new configuration instance
+-func New(configFile string) (Config, error)
+-```
++The configuration adapter follows these core concepts:
+
+-#### NewWithOptions
++1. **Adapter Pattern**: Implements configuration ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration Sources**: Supports multiple configuration sources with priority order
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Handles configuration errors gracefully
+
+-Creates a new configuration instance with custom options.
++### Key Adapter Functions
+
+ ```
+-// NewWithOptions creates a new configuration instance with custom options
+-func NewWithOptions(options ConfigOptions) (Config, error)
+-```
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory.
+-
+-### Configuration Example
+-
+-```go
+-package main
+-
+-import (
+-    "fmt"
+-    "github.com/abitofhelp/family-service/infrastructure/adapters/config"
+-)
++// Pseudocode example - not actual Go code
++// This demonstrates a configuration adapter implementation
++
++// Configuration adapter structure
++type ConfigAdapter {
++    options       // Configuration options
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    provider      // Configuration provider
++}
+
+-func main() {
+-    // Initialize the configuration
+-    cfg, err := config.New("config.yaml")
+-    if err != nil {
+-        fmt.Printf("Error initializing configuration: %v\n", err)
+-        return
++// Constructor for the configuration adapter
++function NewConfigAdapter(options, logger) {
++    provider = createConfigProvider(options)
++    return new ConfigAdapter {
++        options: options,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        provider: provider
+     }
++}
+
+-    // Access configuration values
+-    dbHost := cfg.GetString("database.host")
+-    dbPort := cfg.GetInt("database.port")
+-
+-    fmt.Printf("Database connection: %s:%d\n", dbHost, dbPort)
++// Method to get a string value
++function ConfigAdapter.GetString(key, defaultValue) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Retrieving the value from the configuration provider
++    // 3. Handling errors gracefully
++    // 4. Returning the value or default
++}
+
+-    // You can also use environment variables that override file settings
+-    // export APP_DATABASE_HOST=localhost
+-    // export APP_DATABASE_PORT=5432
++// Method to get a typed configuration section
++function ConfigAdapter.GetDatabaseConfig() {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Retrieving the database configuration section
++    // 3. Validating the configuration
++    // 4. Mapping to a typed structure
++    // 5. Returning the typed configuration
+ }
+ ```
+
+ ## Best Practices
+
+-1. **Use Environment Variables for Secrets**: Never store secrets in configuration files
+-2. **Validate Configuration at Startup**: Fail fast if required configuration is missing
+-3. **Use Hierarchical Keys**: Organize configuration using hierarchical keys
+-4. **Provide Default Values**: Always provide sensible default values
+-5. **Use Strong Typing**: Use the typed getter methods instead of generic ones
++1. **Separation of Concerns**: Keep configuration logic separate from domain logic
++2. **Interface Segregation**: Define focused configuration interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Handling**: Handle configuration errors gracefully with sensible defaults
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration Validation**: Validate configuration at startup
++7. **Testing**: Write unit and integration tests for configuration adapters
+
+ ## Troubleshooting
+
+ ### Common Issues
+
+-#### Missing Configuration File
++#### Configuration Loading Failures
+
+-If the configuration file is missing, the adapter will return an error. Make sure the file exists and is readable.
++If you encounter issues with configuration loading, check the following:
++- Configuration files exist in the expected locations
++- File permissions allow reading the configuration files
++- Environment variables are set correctly
++- Configuration format is valid (JSON, YAML, etc.)
+
+-#### Invalid Configuration Values
++#### Configuration Type Mismatches
+
+-If the configuration values are invalid, the adapter will return an error. Make sure the values are of the correct type.
++If you encounter type mismatch issues with configuration values, consider the following:
++- Validate configuration values against expected types
++- Provide clear error messages for type mismatches
++- Use default values when types don't match
++- Consider using a schema for configuration validation
+
+ ## Related Components
+
+-- [Logging Wrapper](../loggingwrapper/README.md) - Used for logging configuration errors
+-- [Error Wrapper](../errorswrapper/README.md) - Used for handling configuration errors
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the configuration ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses configuration
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use configuration
+
+ ## Contributing
+
+-Contributions to this component are welcome! Please see the [Contributing Guide](../../../CONTRIBUTING.md) for more information.
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+ ## License
+
+-This project is licensed under the MIT License - see the [LICENSE](../../../LICENSE) file for details.
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/datewrapper/README.md b/infrastructure/adapters/datewrapper/README.md
+index 5c840e0..d2b6704 100644
+--- a/infrastructure/adapters/datewrapper/README.md
++++ b/infrastructure/adapters/datewrapper/README.md
+@@ -1,78 +1,310 @@
+-# Date Wrapper
++# Infrastructure Adapters - Date Wrapper
+
+ ## Overview
+
+-The `datewrapper` package provides a wrapper around the `servicelib/date` package to avoid violating the dependency inversion principle. It offers utilities for working with dates and times in RFC3339 format, which is the standard format used throughout the application.
++The Date Wrapper adapter provides implementations for date and time-related ports defined in the core domain and application layers. This adapter connects the application to date and time libraries and utilities, following the Ports and Adapters (Hexagonal) architecture pattern.
+
+-## Architecture
++> **For Junior Developers**: Think of this adapter as a translator between your business logic and the date/time functionality. It allows your core business code to work with dates without knowing the specific date library being used.
+
+-The `datewrapper` package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/date` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
++By isolating date and time implementations in adapter classes, the core business logic remains independent of specific date/time technologies, making the system more maintainable, testable, and flexible.
+
+-## Implementation Details
++## Features
+
+-The package implements simple wrapper functions around the `servicelib/date` package's functionality, ensuring consistent date formatting and parsing throughout the application. It handles both required and optional (nullable) dates.
++- Date and time creation and manipulation
++- Time zone handling
++- Date formatting and parsing
++- Duration calculations
++- Date comparisons
++- Clock abstraction for testability
++- RFC3339 compliance
++- Date range operations
+
+-Key features include:
+-- Parse date strings in RFC3339 format
+-- Format time.Time objects as RFC3339 strings
+-- Handle optional (nullable) dates
+-- Consistent date formatting across the application
++## Getting Started
+
+-Constants:
+-- `StandardDateFormat`: The standard date format used throughout the application (RFC3339)
++If you're new to this codebase, follow these steps to start using the Date Wrapper:
+
+-Functions:
+-- `ParseDate`: Parses a date string in RFC3339 format
+-- `ParseOptionalDate`: Parses an optional date string in RFC3339 format
+-- `FormatDate`: Formats a time.Time as a string in RFC3339 format
+-- `FormatOptionalDate`: Formats an optional time.Time as a string in RFC3339 format
++1. **Understand the purpose**: The Date Wrapper handles all date and time operations in a consistent way
++2. **Learn the interfaces**: Look at the domain ports to understand what operations are available
++3. **Ask questions**: If something isn't clear, ask a more experienced developer
+
+-## Examples
++## Installation
+
+-```go
+-import "github.com/abitofhelp/family-service/infrastructure/adapters/datewrapper"
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/datewrapper
++```
++
++## Configuration
+
+-// Parse a date string
+-date, err := datewrapper.ParseDate("2023-04-15T14:30:00Z")
+-if err != nil {
+-    // Handle error
++The date wrapper can be configured according to specific requirements. Here's an example of configuring the date wrapper:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a date wrapper
++
++// 1. Import necessary packages
++import date, config, logging
++
++// 2. Create a logger
++// This is needed for the date wrapper to log any issues
++logger = logging.NewLogger()
++
++// 3. Configure the date wrapper
++// These settings determine how dates are handled by default
++dateConfig = {
++    defaultTimeZone: "UTC",                        // Always use UTC for backend operations
++    defaultDateFormat: "2006-01-02",               // Go's date format uses this specific date
++    defaultTimeFormat: "15:04:05",                 // 24-hour time format
++    defaultDateTimeFormat: "2006-01-02T15:04:05Z07:00"  // RFC3339 format
+ }
+
+-// Format a time.Time as a string
+-dateStr := datewrapper.FormatDate(time.Now())
++// 4. Create the date wrapper
++// This is the object you'll use for all date operations
++dateWrapper = date.NewDateWrapper(dateConfig, logger)
++
++// 5. Use the date wrapper
++// Examples of common operations:
++now = dateWrapper.Now()                           // Get current time
++formatted = dateWrapper.Format(now, "RFC3339")    // Format a date as string
++parsed = dateWrapper.Parse("2023-06-15T14:30:00Z") // Parse a string to date
++inTwoHours = dateWrapper.AddHours(now, 2)         // Add time to a date
++isAfter = dateWrapper.IsAfter(inTwoHours, now)    // Compare dates
++```
++
++## API Documentation
++
++### Core Concepts
++
++> **For Junior Developers**: These concepts are fundamental to understanding how the Date Wrapper works. Take time to understand each one before diving into the code.
++
++The date wrapper follows these core concepts:
++
++1. **Adapter Pattern**: Implements date and time ports defined in the core domain or application layer
++   - This means the Date Wrapper implements interfaces defined elsewhere
++   - The business logic only knows about these interfaces, not the implementation details
++
++2. **Dependency Injection**: Receives dependencies through constructor injection
++   - Dependencies like loggers are passed in when creating the wrapper
++   - This makes testing easier and components more loosely coupled
++
++3. **Configuration**: Configured through a central configuration system
++   - Settings like default time zones and formats are defined in configuration
++   - This allows changing behavior without changing code
++
++4. **Logging**: Uses a consistent logging approach
++   - All operations are logged for debugging and monitoring
++   - Context information is included in logs when available
+
+-// Parse an optional date string
+-var optionalDateStr *string
+-// optionalDateStr = &someString // or nil
+-optionalDate, err := datewrapper.ParseOptionalDate(optionalDateStr)
+-if err != nil {
+-    // Handle error
++5. **Error Handling**: Handles date and time errors gracefully
++   - Invalid inputs are detected and reported clearly
++   - Errors include helpful messages for debugging
++
++### Key Adapter Functions
++
++Here are the main functions you'll use when working with the Date Wrapper:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a date wrapper implementation
++
++// Date wrapper structure
++type DateWrapper {
++    config        // Date wrapper configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    clock         // Clock for testability (makes unit testing possible)
++}
++
++// Constructor for the date wrapper
++// This is how you create a new instance of the wrapper
++function NewDateWrapper(config, logger) {
++    return new DateWrapper {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        clock: new RealClock()  // Uses real system time by default
++    }
++}
++
++// Method to get the current time
++// Use this when you need the current date/time
++function DateWrapper.Now() {
++    // Implementation would include:
++    // 1. Using the clock to get the current time
++    // 2. Applying the default time zone if needed
++    // 3. Returning the time
+ }
+
+-// Format an optional time.Time as a string
+-var optionalTime *time.Time
+-// optionalTime = &someTime // or nil
+-optionalTimeStr := datewrapper.FormatOptionalDate(optionalTime)
++// Method to format a date
++// Use this to convert a date object to a string
++function DateWrapper.Format(date, format) {
++    // Implementation would include:
++    // 1. Validating the date
++    // 2. Resolving the format string (using predefined formats or the provided one)
++    // 3. Formatting the date
++    // 4. Handling formatting errors
++    // 5. Returning the formatted string
++}
+ ```
+
+-## Configuration
++### Common Date Operations
++
++Here are some common operations you might need to perform:
++
++1. **Getting the current time**:
++   ```
++   now = dateWrapper.Now()
++   ```
++
++2. **Formatting a date as a string**:
++   ```
++   formatted = dateWrapper.Format(date, "RFC3339")
++   ```
++
++3. **Parsing a string into a date**:
++   ```
++   date = dateWrapper.Parse("2023-06-15T14:30:00Z")
++   ```
++
++4. **Adding time to a date**:
++   ```
++   tomorrow = dateWrapper.AddDays(today, 1)
++   ```
++
++5. **Comparing dates**:
++   ```
++   if dateWrapper.IsAfter(date1, date2) {
++       // date1 is after date2
++   }
++   ```
++
++## Best Practices
++
++> **For Junior Developers**: Following these best practices will help you avoid common pitfalls and write more maintainable code.
++
++1. **Separation of Concerns**: Keep date and time logic separate from domain logic
++   - **Why?** Your business logic shouldn't need to know how dates are formatted or parsed
++   - **Example:** Don't put date formatting code in your domain entities
++
++2. **Interface Segregation**: Define focused date and time interfaces in the domain layer
++   - **Why?** Small, specific interfaces are easier to understand and implement
++   - **Example:** Have separate interfaces for date creation, formatting, and comparison
++
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++   - **Why?** This makes testing easier and components more loosely coupled
++   - **Example:** Pass the logger and configuration to the date wrapper constructor
++
++4. **Error Handling**: Handle date and time errors gracefully
++   - **Why?** Date operations can fail in many ways (invalid formats, out-of-range values)
++   - **Example:** Check for errors when parsing dates from user input
++
++5. **Consistent Formatting**: Use consistent date and time formats
++   - **Why?** Consistency makes code more predictable and easier to maintain
++   - **Example:** Always use RFC3339 for date-time strings in APIs
++
++6. **Time Zone Awareness**: Be explicit about time zones
++   - **Why?** Implicit time zones lead to bugs that are hard to track down
++   - **Example:** Always specify the time zone when creating or formatting dates
++
++7. **Testing**: Use a clock abstraction for testability
++   - **Why?** This allows you to control time in your tests
++   - **Example:** Inject a mock clock that returns a fixed time for deterministic tests
++
++8. **RFC3339 Compliance**: Use RFC3339 format for date-time strings
++   - **Why?** This is a standard format that works well across systems
++   - **Example:** Use "2023-06-15T14:30:00Z" instead of custom formats
++
++## Common Mistakes to Avoid
++
++1. **Using local time for backend operations**
++   - **Problem:** This leads to inconsistent behavior across different servers
++   - **Solution:** Always use UTC for backend operations
++
++2. **Hardcoding date formats**
++   - **Problem:** Makes it hard to change formats later and may not work in all locales
++   - **Solution:** Use configuration for date formats
++
++3. **Not handling time zones properly**
++   - **Problem:** Can lead to incorrect calculations and comparisons
++   - **Solution:** Always be explicit about time zones
++
++4. **Direct use of time libraries in domain code**
++   - **Problem:** Creates tight coupling to specific libraries
++   - **Solution:** Use the date wrapper adapter instead
++
++## Troubleshooting
++
++### Common Issues
++
++#### Time Zone Issues
++
++If you encounter time zone issues, consider the following:
++
++- **Always be explicit about time zones**
++  - **Example:** `dateWrapper.FormatWithTimeZone(date, "RFC3339", "UTC")`
++
++- **Store dates in UTC and convert to local time zones only for display**
++  - **Why?** UTC provides a consistent reference point
++  - **Example:** `storedDate = dateWrapper.ToUTC(inputDate)`
++
++- **Be aware of daylight saving time transitions**
++  - **Problem:** Adding 24 hours might not give you the same time tomorrow during DST changes
++  - **Solution:** Use `AddDays(1)` instead of `AddHours(24)`
++
++- **Use time zone identifiers rather than offsets**
++  - **Example:** Use "America/New_York" instead of "-05:00"
++  - **Why?** Identifiers handle DST automatically
++
++#### Parsing Errors
++
++If you encounter date parsing errors, consider the following:
++
++- **Validate input formats before parsing**
++  - **Example:** Check if the string matches the expected pattern
++
++- **Use clear error messages for parsing failures**
++  - **Example:** "Date '2023-13-45' is invalid: month must be between 1 and 12"
++
++- **Consider providing multiple format options for flexible parsing**
++  - **Example:** Try parsing with several common formats before giving up
++
++- **Be aware of locale-specific date formats**
++  - **Problem:** "06/07/2023" could be June 7 or July 6 depending on locale
++  - **Solution:** Use unambiguous formats like ISO 8601 (YYYY-MM-DD)
++
++- **Use strict parsing mode when appropriate**
++  - **Why?** Prevents silent acceptance of invalid dates
++  - **Example:** `dateWrapper.ParseStrict("2023-06-15", "YYYY-MM-DD")`
++
++## Related Components
++
++> **For Junior Developers**: Understanding how components relate to each other is crucial for working effectively in this codebase.
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the date and time ports
++  - This is where the interfaces that the Date Wrapper implements are defined
++  - Look here to understand what operations are available
++
++- [Application Layer](../../core/application/README.md) - The application layer that uses date and time operations
++  - This layer contains the business logic that uses the Date Wrapper
++  - See how date operations are used in business processes
+
+-The `datewrapper` package doesn't require any specific configuration. It uses the RFC3339 format for all date operations, which is defined as a constant in the package.
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use date and time
++  - These adapters handle external interactions and may format dates for display
++  - Look here to see how dates are presented to users
+
+-## Testing
++## Glossary of Terms
+
+-The package includes unit tests that verify the correct parsing and formatting of dates in RFC3339 format. Tests cover both required and optional date handling, including edge cases like nil pointers and invalid date strings.
++- **Adapter Pattern**: A design pattern that allows incompatible interfaces to work together
++- **Port**: An interface defined in the domain or application layer
++- **Dependency Injection**: A technique where an object receives its dependencies from outside
++- **RFC3339**: A standard format for representing dates and times (e.g., "2023-06-15T14:30:00Z")
++- **UTC**: Coordinated Universal Time, the primary time standard used worldwide
++- **Time Zone**: A region that observes a uniform standard time
++- **DST**: Daylight Saving Time, the practice of advancing clocks during summer months
+
+-## Design Notes
++## Contributing
+
+-1. **RFC3339 Format**: The package standardizes on RFC3339 format for all date operations to ensure consistency across the application.
+-2. **Nullable Dates**: Special handling is provided for optional (nullable) dates to simplify working with dates that may or may not be present.
+-3. **Error Handling**: All parsing functions return appropriate errors when invalid date strings are provided.
+-4. **Immutability**: The package treats dates as immutable values, never modifying the input dates.
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-## References
++## License
+
+-- [RFC3339 Specification](https://tools.ietf.org/html/rfc3339)
+-- [Go time Package](https://golang.org/pkg/time/)
+-- [Domain Entities](../../../core/domain/entity/README.md) - Uses these date utilities for birth and death dates
+-- [Domain Services](../../../core/domain/services/README.md) - Uses these date utilities for business operations
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+diff --git a/infrastructure/adapters/diwrapper/README.md b/infrastructure/adapters/diwrapper/README.md
+index ec2601b..cc4e7c0 100644
+--- a/infrastructure/adapters/diwrapper/README.md
++++ b/infrastructure/adapters/diwrapper/README.md
+@@ -1,46 +1,153 @@
+-# Dependency Injection Wrapper
++# Infrastructure Adapters - Dependency Injection Wrapper
+
+ ## Overview
+
+-The Dependency Injection Wrapper package provides a clean and flexible way to manage dependencies in the application. It abstracts away the details of the underlying dependency injection framework and provides a consistent interface for registering and resolving dependencies.
++The Dependency Injection Wrapper adapter provides implementations for dependency injection-related ports defined in the core domain and application layers. This adapter connects the application to dependency injection frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating dependency injection implementations in adapter classes, the core business logic remains independent of specific DI technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for dependency injection that can be used by the application.
++- Dependency registration and resolution
++- Lifecycle management of dependencies
++- Scoped dependency containers
++- Factory pattern support
++- Lazy initialization
++- Conditional registration
++- Configuration-based dependency setup
++- Integration with various DI frameworks
+
+-## Implementation Details
++## Installation
+
+-The Dependency Injection Wrapper implements the following design patterns:
+-- Factory Pattern: Creates instances of dependencies
+-- Adapter Pattern: Adapts external dependency injection libraries to the application's needs
+-- Service Locator Pattern: Provides a central registry for dependencies
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Dependency Injection Example](../../../examples/di/README.md) - Shows how to use the dependency injection wrapper
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/diwrapper
++```
+
+ ## Configuration
+
+-The Dependency Injection Wrapper can be configured with the following options:
+-- Singleton Registration: Configure which dependencies are registered as singletons
+-- Transient Registration: Configure which dependencies are registered as transients
+-- Scoped Registration: Configure which dependencies are registered as scoped
+-
+-## Testing
+-
+-The Dependency Injection Wrapper is tested through:
+-1. Unit Tests: Each dependency injection method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the dependency injection wrapper works correctly with the application
+-
+-## Design Notes
+-
+-1. The Dependency Injection Wrapper uses a container-based approach to dependency management
+-2. Dependencies are registered at startup and resolved at runtime
+-3. The wrapper supports both constructor and property injection
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Dependency Injection](https://en.wikipedia.org/wiki/Dependency_injection)
+\ No newline at end of file
++The dependency injection wrapper can be configured according to specific requirements. Here's an example of configuring the DI wrapper:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a dependency injection wrapper
++
++// 1. Import necessary packages
++import di, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Create the DI container
++container = di.NewContainer(logger)
++
++// 4. Register dependencies
++container.Register("logger", logger, {singleton: true})
++container.Register("config", configAdapter, {singleton: true})
++container.Register("database", databaseAdapter, {singleton: true})
++container.Register("familyRepository", function(c) {
++    return repository.NewFamilyRepository(
++        c.Resolve("database"),
++        c.Resolve("logger")
++    )
++}, {singleton: true})
++
++// 5. Use the container to resolve dependencies
++familyRepository = container.Resolve("familyRepository")
++```
++
++## API Documentation
++
++### Core Concepts
++
++The dependency injection wrapper follows these core concepts:
++
++1. **Adapter Pattern**: Implements dependency injection ports defined in the core domain or application layer
++2. **Dependency Injection**: Facilitates the injection of dependencies into components
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Handles dependency resolution errors gracefully
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a dependency injection wrapper implementation
++
++// DI container structure
++type Container {
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    registrations // Map of registered dependencies
++}
++
++// Constructor for the DI container
++function NewContainer(logger) {
++    return new Container {
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        registrations: {}
++    }
++}
++
++// Method to register a dependency
++function Container.Register(name, instance, options) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Validating the registration
++    // 3. Storing the registration with options
++    // 4. Handling registration errors
++}
++
++// Method to resolve a dependency
++function Container.Resolve(name) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Looking up the registration
++    // 3. Creating or returning the instance based on lifecycle
++    // 4. Handling resolution errors
++    // 5. Returning the resolved instance
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep dependency injection logic separate from domain logic
++2. **Interface Segregation**: Define focused interfaces for components
++3. **Constructor Injection**: Use constructor injection for dependencies
++4. **Lifecycle Management**: Properly manage the lifecycle of dependencies
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration**: Configure dependency injection through a central configuration system
++7. **Testing**: Write unit and integration tests for dependency injection
++
++## Troubleshooting
++
++### Common Issues
++
++#### Circular Dependencies
++
++If you encounter circular dependency issues, consider the following:
++- Refactor components to break circular dependencies
++- Use lazy initialization for one of the dependencies
++- Introduce an interface to break the cycle
++- Use a mediator pattern to decouple components
++
++#### Resolution Failures
++
++If you encounter dependency resolution failures, check the following:
++- Ensure all dependencies are registered before resolution
++- Verify that dependency names are correct
++- Check that factory functions don't have errors
++- Ensure that required dependencies for a component are available
++- Look for typos in dependency names
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses dependency injection
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use dependency injection
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/errors/README.md b/infrastructure/adapters/errors/README.md
+index 9f059d1..ddd4206 100644
+--- a/infrastructure/adapters/errors/README.md
++++ b/infrastructure/adapters/errors/README.md
+@@ -1,47 +1,161 @@
+-# Errors Adapter
++# Infrastructure Adapters - Errors
+
+ ## Overview
+
+-The Errors Adapter package provides a comprehensive set of error types and utilities for error handling in the application. It defines domain-specific error types and provides functions for creating and handling errors.
++The Errors adapter provides implementations for error-related ports defined in the core domain and application layers. This adapter defines and manages domain-specific errors and error types, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating error implementations in adapter classes, the core business logic can work with well-defined error types, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for error handling that can be used by the application.
++- Domain-specific error types
++- Error code management
++- Error categorization
++- Error hierarchies
++- Internationalization support for error messages
++- Error serialization and deserialization
++- HTTP status code mapping
++- Error formatting
+
+-## Implementation Details
++## Installation
+
+-The Errors Adapter implements the following design patterns:
+-- Factory Pattern: Creates instances of error types
+-- Decorator Pattern: Adds context and metadata to errors
+-- Chain of Responsibility: Propagates errors through the application
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Errors Example](../../../examples/errors/README.md) - Shows how to use the error types
+-- [Family Errors Example](../../../examples/family_errors/README.md) - Shows how to use domain-specific error types
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/errors
++```
+
+ ## Configuration
+
+-The Errors Adapter can be configured with the following options:
+-- Error Codes: Configure which error codes are used for different error types
+-- Error Messages: Configure the format of error messages
+-- Error Logging: Configure how errors are logged
+-
+-## Testing
+-
+-The Errors Adapter is tested through:
+-1. Unit Tests: Each error type has comprehensive unit tests
+-2. Integration Tests: Tests that verify the error handling works correctly with the application
+-
+-## Design Notes
+-
+-1. The Errors Adapter uses a hierarchical approach to error types
+-2. Errors include context information to aid in debugging
+-3. Error types are designed to be serializable for API responses
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Error Handling in Go](https://blog.golang.org/error-handling-and-go)
+\ No newline at end of file
++The errors adapter can be configured according to specific requirements. Here's an example of configuring and using the errors adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use the errors adapter
++
++// 1. Import necessary packages
++import errors, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the errors
++errorsConfig = {
++    defaultLanguage: "en",
++    supportedLanguages: ["en", "es", "fr"],
++    errorMessagePath: "./errors/messages",
++    includeErrorCodes: true
++}
++
++// 4. Create the errors factory
++errorsFactory = errors.NewErrorsFactory(errorsConfig, logger)
++
++// 5. Use the errors factory to create domain errors
++notFoundErr = errorsFactory.NewNotFoundError("family", "123", "Family not found")
++validationErr = errorsFactory.NewValidationError("name", "Name is required")
++unauthorizedErr = errorsFactory.NewUnauthorizedError("Invalid credentials")
++
++// 6. Check error types
++if errors.IsNotFound(err) {
++    // Handle not found case
++}
++
++// 7. Get localized error message
++spanishMessage = errors.GetLocalizedMessage(err, "es")
++```
++
++## API Documentation
++
++### Core Concepts
++
++The errors adapter follows these core concepts:
++
++1. **Domain-Specific Errors**: Defines error types that are meaningful in the domain context
++2. **Error Categorization**: Categorizes errors into meaningful types (validation, not found, etc.)
++3. **Error Factory**: Provides a factory for creating domain-specific errors
++4. **Internationalization**: Supports localized error messages
++5. **Error Codes**: Associates unique codes with error types for easier identification
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates an errors adapter implementation
++
++// Errors factory structure
++type ErrorsFactory {
++    config        // Errors configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    messages      // Localized error messages
++}
++
++// Constructor for the errors factory
++function NewErrorsFactory(config, logger) {
++    messages = loadErrorMessages(config.errorMessagePath)
++    return new ErrorsFactory {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        messages: messages
++    }
++}
++
++// Method to create a not found error
++function ErrorsFactory.NewNotFoundError(entity, id, message) {
++    // Implementation would include:
++    // 1. Creating a new not found error
++    // 2. Setting the entity and ID
++    // 3. Setting the error code
++    // 4. Setting the message
++    // 5. Returning the error
++}
++
++// Function to check if an error is a not found error
++function IsNotFound(err) {
++    // Implementation would include:
++    // 1. Checking if the error is of the not found type
++    // 2. Returning the result
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep error definitions separate from domain logic
++2. **Interface Segregation**: Define focused error interfaces in the domain layer
++3. **Error Categorization**: Categorize errors into meaningful types
++4. **Internationalization**: Support localized error messages
++5. **Error Codes**: Use unique codes for error types
++6. **Consistency**: Maintain consistent error formats across the application
++7. **Testing**: Write unit tests for error handling
++8. **Documentation**: Document error types and their meanings
++
++## Troubleshooting
++
++### Common Issues
++
++#### Error Type Identification
++
++If you encounter issues with error type identification, consider the following:
++- Use type assertions or error wrapping to preserve error types
++- Implement Is/As methods for custom error types
++- Use error codes for easier identification
++- Avoid creating new error instances when wrapping errors
++
++#### Localization Issues
++
++If you encounter issues with error message localization, consider the following:
++- Ensure message files exist for all supported languages
++- Verify the message keys match between language files
++- Implement fallback mechanisms for missing translations
++- Use placeholders consistently in message templates
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines error interfaces
++- [Application Layer](../../core/application/README.md) - The application layer that uses domain errors
++- [Error Wrapper](../errorswrapper/README.md) - The error wrapper that uses these error types
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/errorswrapper/README.md b/infrastructure/adapters/errorswrapper/README.md
+index 10a8296..e94e892 100644
+--- a/infrastructure/adapters/errorswrapper/README.md
++++ b/infrastructure/adapters/errorswrapper/README.md
+@@ -1,131 +1,166 @@
+-# Error Wrapper
++# Infrastructure Adapters - Error Wrapper
+
+ ## Overview
+
+-This package provides a wrapper around the `github.com/abitofhelp/servicelib/errors` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters).
++The Error Wrapper adapter provides implementations for error handling-related ports defined in the core domain and application layers. This adapter connects the application to error handling frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating error handling implementations in adapter classes, the core business logic remains independent of specific error handling technologies, making the system more maintainable, testable, and flexible.
+
+-The purpose of this wrapper is to:
++## Features
+
+-1. Isolate the domain layer from external dependencies
+-2. Provide a consistent error handling approach throughout the application
+-3. Make it easier to replace or update the underlying error handling library in the future
++- Structured error handling
++- Error categorization and classification
++- Error wrapping and unwrapping
++- Error translation between layers
++- Error context enrichment
++- Stack trace management
++- Error logging integration
++- Error reporting and monitoring
+
+-## Architecture
++## Installation
+
+-The `errorswrapper` package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/errors` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper
++```
+
+-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer.
++## Configuration
+
+-## Usage
++The error wrapper can be configured according to specific requirements. Here's an example of configuring the error wrapper:
+
+-Instead of directly importing `github.com/abitofhelp/servicelib/errors`, import this wrapper:
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use an error wrapper
++
++// 1. Import necessary packages
++import errors, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the error wrapper
++errorConfig = {
++    includeStackTrace: true,
++    maxStackDepth: 20,
++    errorReporting: {
++        enabled: true,
++        sampleRate: 0.1,
++        endpoint: "https://errors.example.com"
++    },
++    sensitiveFields: ["password", "token", "secret"]
++}
+
+-```go
+-import "github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
++// 4. Create the error wrapper
++errorWrapper = errors.NewErrorWrapper(errorConfig, logger)
++
++// 5. Use the error wrapper
++err = someOperation()
++if err != nil {
++    // Wrap a low-level error with domain context
++    domainErr = errorWrapper.Wrap(err, "failed to process family data")
++
++    // Categorize the error
++    if errorWrapper.IsNotFound(err) {
++        // Handle not found case
++    }
++
++    // Log the error with context
++    errorWrapper.LogError(context, domainErr)
++}
+ ```
+
+-Then use the wrapper functions:
++## API Documentation
+
+-```go
+-// Create a domain error
+-err := errorswrapper.NewDomainError("ERROR_CODE", "Error message", cause)
++### Core Concepts
+
+-// Create a validation error
+-err := errorswrapper.NewValidationError("Error message", "field", cause)
++The error wrapper follows these core concepts:
+
+-// Create a database error
+-err := errorswrapper.NewDatabaseError("Error message", "operation", "table", cause)
++1. **Adapter Pattern**: Implements error handling ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Classification**: Categorizes errors into meaningful types
+
+-// Create a not found error
+-err := errorswrapper.NewNotFoundError("ResourceType", "resourceID", cause)
++### Key Adapter Functions
+
+-// Check error types
+-if errorswrapper.IsValidationError(err) {
+-    // Handle validation error
++```
++// Pseudocode example - not actual Go code
++// This demonstrates an error wrapper implementation
++
++// Error wrapper structure
++type ErrorWrapper {
++    config        // Error wrapper configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
+ }
+
+-// Get error details
+-code := errorswrapper.GetErrorCode(err)
+-message := errorswrapper.GetErrorMessage(err)
+-cause := errorswrapper.GetErrorCause(err)
+-```
++// Constructor for the error wrapper
++function NewErrorWrapper(config, logger) {
++    return new ErrorWrapper {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger)
++    }
++}
+
+-## Implementation Details
+-
+-The wrapper provides the following error types:
+-
+-- `Error`: Base error interface
+-- `ValidationError`: For validation errors
+-- `DomainError`: For domain-specific errors
+-- `DatabaseError`: For database-related errors
+-- `NotFoundError`: For resource not found errors
+-
+-The wrapper provides the following functions:
+-
+-- `NewDomainError`: Creates a new domain error
+-- `NewValidationError`: Creates a new validation error
+-- `NewDatabaseError`: Creates a new database error
+-- `NewNotFoundError`: Creates a new not found error
+-- `IsValidationError`: Checks if an error is a validation error
+-- `IsDomainError`: Checks if an error is a domain error
+-- `IsDatabaseError`: Checks if an error is a database error
+-- `IsNotFoundError`: Checks if an error is a not found error
+-- `GetErrorCode`: Gets the error code
+-- `GetErrorMessage`: Gets the error message
+-- `GetErrorCause`: Gets the error cause
+-- `FormatError`: Formats an error with its code, message, and cause
+-- `WrapError`: Wraps an error with a message
+-
+-## Examples
+-
+-```go
+-// Create a domain error
+-err := errorswrapper.NewDomainError("INVALID_FAMILY", "Family must have at least one parent", nil)
+-
+-// Check if an error is a domain error
+-if errorswrapper.IsDomainError(err) {
+-    // Handle domain error
+-    code := errorswrapper.GetErrorCode(err)
+-    message := errorswrapper.GetErrorMessage(err)
+-    // ...
++// Method to wrap an error with additional context
++function ErrorWrapper.Wrap(err, message) {
++    // Implementation would include:
++    // 1. Creating a new error with the original as cause
++    // 2. Adding the message
++    // 3. Capturing stack trace if configured
++    // 4. Preserving error type information
++    // 5. Returning the wrapped error
+ }
+
+-// Create a validation error
+-validationErr := errorswrapper.NewValidationError("First name cannot be empty", "firstName", nil)
++// Method to check if an error is of a specific type
++function ErrorWrapper.IsNotFound(err) {
++    // Implementation would include:
++    // 1. Unwrapping the error if needed
++    // 2. Checking if it's a not found error
++    // 3. Returning the result
++}
++```
+
+-// Create a database error
+-dbErr := errorswrapper.NewDatabaseError("Failed to insert record", "insert", "families", someError)
++## Best Practices
+
+-// Format an error for logging
+-formattedErr := errorswrapper.FormatError(err)
+-logger.Error(formattedErr)
+-```
++1. **Separation of Concerns**: Keep error handling logic separate from domain logic
++2. **Interface Segregation**: Define focused error handling interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Classification**: Categorize errors into meaningful types
++5. **Consistent Logging**: Use a consistent logging approach for errors
++6. **Context Enrichment**: Add relevant context to errors
++7. **Security**: Avoid including sensitive information in errors
++8. **Testing**: Write unit and integration tests for error handling
+
+-## Configuration
++## Troubleshooting
++
++### Common Issues
++
++#### Error Information Loss
++
++If you encounter issues with error information being lost, consider the following:
++- Ensure errors are properly wrapped rather than replaced
++- Preserve stack traces when wrapping errors
++- Use error types or codes to maintain categorization
++- Add sufficient context when wrapping errors
+
+-The `errorswrapper` package doesn't require any specific configuration. It's a stateless wrapper around the `servicelib/errors` package.
++#### Error Handling Performance
+
+-## Testing
++If error handling is impacting application performance, consider the following:
++- Optimize stack trace capture
++- Use sampling for error reporting
++- Implement asynchronous error reporting
++- Optimize error serialization
++- Cache error templates or messages
+
+-The package includes unit tests that verify the correct behavior of all error types and functions. Tests cover:
++## Related Components
+
+-- Creating different types of errors
+-- Checking error types
+-- Getting error details
+-- Formatting errors
+-- Wrapping errors
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the error handling ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses error handling
++- [Errors Package](../errors/README.md) - The errors package that defines error types
+
+-## Design Notes
++## Contributing
+
+-1. **Dependency Inversion**: The wrapper follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations.
+-2. **Error Types**: The package provides specific error types for different categories of errors, making it easier to handle errors appropriately.
+-3. **Error Details**: All errors include details such as error code, message, and cause, making it easier to debug issues.
+-4. **Consistency**: The wrapper ensures consistent error handling throughout the application.
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-## References
++## License
+
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Go Error Handling Best Practices](https://blog.golang.org/error-handling-and-go)
+-- [Domain Errors](../../../core/domain/errors/README.md) - Domain-specific error types
+-- [Validation Wrapper](../validationwrapper/README.md) - Validation utilities that use these errors
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/identificationwrapper/README.md b/infrastructure/adapters/identificationwrapper/README.md
+index e2514b4..ca83958 100644
+--- a/infrastructure/adapters/identificationwrapper/README.md
++++ b/infrastructure/adapters/identificationwrapper/README.md
+@@ -1,140 +1,157 @@
+-# Identification Wrapper
++# Infrastructure Adapters - Identification Wrapper
+
+ ## Overview
+
+-The Identification Wrapper package provides a wrapper around the `github.com/abitofhelp/servicelib/valueobject/identification` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters), allowing the domain layer to remain isolated from external dependencies.
++The Identification Wrapper adapter provides implementations for identification-related ports defined in the core domain and application layers. This adapter connects the application to identification frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating identification implementations in adapter classes, the core business logic remains independent of specific identification technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-The Identification Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/valueobject/identification` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
++- Unique identifier generation (UUID, ULID, etc.)
++- ID validation and verification
++- Custom ID formats and patterns
++- Sequential ID generation
++- ID conversion and formatting
++- Distributed ID generation
++- Collision detection and handling
++- Time-based ID generation
+
+-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
++## Installation
+
+-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
+-- **Adapter Pattern**: This package adapts the external library to the domain's needs
+-- **Value Object Pattern**: The ID type is implemented as a value object with identity semantics
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper
++```
+
+-## Implementation Details
++## Configuration
+
+-The Identification Wrapper package implements the following design patterns:
++The identification wrapper can be configured according to specific requirements. Here's an example of configuring the identification wrapper:
+
+-1. **Adapter Pattern**: Adapts the external library to the domain's needs
+-2. **Value Object Pattern**: The ID type is implemented as a value object with identity semantics
+-3. **Factory Pattern**: Factory methods create new ID instances
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use an identification wrapper
++
++// 1. Import necessary packages
++import id, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the identification generator
++idConfig = {
++    idType: "uuid",
++    version: 4,
++    namespace: "family-service",
++    prefix: "fam-",
++    sequentialStart: 1000,
++    nodeId: 1
++}
+
+-Key implementation details:
++// 4. Create the identification wrapper
++idGenerator = id.NewIdentificationGenerator(idConfig, logger)
+
+-- **Type Alias**: The ID type is a type alias for string, making it type-safe
+-- **Factory Methods**: Methods like NewID() and NewIDFromString() create new ID instances
+-- **Value Object Methods**: Methods like Equals() and IsEmpty() provide value object semantics
+-- **JSON Marshaling**: The ID type implements the json.Marshaler and json.Unmarshaler interfaces
++// 5. Use the identification wrapper
++newId = idGenerator.Generate()
++logger.Info("Generated new ID", newId)
+
+-The package uses the `github.com/abitofhelp/servicelib/valueobject/identification` package internally but exposes its own API to the domain layer, ensuring that the domain layer doesn't directly depend on the external library.
++isValid = idGenerator.Validate("fam-123e4567-e89b-12d3-a456-426614174000")
++if !isValid {
++    logger.Warn("Invalid ID format")
++}
++```
+
+-## Examples
++## API Documentation
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
++### Core Concepts
+
+-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the identification wrapper
++The identification wrapper follows these core concepts:
+
+-Example of using the identification wrapper:
++1. **Adapter Pattern**: Implements identification ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Handles identification errors gracefully
+
+-```
+-// Create a new ID
+-id := identificationwrapper.NewID()
++### Key Adapter Functions
+
+-// Create an ID from a string
+-id2, err := identificationwrapper.NewIDFromString("123e4567-e89b-12d3-a456-426614174000")
+-if err != nil {
+-    // Handle error
++```
++// Pseudocode example - not actual Go code
++// This demonstrates an identification wrapper implementation
++
++// Identification generator structure
++type IdentificationGenerator {
++    config        // Identification configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
+ }
+
+-// Get the string representation
+-str := id.String()
++// Constructor for the identification generator
++function NewIdentificationGenerator(config, logger) {
++    return new IdentificationGenerator {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger)
++    }
++}
+
+-// Check if an ID is empty
+-if id.IsEmpty() {
+-    // Handle empty ID
++// Method to generate a new ID
++function IdentificationGenerator.Generate() {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Generating the ID based on configuration
++    // 3. Handling generation errors
++    // 4. Returning the generated ID
+ }
+
+-// Compare IDs
+-if id.Equals(id2) {
+-    // IDs are equal
++// Method to validate an ID
++function IdentificationGenerator.Validate(id) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Validating the ID format
++    // 3. Checking for compliance with configuration
++    // 4. Returning validation result
+ }
+ ```
+
+-## Configuration
+-
+-The Identification Wrapper package doesn't require any specific configuration. It uses the default configuration of the underlying `github.com/abitofhelp/servicelib/valueobject/identification` package.
+-
+-## Testing
+-
+-The Identification Wrapper package is tested through:
++## Best Practices
+
+-1. **Unit Tests**: Each function and method has unit tests
+-2. **Property-Based Testing**: Tests with randomized inputs to find edge cases
+-3. **Integration Tests**: Tests that verify the wrapper works correctly with the underlying library
++1. **Separation of Concerns**: Keep identification logic separate from domain logic
++2. **Interface Segregation**: Define focused identification interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Handling**: Handle identification errors gracefully
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration**: Configure identification through a central configuration system
++7. **Testing**: Write unit and integration tests for identification adapters
+
+-Key testing approaches:
++## Troubleshooting
+
+-- **Factory Method Testing**: Tests that verify factory methods create valid IDs
+-- **Value Object Testing**: Tests that verify value object semantics (equality, emptiness)
+-- **JSON Marshaling Testing**: Tests that verify JSON marshaling and unmarshaling
+-- **Error Handling Testing**: Tests that verify error handling for invalid inputs
++### Common Issues
+
+-Example of a test case:
++#### ID Generation Failures
+
+-```
+-// Test function for NewIDFromString
+-// Valid UUID
+-validUUID := "123e4567-e89b-12d3-a456-426614174000"
+-id, err := identificationwrapper.NewIDFromString(validUUID)
+-assert.NoError(t, err)
+-assert.Equal(t, validUUID, id.String())
+-
+-// Invalid UUID
+-invalidUUID := "not-a-uuid"
+-_, err = identificationwrapper.NewIDFromString(invalidUUID)
+-assert.Error(t, err)
+-```
++If you encounter ID generation failures, check the following:
++- Configuration parameters are valid
++- Required dependencies are available
++- System has sufficient entropy for random generation
++- Network connectivity for distributed ID generation
+
+-## Design Notes
++#### ID Collisions
+
+-1. **Type Safety**: The ID type is a type alias for string, providing type safety
+-2. **Value Object Semantics**: The ID type has value object semantics (equality, immutability)
+-3. **Factory Methods**: Factory methods ensure that IDs are created correctly
+-4. **Error Handling**: Methods that can fail return errors that can be handled by the caller
+-5. **JSON Support**: The ID type implements the json.Marshaler and json.Unmarshaler interfaces for JSON support
+-6. **Dependency Inversion**: The package follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
++If you encounter ID collisions, consider the following:
++- Use a more collision-resistant ID generation algorithm
++- Increase the ID space (longer IDs)
++- Add node-specific components to distributed IDs
++- Implement collision detection and retry logic
++- Use time-based components in IDs
+
+-## API Documentation
+-
+-### ID
+-
+-The `ID` type represents a unique identifier:
+-
+-```
+-type ID string
+-```
++## Related Components
+
+-### Functions
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the identification ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses identification
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use identification
+
+-The package provides the following functions:
++## Contributing
+
+-- `NewID()`: Creates a new ID with a random UUID
+-- `NewIDFromString(id string)`: Creates a new ID from a string
+-- `(id ID) String()`: Returns the string representation of the ID
+-- `(id ID) IsEmpty()`: Checks if the ID is empty
+-- `(id ID) Equals(other ID)`: Checks if the ID equals another ID
+-- `(id ID) MarshalJSON()`: Implements the json.Marshaler interface
+-- `(id *ID) UnmarshalJSON(data []byte)`: Implements the json.Unmarshaler interface
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-## References
++## License
+
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Value Objects](https://martinfowler.com/bliki/ValueObject.html)
+-- [UUID Specification](https://tools.ietf.org/html/rfc4122)
+-- [Domain Entities](../../../core/domain/entity/README.md) - Uses these IDs for entity identification
+-- [Domain Services](../../../core/domain/services/README.md) - Uses these IDs for service operations
+-- [Repository Wrapper](../repositorywrapper/README.md) - Uses these IDs for entity retrieval
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/loggingwrapper/README.md b/infrastructure/adapters/loggingwrapper/README.md
+index 8ce8bb7..060894a 100644
+--- a/infrastructure/adapters/loggingwrapper/README.md
++++ b/infrastructure/adapters/loggingwrapper/README.md
+@@ -1,187 +1,157 @@
+-# Logging Wrapper
++# Infrastructure Adapters - Logging Wrapper
+
+ ## Overview
+
+-The Logging Wrapper package provides a wrapper around the `github.com/abitofhelp/servicelib/logging` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters), allowing the domain layer to remain isolated from external dependencies.
++The Logging Wrapper adapter provides implementations for logging-related ports defined in the core domain and application layers. This adapter connects the application to logging frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating logging implementations in adapter classes, the core business logic remains independent of specific logging technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-The Logging Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/logging` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
++- Structured logging support
++- Log level management
++- Context-aware logging
++- Log formatting options
++- Multiple output destinations
++- Performance optimizations
++- Log correlation (request ID, trace ID)
++- Integration with various logging frameworks
+
+-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
++## Installation
+
+-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
+-- **Adapter Pattern**: This package adapts the external library to the domain's needs
+-- **Context Propagation**: Logging context is propagated through the application using context.Context
+-
+-## Implementation Details
+-
+-The Logging Wrapper package implements the following design patterns:
+-
+-1. **Adapter Pattern**: Adapts the external library to the domain's needs
+-2. **Facade Pattern**: Provides a simplified interface to the underlying logging library
+-3. **Decorator Pattern**: Adds context-awareness to the logging functionality
+-
+-Key implementation details:
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/loggingwrapper
++```
+
+-- **Logger Wrapper**: The `Logger` type wraps the zap.Logger to provide a consistent interface
+-- **Context Logger**: The `ContextLogger` type adds context-awareness to logging
+-- **Context Integration**: Functions for adding and retrieving loggers from context
+-- **Structured Logging**: Support for structured logging with fields
++## Configuration
+
+-The package uses the `github.com/abitofhelp/servicelib/logging` package internally but exposes its own API to the domain layer, ensuring that the domain layer doesn't directly depend on the external library.
++The logging wrapper can be configured according to specific requirements. Here's an example of configuring the logging wrapper:
+
+-## Examples
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a logging wrapper
++
++// 1. Import necessary packages
++import logging, config
++
++// 2. Configure the logger
++logConfig = {
++    level: "info",
++    format: "json",
++    outputs: ["stdout", "/var/log/family-service.log"],
++    includeTimestamp: true,
++    includeCallerInfo: true,
++    includeHostname: true,
++    samplingRate: 1.0
++}
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
++// 3. Create the logger
++logger = logging.NewLogger(logConfig)
+
+-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the logging wrapper
++// 4. Use the logger
++logger.Info("Application started", {version: "1.0.0"})
+
+-Example of using the logging wrapper:
++// 5. Create a context-aware logger
++contextLogger = logger.WithContext(context)
++contextLogger.Debug("Processing request", {requestId: "req-123"})
+
++// 6. Log errors
++err = someOperation()
++if err != nil {
++    contextLogger.Error("Operation failed", {error: err})
++}
+ ```
+-// Create a new logger
+-logger := loggingwrapper.NewLogger(zapLogger)
+
+-// Log messages
+-logger.Debug("Debug message")
+-logger.Info("Info message")
+-logger.Warn("Warning message")
+-logger.Error("Error message")
++## API Documentation
+
+-// Create a logger with additional fields
+-logger = logger.With("key", "value")
++### Core Concepts
+
+-// Create a context logger
+-contextLogger := loggingwrapper.NewContextLogger(zapLogger)
++The logging wrapper follows these core concepts:
+
+-// Log messages with context
+-contextLogger.Debug(ctx, "Debug message")
+-contextLogger.Info(ctx, "Info message")
+-contextLogger.Warn(ctx, "Warning message")
+-contextLogger.Error(ctx, "Error message")
++1. **Adapter Pattern**: Implements logging ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Structured Logging**: Uses structured logging for better searchability and analysis
++5. **Context Awareness**: Supports context-aware logging for request tracing
+
+-// Get a logger from context
+-logger = loggingwrapper.FromContext(ctx)
++### Key Adapter Functions
+
+-// Add a logger to context
+-ctx = loggingwrapper.WithContext(ctx, logger)
+ ```
++// Pseudocode example - not actual Go code
++// This demonstrates a logging wrapper implementation
+
+-## Configuration
+-
+-The Logging Wrapper package doesn't require any specific configuration itself, but it relies on the configuration of the underlying zap.Logger. The zap.Logger can be configured with various options:
+-
+-- **Log Level**: Debug, Info, Warn, Error, Fatal
+-- **Output**: Console, File, or custom io.Writer
+-- **Format**: JSON or Console
+-- **Sampling**: Enable or disable sampling
+-- **Caller Info**: Include or exclude caller information
+-- **Stack Traces**: Include or exclude stack traces for errors
+-
+-These configurations are typically provided when creating the zap.Logger that is passed to the `NewLogger` function.
++// Logger structure
++type Logger {
++    config // Logger configuration
++    writer // Log writer
++}
+
+-## Testing
++// Constructor for the logger
++function NewLogger(config) {
++    writer = createLogWriter(config)
++    return new Logger {
++        config: config,
++        writer: writer
++    }
++}
+
+-The Logging Wrapper package is tested through:
++// Method to log at info level
++function Logger.Info(message, fields) {
++    // Implementation would include:
++    // 1. Checking if info level is enabled
++    // 2. Formatting the log entry
++    // 3. Adding standard fields
++    // 4. Writing to configured outputs
++}
+
+-1. **Unit Tests**: Each function and method has unit tests
+-2. **Integration Tests**: Tests that verify the wrapper works correctly with the underlying library
+-3. **Context Tests**: Tests that verify context integration works correctly
++// Method to create a context-aware logger
++function Logger.WithContext(context) {
++    // Implementation would include:
++    // 1. Creating a new context logger
++    // 2. Extracting context information (request ID, trace ID)
++    // 3. Returning the context logger
++}
++```
+
+-Key testing approaches:
++## Best Practices
+
+-- **Mock Loggers**: Tests use mock loggers to verify logging behavior
+-- **Context Integration**: Tests verify that loggers can be added to and retrieved from context
+-- **Log Level Testing**: Tests verify that log level filtering works correctly
+-- **Structured Logging**: Tests verify that structured logging with fields works correctly
++1. **Separation of Concerns**: Keep logging logic separate from domain logic
++2. **Interface Segregation**: Define focused logging interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Structured Logging**: Use structured logging with consistent field names
++5. **Context Awareness**: Include context information in logs for request tracing
++6. **Log Levels**: Use appropriate log levels for different types of information
++7. **Performance**: Consider performance implications of logging in high-throughput systems
+
+-Example of a test case:
++## Troubleshooting
+
+-```
+-// Test that the logger logs messages at the correct level
+-func TestLogger_Info(t *testing.T) {
+-    // Create a buffer to capture log output
+-    var buf bytes.Buffer
+-
+-    // Create a zap logger that writes to the buffer
+-    zapLogger := zap.New(
+-        zapcore.NewCore(
+-            zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+-            zapcore.AddSync(&buf),
+-            zapcore.InfoLevel,
+-        ),
+-    )
+-
+-    // Create a logger wrapper
+-    logger := loggingwrapper.NewLogger(zapLogger)
+-
+-    // Log a message
+-    logger.Info("test message")
+-
+-    // Verify the message was logged
+-    assert.Contains(t, buf.String(), "test message")
+-    assert.Contains(t, buf.String(), "\"level\":\"info\"")
+-}
+-```
++### Common Issues
+
+-## Design Notes
++#### Log Configuration
+
+-1. **Simplified API**: The wrapper provides a simplified API compared to the underlying library
+-2. **Context Integration**: The wrapper adds context integration to the logging functionality
+-3. **Structured Logging**: The wrapper supports structured logging with fields
+-4. **Log Levels**: The wrapper supports all standard log levels (Debug, Info, Warn, Error, Fatal)
+-5. **Dependency Inversion**: The package follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
+-6. **Performance**: The wrapper is designed to add minimal overhead to logging operations
++If you encounter issues with log configuration, check the following:
++- Log level is set appropriately
++- Output destinations are valid and writable
++- Log format is supported
++- Configuration is properly loaded
+
+-## API Documentation
++#### Performance Impact
+
+-### Logger
++If logging is impacting application performance, consider the following:
++- Reduce log verbosity in production
++- Use sampling for high-volume log events
++- Ensure debug logs are guarded by level checks
++- Use asynchronous logging where appropriate
++- Optimize log serialization
+
+-The `Logger` type is a wrapper around the zap logger:
++## Related Components
+
+-```
+-type Logger struct {
+-    logger *zap.Logger
+-}
+-```
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the logging ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses logging
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use logging
+
+-### ContextLogger
++## Contributing
+
+-The `ContextLogger` type is a wrapper around the servicelib context logger:
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-```
+-type ContextLogger struct {
+-    logger *logging.ContextLogger
+-}
+-```
++## License
+
+-### Functions
+-
+-The package provides the following functions:
+-
+-- `NewLogger(logger *zap.Logger)`: Creates a new logger
+-- `(l *Logger) With(fields ...zap.Field)`: Returns a logger with the given fields
+-- `(l *Logger) Debug(msg string, fields ...zap.Field)`: Logs a debug message
+-- `(l *Logger) Info(msg string, fields ...zap.Field)`: Logs an info message
+-- `(l *Logger) Warn(msg string, fields ...zap.Field)`: Logs a warning message
+-- `(l *Logger) Error(msg string, fields ...zap.Field)`: Logs an error message
+-- `(l *Logger) Fatal(msg string, fields ...zap.Field)`: Logs a fatal message and exits
+-- `NewContextLogger(logger *zap.Logger)`: Creates a new context logger
+-- `FromContext(ctx context.Context)`: Returns a logger from the context
+-- `WithContext(ctx context.Context, logger *Logger)`: Returns a new context with the logger attached
+-- `(l *ContextLogger) Debug(ctx context.Context, msg string, fields ...zap.Field)`: Logs a debug message with context
+-- `(l *ContextLogger) Info(ctx context.Context, msg string, fields ...zap.Field)`: Logs an info message with context
+-- `(l *ContextLogger) Warn(ctx context.Context, msg string, fields ...zap.Field)`: Logs a warning message with context
+-- `(l *ContextLogger) Error(ctx context.Context, msg string, fields ...zap.Field)`: Logs an error message with context
+-- `(l *ContextLogger) Fatal(ctx context.Context, msg string, fields ...zap.Field)`: Logs a fatal message with context and exits
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Zap Logger](https://github.com/uber-go/zap)
+-- [Go Context Package](https://golang.org/pkg/context/)
+-- [Domain Services](../../../core/domain/services/README.md) - Uses this logger for domain operations
+-- [Application Services](../../../core/application/services/README.md) - Uses this logger for application operations
+-- [GraphQL Resolvers](../../../interface/adapters/graphql/resolver/README.md) - Uses this logger for GraphQL operations
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/mongo/README.md b/infrastructure/adapters/mongo/README.md
+index e1f00cf..a2ab16e 100644
+--- a/infrastructure/adapters/mongo/README.md
++++ b/infrastructure/adapters/mongo/README.md
+@@ -1,50 +1,178 @@
+-# MongoDB Adapter
++# Infrastructure Adapters - MongoDB
+
+ ## Overview
+
+-The MongoDB Adapter package provides functionality for interacting with MongoDB databases. It implements the repository interfaces defined in the domain layer, allowing the application to store and retrieve data from MongoDB.
++The MongoDB adapter provides implementations for database-related ports defined in the core domain and application layers, specifically for MongoDB database interactions. This adapter connects the application to MongoDB database systems, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating MongoDB implementations in adapter classes, the core business logic remains independent of specific database technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for MongoDB that can be used by the application.
++- MongoDB connection management
++- Document querying and manipulation
++- Transaction support
++- Data mapping between domain entities and MongoDB documents
++- Error handling and translation
++- Connection pooling
++- Performance optimization
++- Support for MongoDB-specific features (aggregation, geospatial queries, etc.)
++- Index management
+
+-## Implementation Details
++## Installation
+
+-The MongoDB Adapter implements the following design patterns:
+-- Repository Pattern: Provides a clean interface for data access
+-- Adapter Pattern: Adapts the MongoDB driver to the application's needs
+-- Factory Pattern: Creates instances of MongoDB repositories
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Repository Example](../../../examples/repository/README.md) - Shows how to use the repository adapters
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/mongo
++```
+
+ ## Configuration
+
+-The MongoDB Adapter can be configured with the following options:
+-- Connection String: Configure the MongoDB connection string
+-- Database Name: Configure the MongoDB database name
+-- Collection Names: Configure the MongoDB collection names
+-- Connection Pool Size: Configure the MongoDB connection pool size
+-- Timeout Settings: Configure the MongoDB timeout settings
+-
+-## Testing
+-
+-The MongoDB Adapter is tested through:
+-1. Unit Tests: Each repository method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the MongoDB adapter works correctly with a real MongoDB instance
+-
+-## Design Notes
+-
+-1. The MongoDB Adapter uses the official MongoDB Go driver
+-2. Repositories are implemented as adapters for the domain repository interfaces
+-3. The adapter handles MongoDB-specific concerns like connection management and query building
+-4. Error handling is consistent with the application's error handling strategy
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver)
+-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
+\ No newline at end of file
++The MongoDB adapter can be configured according to specific requirements. Here's an example of configuring the MongoDB adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a MongoDB adapter
++
++// 1. Import necessary packages
++import mongo, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the MongoDB connection
++mongoConfig = {
++    connectionString: "mongodb://localhost:27017",
++    database: "family_service",
++    username: "user",
++    password: "password",
++    authSource: "admin",
++    maxPoolSize: 100,
++    minPoolSize: 10,
++    maxConnIdleTime: 30 seconds,
++    connectTimeout: 10 seconds,
++    serverSelectionTimeout: 5 seconds,
++    retryWrites: true,
++    writeConcern: "majority"
++}
++
++// 4. Create the MongoDB adapter
++mongoAdapter = mongo.NewMongoAdapter(mongoConfig, logger)
++
++// 5. Use the MongoDB adapter
++err = mongoAdapter.Connect()
++if err != nil {
++    logger.Error("Failed to connect to MongoDB", err)
++}
++
++// Find a document
++family, err = mongoAdapter.FindOne(context, "families", {id: "family-123"})
++if err != nil {
++    logger.Error("Failed to find family", err)
++}
++```
++
++## API Documentation
++
++### Core Concepts
++
++The MongoDB adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements database ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates MongoDB-specific errors to domain errors
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a MongoDB adapter implementation
++
++// MongoDB adapter structure
++type MongoAdapter {
++    config        // MongoDB configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    client        // MongoDB client
++    database      // MongoDB database
++}
++
++// Constructor for the MongoDB adapter
++function NewMongoAdapter(config, logger) {
++    return new MongoAdapter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        client: nil,
++        database: nil
++    }
++}
++
++// Method to connect to the database
++function MongoAdapter.Connect() {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Creating a MongoDB client
++    // 3. Connecting to the MongoDB server
++    // 4. Getting a database reference
++    // 5. Handling connection errors
++}
++
++// Method to find a single document
++function MongoAdapter.FindOne(context, collection, filter) {
++    // Implementation would include:
++    // 1. Logging the operation with context
++    // 2. Getting the collection
++    // 3. Executing the find operation
++    // 4. Mapping the result to a domain entity
++    // 5. Handling query errors
++    // 6. Returning the result or error
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep database logic separate from domain logic
++2. **Interface Segregation**: Define focused database interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Translation**: Translate MongoDB-specific errors to domain errors
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Transaction Management**: Implement proper transaction handling where supported
++7. **Connection Management**: Properly manage database connections
++8. **Testing**: Write unit and integration tests for MongoDB adapters
++9. **Indexing**: Create appropriate indexes for query performance
++
++## Troubleshooting
++
++### Common Issues
++
++#### Database Connection Issues
++
++If you encounter database connection issues, check the following:
++- MongoDB server is running and accessible
++- Connection string parameters are correct
++- Network connectivity between the application and the database
++- Proper authentication credentials are provided
++- Firewall rules allow the connection
++
++#### Performance Issues
++
++If you encounter performance issues with MongoDB, consider the following:
++- Create appropriate indexes for frequently queried fields
++- Use projection to limit returned fields
++- Optimize query patterns
++- Configure appropriate connection pool settings
++- Use query analysis tools to identify slow queries
++- Consider database-specific optimizations (like read preferences)
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the database ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses database operations
++- [Repository Adapters](../repository/README.md) - The repository adapters that use MongoDB
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/postgres/README.md b/infrastructure/adapters/postgres/README.md
+index 54694a3..cd8f8b1 100644
+--- a/infrastructure/adapters/postgres/README.md
++++ b/infrastructure/adapters/postgres/README.md
+@@ -1,50 +1,175 @@
+-# PostgreSQL Adapter
++# Infrastructure Adapters - PostgreSQL
+
+ ## Overview
+
+-The PostgreSQL Adapter package provides functionality for interacting with PostgreSQL databases. It implements the repository interfaces defined in the domain layer, allowing the application to store and retrieve data from PostgreSQL.
++The PostgreSQL adapter provides implementations for database-related ports defined in the core domain and application layers, specifically for PostgreSQL database interactions. This adapter connects the application to PostgreSQL database systems, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating PostgreSQL implementations in adapter classes, the core business logic remains independent of specific database technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for PostgreSQL that can be used by the application.
++- PostgreSQL database connection management
++- Query execution and result mapping
++- Transaction management
++- Migration support
++- Data mapping between domain entities and PostgreSQL tables
++- Error handling and translation
++- Connection pooling
++- Performance optimization
++- Support for PostgreSQL-specific features (JSON, arrays, etc.)
+
+-## Implementation Details
++## Installation
+
+-The PostgreSQL Adapter implements the following design patterns:
+-- Repository Pattern: Provides a clean interface for data access
+-- Adapter Pattern: Adapts the PostgreSQL driver to the application's needs
+-- Factory Pattern: Creates instances of PostgreSQL repositories
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Repository Example](../../../examples/repository/README.md) - Shows how to use the repository adapters
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/postgres
++```
+
+ ## Configuration
+
+-The PostgreSQL Adapter can be configured with the following options:
+-- Connection String: Configure the PostgreSQL connection string
+-- Database Name: Configure the PostgreSQL database name
+-- Table Names: Configure the PostgreSQL table names
+-- Connection Pool Size: Configure the PostgreSQL connection pool size
+-- Timeout Settings: Configure the PostgreSQL timeout settings
+-
+-## Testing
+-
+-The PostgreSQL Adapter is tested through:
+-1. Unit Tests: Each repository method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the PostgreSQL adapter works correctly with a real PostgreSQL instance
+-
+-## Design Notes
+-
+-1. The PostgreSQL Adapter uses the official PostgreSQL Go driver
+-2. Repositories are implemented as adapters for the domain repository interfaces
+-3. The adapter handles PostgreSQL-specific concerns like connection management and query building
+-4. Error handling is consistent with the application's error handling strategy
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [PostgreSQL Go Driver](https://github.com/lib/pq)
+-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
+\ No newline at end of file
++The PostgreSQL adapter can be configured according to specific requirements. Here's an example of configuring the PostgreSQL adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a PostgreSQL adapter
++
++// 1. Import necessary packages
++import postgres, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the PostgreSQL connection
++postgresConfig = {
++    host: "localhost",
++    port: 5432,
++    username: "postgres",
++    password: "password",
++    database: "family_service",
++    sslMode: "disable",
++    maxOpenConnections: 25,
++    maxIdleConnections: 10,
++    connectionMaxLifetime: 1 hour,
++    statementTimeout: 30 seconds
++}
++
++// 4. Create the PostgreSQL adapter
++postgresAdapter = postgres.NewPostgresAdapter(postgresConfig, logger)
++
++// 5. Use the PostgreSQL adapter
++err = postgresAdapter.Connect()
++if err != nil {
++    logger.Error("Failed to connect to PostgreSQL database", err)
++}
++
++// Execute a query
++results, err = postgresAdapter.Query(context, "SELECT * FROM families WHERE id = $1", "family-123")
++if err != nil {
++    logger.Error("Failed to execute query", err)
++}
++```
++
++## API Documentation
++
++### Core Concepts
++
++The PostgreSQL adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements database ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates PostgreSQL-specific errors to domain errors
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a PostgreSQL adapter implementation
++
++// PostgreSQL adapter structure
++type PostgresAdapter {
++    config        // PostgreSQL configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    db            // Database connection
++}
++
++// Constructor for the PostgreSQL adapter
++function NewPostgresAdapter(config, logger) {
++    return new PostgresAdapter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        db: nil
++    }
++}
++
++// Method to connect to the database
++function PostgresAdapter.Connect() {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Building the connection string
++    // 3. Opening a connection to the PostgreSQL database
++    // 4. Configuring connection parameters
++    // 5. Setting up connection pooling
++    // 6. Handling connection errors
++}
++
++// Method to execute a query
++function PostgresAdapter.Query(context, query, args...) {
++    // Implementation would include:
++    // 1. Logging the operation with context
++    // 2. Preparing the SQL statement
++    // 3. Executing the query with arguments
++    // 4. Mapping results to appropriate structures
++    // 5. Handling query errors
++    // 6. Returning results or error
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep database logic separate from domain logic
++2. **Interface Segregation**: Define focused database interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Translation**: Translate PostgreSQL-specific errors to domain errors
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Transaction Management**: Implement proper transaction handling
++7. **Connection Management**: Properly manage database connections
++8. **Testing**: Write unit and integration tests for PostgreSQL adapters
++9. **Migrations**: Use a migration strategy for database schema changes
++
++## Troubleshooting
++
++### Common Issues
++
++#### Database Connection Issues
++
++If you encounter database connection issues, check the following:
++- Database server is running and accessible
++- Connection string parameters are correct
++- Network connectivity between the application and the database
++- Proper authentication credentials are provided
++- Firewall rules allow the connection
++
++#### Performance Issues
++
++If you encounter performance issues with PostgreSQL, consider the following:
++- Implement proper indexing for frequently queried columns
++- Use prepared statements for repeated queries
++- Optimize query patterns
++- Configure appropriate connection pool settings
++- Use query analysis tools to identify slow queries
++- Consider database-specific optimizations (like partitioning)
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the database ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses database operations
++- [Repository Adapters](../repository/README.md) - The repository adapters that use PostgreSQL
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/profiling/README.md b/infrastructure/adapters/profiling/README.md
+index 75c8f17..b9dd067 100644
+--- a/infrastructure/adapters/profiling/README.md
++++ b/infrastructure/adapters/profiling/README.md
+@@ -1,49 +1,171 @@
+-# Profiling Adapter
++# Infrastructure Adapters - Profiling
+
+ ## Overview
+
+-The Profiling Adapter package provides functionality for profiling the application's performance. It includes tools for CPU profiling, memory profiling, and tracing, allowing developers to identify performance bottlenecks and optimize the application.
++The Profiling adapter provides implementations for profiling-related ports defined in the core domain and application layers. This adapter connects the application to profiling frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating profiling implementations in adapter classes, the core business logic remains independent of specific profiling technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for profiling that can be used by the application.
++- CPU profiling
++- Memory profiling
++- Goroutine profiling
++- Block profiling
++- Mutex profiling
++- Trace collection
++- Profile visualization
++- Performance metrics collection
++- Profiling endpoint exposure
+
+-## Implementation Details
++## Installation
+
+-The Profiling Adapter implements the following design patterns:
+-- Decorator Pattern: Wraps existing functionality with profiling capabilities
+-- Strategy Pattern: Allows different profiling strategies to be used
+-- Factory Pattern: Creates instances of profilers
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Profiling Example](../../../examples/profiling/README.md) - Shows how to use the profiling adapter
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/profiling
++```
+
+ ## Configuration
+
+-The Profiling Adapter can be configured with the following options:
+-- Profiling Type: Configure which type of profiling to use (CPU, memory, trace)
+-- Profiling Duration: Configure how long profiling should run
+-- Profiling Output: Configure where profiling data should be saved
+-- Sampling Rate: Configure the sampling rate for profiling
+-
+-## Testing
+-
+-The Profiling Adapter is tested through:
+-1. Unit Tests: Each profiling method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the profiling adapter works correctly with the application
+-
+-## Design Notes
+-
+-1. The Profiling Adapter uses the standard Go profiling tools (pprof)
+-2. Profiling can be enabled/disabled at runtime
+-3. Profiling data can be saved to files or exposed via HTTP
+-4. The adapter minimizes performance impact when not actively profiling
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Go Profiling Tools](https://golang.org/pkg/runtime/pprof/)
+-- [Profiling Go Programs](https://blog.golang.org/profiling-go-programs)
+\ No newline at end of file
++The profiling adapter can be configured according to specific requirements. Here's an example of configuring the profiling adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a profiling adapter
++
++// 1. Import necessary packages
++import profiling, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the profiler
++profilingConfig = {
++    enabled: true,
++    cpuProfileEnabled: true,
++    memProfileEnabled: true,
++    blockProfileEnabled: true,
++    mutexProfileEnabled: true,
++    traceEnabled: true,
++    profilePath: "/tmp/profiles",
++    httpEndpoint: "/debug/pprof",
++    sampleRate: 100,
++    profileDuration: 30 seconds
++}
++
++// 4. Create the profiling adapter
++profilingAdapter = profiling.NewProfilingAdapter(profilingConfig, logger)
++
++// 5. Use the profiling adapter
++profilingAdapter.Start()
++
++// 6. Capture a CPU profile
++profilingAdapter.StartCPUProfile("api-request")
++// ... code to profile ...
++profilingAdapter.StopCPUProfile()
++
++// 7. Capture a memory profile
++profilingAdapter.CaptureMemoryProfile("after-processing")
++
++// 8. Stop profiling when done
++defer profilingAdapter.Stop()
++```
++
++## API Documentation
++
++### Core Concepts
++
++The profiling adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements profiling ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Handles profiling errors gracefully without affecting core functionality
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a profiling adapter implementation
++
++// Profiling adapter structure
++type ProfilingAdapter {
++    config        // Profiling configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    active        // Flag indicating if profiling is active
++}
++
++// Constructor for the profiling adapter
++function NewProfilingAdapter(config, logger) {
++    return new ProfilingAdapter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        active: false
++    }
++}
++
++// Method to start profiling
++function ProfilingAdapter.Start() {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Setting up profiling based on configuration
++    // 3. Starting HTTP server for pprof if configured
++    // 4. Handling startup errors
++    // 5. Setting active flag
++}
++
++// Method to capture a CPU profile
++function ProfilingAdapter.StartCPUProfile(name) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Creating a profile file
++    // 3. Starting CPU profiling
++    // 4. Handling profiling errors
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep profiling logic separate from domain logic
++2. **Interface Segregation**: Define focused profiling interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Handling**: Handle profiling errors gracefully without affecting core functionality
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration**: Configure profiling through a central configuration system
++7. **Resource Management**: Be mindful of the performance impact of profiling in production
++
++## Troubleshooting
++
++### Common Issues
++
++#### Performance Impact
++
++If profiling is impacting application performance, consider the following:
++- Disable profiling in production or use sampling
++- Limit the types of profiling enabled
++- Use shorter profiling durations
++- Profile specific operations rather than continuous profiling
++- Adjust sampling rates for block and mutex profiling
++
++#### File System Issues
++
++If you encounter issues with profile file generation, check the following:
++- Ensure the profile directory exists and is writable
++- Check disk space availability
++- Verify file permissions
++- Use absolute paths for profile locations
++- Implement cleanup of old profile files
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the profiling ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses profiling
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use profiling
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/ratewrapper/README.md b/infrastructure/adapters/ratewrapper/README.md
+index 027326f..b6cf48a 100644
+--- a/infrastructure/adapters/ratewrapper/README.md
++++ b/infrastructure/adapters/ratewrapper/README.md
+@@ -1,50 +1,146 @@
+-# Rate Limiting Wrapper
++# Infrastructure Adapters - Rate Wrapper
+
+ ## Overview
+
+-The Rate Limiting Wrapper package provides functionality for limiting the rate of requests to the application. It implements various rate limiting algorithms and strategies to protect the application from excessive load and potential denial-of-service attacks.
++The Rate Wrapper adapter provides implementations for rate limiting and throttling ports defined in the core domain and application layers. This adapter connects the application to rate limiting frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating rate limiting implementations in adapter classes, the core business logic remains independent of specific rate limiting technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for rate limiting that can be used by the application.
++- Request rate limiting
++- Throttling of API calls
++- Configurable rate limits
++- Token bucket algorithm implementation
++- Rate limit headers generation
++- Distributed rate limiting support
++- Custom rate limiting strategies
+
+-## Implementation Details
++## Installation
+
+-The Rate Limiting Wrapper implements the following design patterns:
+-- Decorator Pattern: Wraps existing functionality with rate limiting capabilities
+-- Strategy Pattern: Allows different rate limiting strategies to be used
+-- Factory Pattern: Creates instances of rate limiters
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/ratewrapper
++```
+
+-## Examples
++## Configuration
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Rate Limiting Example](../../../examples/rate_limiting/README.md) - Shows how to use the rate limiting wrapper
++The rate wrapper adapter can be configured according to specific requirements. Here's an example of configuring the rate wrapper adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a rate wrapper adapter
++
++// 1. Import necessary packages
++import rate, config, logging, time
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the rate limiter
++rateConfig = {
++    enabled: true,
++    requestsPerSecond: 100,
++    burstSize: 150,
++    strategy: "token-bucket",
++    distributedCache: "redis://localhost:6379"
++}
+
+-## Configuration
++// 4. Create the rate wrapper adapter
++rateAdapter = rate.NewRateLimiter(rateConfig, logger)
++
++// 5. Use the rate wrapper adapter
++allowed, remaining, reset = rateAdapter.Allow(context, "user-123", "api-endpoint")
++if !allowed {
++    logger.Warn("Rate limit exceeded", {user: "user-123", remaining: 0, resetAt: reset})
++    return RateLimitExceededError
++}
++```
++
++## API Documentation
++
++### Core Concepts
++
++The rate wrapper adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements rate limiting ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates rate limiting errors to domain errors
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a rate wrapper adapter implementation
++
++// Rate wrapper adapter structure
++type RateLimiter {
++    config        // Rate limiter configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    store         // Storage for rate limit state
++}
++
++// Constructor for the rate wrapper adapter
++function NewRateLimiter(config, logger) {
++    store = createRateLimitStore(config)
++    return new RateLimiter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        store: store
++    }
++}
++
++// Method to check if a request is allowed
++function RateLimiter.Allow(context, key, action) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Checking if the request is allowed based on rate limits
++    // 3. Updating rate limit counters
++    // 4. Returning allow status, remaining requests, and reset time
++}
++```
+
+-The Rate Limiting Wrapper can be configured with the following options:
+-- Rate Limit: Configure the maximum number of requests allowed per time window
+-- Time Window: Configure the time window for rate limiting
+-- Rate Limiting Strategy: Configure which rate limiting algorithm to use (token bucket, leaky bucket, fixed window, etc.)
+-- Burst Size: Configure the maximum burst size allowed
++## Best Practices
+
+-## Testing
++1. **Separation of Concerns**: Keep rate limiting logic separate from domain logic
++2. **Interface Segregation**: Define focused rate limiting interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Translation**: Translate rate limiting errors to domain errors
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration**: Configure rate limiting through a central configuration system
++7. **Testing**: Write unit and integration tests for rate limiting adapters
+
+-The Rate Limiting Wrapper is tested through:
+-1. Unit Tests: Each rate limiting method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the rate limiting wrapper works correctly with the application
+-3. Load Tests: Tests that verify the rate limiting wrapper can handle high load
++## Troubleshooting
+
+-## Design Notes
++### Common Issues
+
+-1. The Rate Limiting Wrapper supports multiple rate limiting algorithms
+-2. Rate limits can be configured per endpoint, per user, or globally
+-3. The wrapper provides feedback on rate limit status (remaining requests, reset time)
+-4. Rate limiting can be bypassed for certain users or endpoints
++#### Rate Limit Configuration
+
+-## References
++If you encounter issues with rate limiting configuration, check the following:
++- Rate limit values are appropriate for your application's needs
++- Burst size is configured correctly
++- Rate limit strategy is appropriate for your use case
++- Distributed cache configuration is correct (if using distributed rate limiting)
++
++#### Performance Issues
++
++If rate limiting is impacting application performance, consider the following:
++- Use a more efficient rate limiting algorithm
++- Implement caching for rate limit state
++- Use a distributed cache for rate limit state in a clustered environment
++- Optimize the rate limit check process
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the rate limiting ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses rate limiting
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use rate limiting
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
+
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Token Bucket Algorithm](https://en.wikipedia.org/wiki/Token_bucket)
+-- [Leaky Bucket Algorithm](https://en.wikipedia.org/wiki/Leaky_bucket)
+\ No newline at end of file
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/repository/README.md b/infrastructure/adapters/repository/README.md
+index 2c65e60..62ea350 100644
+--- a/infrastructure/adapters/repository/README.md
++++ b/infrastructure/adapters/repository/README.md
+@@ -1,50 +1,147 @@
+-# Repository Adapter
++# Infrastructure Adapters - Repository
+
+ ## Overview
+
+-The Repository Adapter package provides base implementations and utilities for repository adapters. It implements common functionality that can be reused by specific repository implementations like MongoDB, PostgreSQL, and SQLite adapters.
++The Repository adapter provides implementations for repository interfaces defined in the core domain layer. These adapters connect the application to various data storage systems, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating repository implementations in adapter classes, the core business logic remains independent of specific data storage technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides base adapters for repositories that can be extended by specific database adapters.
++- Implementation of domain repository interfaces
++- Data persistence and retrieval operations
++- Transaction management
++- Data mapping between domain entities and storage formats
++- Query capabilities for data retrieval
++- Support for various database systems
+
+-## Implementation Details
++## Installation
+
+-The Repository Adapter implements the following design patterns:
+-- Repository Pattern: Provides a clean interface for data access
+-- Template Method Pattern: Defines the skeleton of repository operations
+-- Strategy Pattern: Allows different database strategies to be used
+-- Factory Pattern: Creates instances of repositories
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/repository
++```
+
+-## Examples
++## Configuration
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Repository Example](../../../examples/repository/README.md) - Shows how to use the repository adapters
++The repository adapter can be configured according to specific requirements. Here's an example of configuring a repository adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a repository adapter
++
++// 1. Import necessary packages
++import repository, database, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the database connection
++dbConfig = {
++    host: "localhost",
++    port: 5432,
++    username: "user",
++    password: "password",
++    database: "family_service",
++    maxConnections: 10,
++    connectionTimeout: 5 seconds
++}
+
+-## Configuration
++// 4. Create the database connection
++dbConnection = database.NewConnection(dbConfig)
++
++// 5. Create the repository adapter
++familyRepository = repository.NewFamilyRepository(dbConnection, logger)
++
++// 6. Use the repository adapter
++family, err = familyRepository.FindById(context, "family-123")
++if err != nil {
++    logger.Error("Failed to find family", err)
++}
++```
++
++## API Documentation
++
++### Core Concepts
++
++The repository adapter follows these core concepts:
++
++1. **Repository Pattern**: Implements repository interfaces defined in the domain layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates database-specific errors to domain errors
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a repository adapter implementation
++
++// Repository adapter structure
++type FamilyRepository {
++    database      // Database connection
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++}
++
++// Constructor for the repository adapter
++function NewFamilyRepository(database, logger) {
++    return new FamilyRepository {
++        database: database,
++        logger: logger,
++        contextLogger: new ContextLogger(logger)
++    }
++}
++
++// Method to find a family by ID
++function FamilyRepository.FindById(context, id) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Querying the database
++    // 3. Mapping database results to domain entities
++    // 4. Handling errors and returning appropriate domain errors
++    // 5. Returning the family entity or error
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep repository implementations separate from domain logic
++2. **Interface Segregation**: Define focused repository interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for repository dependencies
++4. **Error Translation**: Translate database-specific errors to domain errors
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Transaction Management**: Implement proper transaction handling
++7. **Testing**: Write unit and integration tests for repository adapters
+
+-The Repository Adapter can be configured with the following options:
+-- Repository Options: Configure common repository options
+-- Caching Strategy: Configure how repositories cache data
+-- Retry Strategy: Configure how repositories retry operations
+-- Timeout Strategy: Configure how repositories handle timeouts
++## Troubleshooting
+
+-## Testing
++### Common Issues
+
+-The Repository Adapter is tested through:
+-1. Unit Tests: Each repository method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the repository adapters work correctly with different databases
++#### Database Connection Issues
+
+-## Design Notes
++If you encounter database connection issues, check the following:
++- Database connection string is correct
++- Database server is running
++- Network connectivity between the application and the database
++- Proper authentication credentials are provided
++
++#### Performance Issues
++
++If you encounter performance issues with repositories, consider the following:
++- Optimize database queries
++- Implement proper database indexing
++- Use connection pooling
++- Implement caching for frequently accessed data
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the repository interfaces
++- [Application Layer](../../core/application/README.md) - The application layer that uses repositories
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use repositories
++
++## Contributing
+
+-1. The Repository Adapter provides base implementations that can be extended by specific database adapters
+-2. Common functionality like caching, retries, and timeouts are implemented at this level
+-3. The adapter follows the domain repository interfaces defined in the domain layer
+-4. Error handling is consistent with the application's error handling strategy
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-## References
++## License
+
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
+-- [Domain Repository Interfaces](../../../core/domain/ports/README.md)
+\ No newline at end of file
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/repositorywrapper/README.md b/infrastructure/adapters/repositorywrapper/README.md
+index a8830d1..4f9a9e6 100644
+--- a/infrastructure/adapters/repositorywrapper/README.md
++++ b/infrastructure/adapters/repositorywrapper/README.md
+@@ -1,206 +1,175 @@
+-# Repository Wrapper
++# Infrastructure Adapters - Repository Wrapper
+
+ ## Overview
+
+-The Repository Wrapper package provides a wrapper around the servicelib/repository package to ensure the domain layer doesn't directly depend on external libraries. This follows the Dependency Inversion Principle, where high-level modules should not depend on low-level modules, but both should depend on abstractions.
+-
+-## Architecture
+-
+-The Repository Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/repository` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
+-
+-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
+-
+-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
+-- **Adapter Pattern**: This package adapts the external library to the domain's needs
+-- **Repository Pattern**: Provides a consistent interface for data access operations
+-- **Generic Programming**: Uses Go's generics for type-safe repository operations
+-
+-## Implementation Details
+-
+-The Repository Wrapper package implements the following design patterns:
+-
+-1. **Adapter Pattern**: Adapts the external library to the domain's needs
+-2. **Repository Pattern**: Provides a consistent interface for data access operations
+-3. **Generic Programming**: Uses Go's generics for type-safe repository operations
+-4. **Facade Pattern**: Simplifies the interface to the underlying repository implementation
+-
+-Key implementation details:
+-
+-- **Generic Interface**: The `Repository` interface uses type parameters to create a reusable interface for any entity type
+-- **Delegation**: The `RepositoryWrapper` delegates to the underlying repository implementation
+-- **Context Propagation**: All methods accept a context.Context parameter for cancellation and value propagation
+-- **Error Handling**: Methods return errors that can be handled by the caller
+-- **Type Safety**: Leverages Go's generics for type-safe repository operations
++The Repository Wrapper adapter provides implementations for repository-related ports defined in the core domain and application layers. This adapter connects the application to repository implementations, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating repository wrapper implementations in adapter classes, the core business logic remains independent of specific repository technologies, making the system more maintainable, testable, and flexible.
+
+ ## Features
+
+-- **Dependency Inversion**: Decouples the domain layer from external libraries
+-- **Generic Interface**: Provides a generic Repository interface that can be used with any entity type
+-- **Adapter Pattern**: Implements the adapter pattern to wrap the servicelib/repository functionality
+-- **Type Safety**: Leverages Go's generics for type-safe repository operations
++- Repository pattern implementation
++- Cross-cutting concerns for repositories (logging, metrics, caching)
++- Transaction management
++- Repository decorators
++- Error handling and translation
++- Performance monitoring
++- Retry mechanisms
++- Circuit breaking for repository operations
+
+-## API Documentation
++## Installation
+
+-### Core Types
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/repositorywrapper
++```
+
+-#### Repository
++## Configuration
+
+-The Repository interface defines the contract for basic repository operations. It's a generic interface that can be used with any entity type.
++The repository wrapper can be configured according to specific requirements. Here's an example of configuring the repository wrapper:
+
+ ```
+-// Repository is a generic interface for repository operations
+-// It wraps the servicelib/repository.Repository interface
+-type Repository[T any] interface {
+-    // GetByID retrieves an entity by its ID
+-    GetByID(ctx context.Context, id string) (T, error)
+-
+-    // Save persists an entity
+-    Save(ctx context.Context, entity T) error
+-
+-    // GetAll retrieves all entities
+-    GetAll(ctx context.Context) ([]T, error)
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a repository wrapper
++
++// 1. Import necessary packages
++import repository, config, logging, cache, metrics
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Create dependencies
++cacheAdapter = cache.NewCacheAdapter(cacheConfig, logger)
++metricsAdapter = metrics.NewMetricsAdapter(metricsConfig, logger)
++
++// 4. Configure the repository wrapper
++repositoryConfig = {
++    cacheEnabled: true,
++    cacheTTL: 5 minutes,
++    metricsEnabled: true,
++    retryEnabled: true,
++    maxRetries: 3,
++    retryBackoff: 100 milliseconds,
++    circuitBreakerEnabled: true,
++    circuitBreakerThreshold: 5,
++    circuitBreakerTimeout: 30 seconds
+ }
+-```
+
+-#### RepositoryWrapper
++// 5. Create the base repository
++baseRepository = mongo.NewFamilyRepository(mongoAdapter, logger)
+
+-The RepositoryWrapper struct implements the Repository interface by delegating to the servicelib/repository.Repository interface.
++// 6. Create the repository wrapper
++familyRepository = repository.NewRepositoryWrapper(
++    baseRepository,
++    repositoryConfig,
++    logger,
++    cacheAdapter,
++    metricsAdapter
++)
+
+-```
+-// RepositoryWrapper is a wrapper around servicelib/repository.Repository
+-type RepositoryWrapper[T any] struct {
+-    repo repository.Repository[T]
++// 7. Use the repository wrapper
++family, err = familyRepository.FindById(context, "family-123")
++if err != nil {
++    logger.Error("Failed to find family", err)
+ }
+ ```
+
+-### Key Methods
+-
+-#### NewRepositoryWrapper
+-
+-Creates a new RepositoryWrapper instance.
+-
+-```
+-// NewRepositoryWrapper creates a new RepositoryWrapper
+-func NewRepositoryWrapper[T any](repo repository.Repository[T]) *RepositoryWrapper[T]
+-```
++## API Documentation
+
+-## Examples
++### Core Concepts
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
++The repository wrapper follows these core concepts:
+
+-- [Repository Example](../../../examples/repository/README.md) - Shows how to use the repository wrapper
++1. **Decorator Pattern**: Wraps repository implementations to add cross-cutting concerns
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates repository-specific errors to domain errors
+
+-Example of using the repository wrapper:
++### Key Adapter Functions
+
+ ```
+-// Create a repository implementation
+-repo := postgres.NewFamilyRepository(db)
+-
+-// Wrap it with the repository wrapper
+-wrappedRepo := repositorywrapper.NewRepositoryWrapper(repo)
+-
+-// Use the wrapped repository
+-family, err := wrappedRepo.GetByID(ctx, "family-123")
+-if err != nil {
+-    // Handle error
++// Pseudocode example - not actual Go code
++// This demonstrates a repository wrapper implementation
++
++// Repository wrapper structure
++type RepositoryWrapper {
++    repository     // Base repository implementation
++    config         // Repository wrapper configuration
++    logger         // Logger for logging operations
++    contextLogger  // Context-aware logger
++    cache          // Cache adapter
++    metrics        // Metrics adapter
+ }
+
+-// Save an entity
+-err = wrappedRepo.Save(ctx, family)
+-if err != nil {
+-    // Handle error
++// Constructor for the repository wrapper
++function NewRepositoryWrapper(repository, config, logger, cache, metrics) {
++    return new RepositoryWrapper {
++        repository: repository,
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        cache: cache,
++        metrics: metrics
++    }
+ }
+
+-// Get all entities
+-families, err := wrappedRepo.GetAll(ctx)
+-if err != nil {
+-    // Handle error
++// Method to find an entity by ID
++function RepositoryWrapper.FindById(context, id) {
++    // Implementation would include:
++    // 1. Logging the operation with context
++    // 2. Checking cache if enabled
++    // 3. Starting metrics collection
++    // 4. Implementing retry logic
++    // 5. Checking circuit breaker status
++    // 6. Delegating to the base repository
++    // 7. Caching the result if enabled
++    // 8. Recording metrics
++    // 9. Handling errors
++    // 10. Returning the result or error
+ }
+ ```
+
+-## Configuration
+-
+-The Repository Wrapper package doesn't require any specific configuration. It's a stateless wrapper around the underlying repository implementation. However, the underlying repository implementation may require configuration for:
+-
+-- Database connections
+-- Connection pooling
+-- Retry policies
+-- Timeout settings
+-- Caching strategies
+-
+-These configurations are typically provided to the underlying repository implementation through dependency injection.
+-
+-## Testing
+-
+-The Repository Wrapper package is tested through:
++## Best Practices
+
+-1. **Unit Tests**: Each method has unit tests that verify it correctly delegates to the underlying repository
+-2. **Integration Tests**: Tests that verify the wrapper works correctly with real repository implementations
+-3. **Mock Tests**: Tests that use mock repositories to verify the wrapper's behavior
++1. **Separation of Concerns**: Keep repository wrapper logic separate from domain logic
++2. **Interface Segregation**: Define focused repository interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Translation**: Translate repository-specific errors to domain errors
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Transaction Management**: Implement proper transaction handling
++7. **Testing**: Write unit and integration tests for repository wrappers
++8. **Performance Monitoring**: Include performance metrics for repository operations
+
+-Key testing approaches:
++## Troubleshooting
+
+-- **Mock Repositories**: Tests use mock repositories to verify that the wrapper correctly delegates to the underlying repository
+-- **Error Propagation**: Tests verify that errors from the underlying repository are properly propagated
+-- **Context Propagation**: Tests verify that context is properly propagated to the underlying repository
++### Common Issues
+
+-Example of a test case:
++#### Cache Consistency
+
+-```
+-func TestRepositoryWrapper_GetByID(t *testing.T) {
+-    // Create a mock repository
+-    ctrl := gomock.NewController(t)
+-    defer ctrl.Finish()
+-    mockRepo := mock.NewMockRepository[*entity.Family](ctrl)
+-
+-    // Set up expectations
+-    expectedFamily := &entity.Family{}
+-    mockRepo.EXPECT().
+-        GetByID(gomock.Any(), "family-123").
+-        Return(expectedFamily, nil)
+-
+-    // Create the wrapper
+-    wrapper := repositorywrapper.NewRepositoryWrapper(mockRepo)
+-
+-    // Call the method
+-    family, err := wrapper.GetByID(context.Background(), "family-123")
+-
+-    // Verify the result
+-    assert.NoError(t, err)
+-    assert.Equal(t, expectedFamily, family)
+-}
+-```
++If you encounter cache consistency issues, consider the following:
++- Implement cache invalidation strategies
++- Use appropriate cache TTL values
++- Consider cache dependencies for related entities
++- Implement cache versioning
++- Use write-through or write-behind caching strategies
+
+-## Best Practices
++#### Performance Issues
+
+-1. **Dependency Inversion**: Use this wrapper to avoid direct dependencies on external libraries in the domain layer
+-2. **Interface Segregation**: Keep interfaces focused on specific responsibilities
+-3. **Consistent Naming**: Follow consistent naming conventions for interface methods
+-4. **Context Propagation**: Always include context.Context as the first parameter
+-5. **Error Handling**: Return meaningful errors that can be handled by the caller
++If you encounter performance issues with repositories, consider the following:
++- Optimize the underlying repository implementation
++- Adjust cache settings for frequently accessed data
++- Review retry and circuit breaker configurations
++- Monitor and optimize transaction usage
++- Implement batch operations where appropriate
+
+-## Design Notes
++## Related Components
+
+-1. **Adapter Pattern**: The Repository Wrapper implements the Adapter pattern to provide a layer of abstraction over the external repository library
+-2. **Delegation**: The wrapper delegates all operations to the underlying repository implementation
+-3. **Type Safety**: The wrapper leverages Go's generics to provide type-safe repository operations
+-4. **Minimal Interface**: The wrapper exposes only the methods needed by the domain layer
+-5. **Context Propagation**: All methods accept a context.Context parameter for cancellation and value propagation
+-6. **Error Handling**: All methods return errors that can be handled by the caller
+-7. **Dependency Inversion**: The wrapper follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the repository interfaces
++- [Application Layer](../../core/application/README.md) - The application layer that uses repositories
++- [Database Adapters](../mongo/README.md) - The database adapters used by repositories
+
+-## Related Components
++## Contributing
+
+-- [Domain Ports](../../../core/domain/ports/README.md) - The domain layer interfaces that use this wrapper
+-- [Infrastructure Adapters](../../adapters/README.md) - Other infrastructure adapters
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-## References
++## License
+
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [Adapter Pattern](https://en.wikipedia.org/wiki/Adapter_pattern)
+-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
+-- [Go Generics](https://go.dev/doc/tutorial/generics)
+-- [Domain Entities](../../../core/domain/entity/README.md) - The entities managed by repositories
+-- [Domain Ports](../../../core/domain/ports/README.md) - The interfaces that define repository contracts
+-- [Application Services](../../../core/application/services/README.md) - Services that use repositories
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/security/README.md b/infrastructure/adapters/security/README.md
+index 0932423..cae2731 100644
+--- a/infrastructure/adapters/security/README.md
++++ b/infrastructure/adapters/security/README.md
+@@ -1,52 +1,167 @@
+-# Security Adapter
++# Infrastructure Adapters - Security
+
+ ## Overview
+
+-The Security Adapter package provides functionality for securing the application. It includes authentication, authorization, encryption, and other security-related features to protect the application and its data.
++The Security adapter provides implementations for security-related ports defined in the core domain and application layers. This adapter connects the application to security frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating security implementations in adapter classes, the core business logic remains independent of specific security technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for security that can be used by the application.
++- Authentication mechanisms (JWT, OAuth, API keys, etc.)
++- Authorization and access control
++- Encryption and decryption utilities
++- Hashing and password management
++- Secure token generation and validation
++- Security headers management
++- CSRF protection
++- Rate limiting for security purposes
+
+-## Implementation Details
++## Installation
+
+-The Security Adapter implements the following design patterns:
+-- Strategy Pattern: Allows different security strategies to be used
+-- Decorator Pattern: Wraps existing functionality with security capabilities
+-- Factory Pattern: Creates instances of security components
+-- Chain of Responsibility: Processes security checks in sequence
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Authentication Example](../../../examples/auth_directive/README.md) - Shows how to use the authentication features
+-- [Authorization Example](../../../examples/authorization/README.md) - Shows how to use the authorization features
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/security
++```
+
+ ## Configuration
+
+-The Security Adapter can be configured with the following options:
+-- Authentication Providers: Configure which authentication providers to use
+-- Authorization Rules: Configure which authorization rules to apply
+-- Encryption Settings: Configure encryption algorithms and keys
+-- Token Settings: Configure token generation and validation
+-
+-## Testing
+-
+-The Security Adapter is tested through:
+-1. Unit Tests: Each security method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the security adapter works correctly with the application
+-3. Security Tests: Tests that verify the security adapter protects against common vulnerabilities
+-
+-## Design Notes
+-
+-1. The Security Adapter supports multiple authentication methods (JWT, OAuth, API keys)
+-2. Authorization is role-based and can be configured at different levels
+-3. Encryption uses industry-standard algorithms and best practices
+-4. Security features are designed to be unobtrusive but comprehensive
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [OWASP Security Best Practices](https://owasp.org/www-project-top-ten/)
+-- [JWT Authentication](https://jwt.io/)
+\ No newline at end of file
++The security adapter can be configured according to specific requirements. Here's an example of configuring the security adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a security adapter
++
++// 1. Import necessary packages
++import security, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the security adapter
++securityConfig = {
++    jwtSecret: "your-jwt-secret",
++    jwtExpirationMinutes: 60,
++    passwordHashingStrength: 12,
++    enableCSRF: true,
++    csrfTokenExpiration: 30 minutes,
++    securityHeaders: {
++        "Content-Security-Policy": "default-src 'self'",
++        "X-XSS-Protection": "1; mode=block",
++        "X-Frame-Options": "DENY"
++    }
++}
++
++// 4. Create the security adapter
++securityAdapter = security.NewSecurityAdapter(securityConfig, logger)
++
++// 5. Use the security adapter
++token, err = securityAdapter.GenerateJWT(user)
++if err != nil {
++    logger.Error("Failed to generate JWT", err)
++}
++
++isValid, claims = securityAdapter.ValidateJWT(token)
++if !isValid {
++    logger.Warn("Invalid JWT token")
++}
++```
++
++## API Documentation
++
++### Core Concepts
++
++The security adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements security ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates security-specific errors to domain errors
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a security adapter implementation
++
++// Security adapter structure
++type SecurityAdapter {
++    config        // Security configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++}
++
++// Constructor for the security adapter
++function NewSecurityAdapter(config, logger) {
++    return new SecurityAdapter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger)
++    }
++}
++
++// Method to generate a JWT token
++function SecurityAdapter.GenerateJWT(user) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Creating claims based on user information
++    // 3. Generating a signed JWT token
++    // 4. Handling errors
++    // 5. Returning the token or error
++}
++
++// Method to validate a JWT token
++function SecurityAdapter.ValidateJWT(token) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Parsing and validating the JWT token
++    // 3. Extracting claims from the token
++    // 4. Handling validation errors
++    // 5. Returning validation status and claims
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep security logic separate from domain logic
++2. **Interface Segregation**: Define focused security interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Translation**: Translate security-specific errors to domain errors
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration**: Configure security through a central configuration system
++7. **Testing**: Write unit and integration tests for security adapters
++8. **Secrets Management**: Never hardcode secrets in the code or configuration files
++
++## Troubleshooting
++
++### Common Issues
++
++#### Authentication Failures
++
++If you encounter authentication issues, check the following:
++- JWT secret is correctly configured
++- Token expiration times are appropriate
++- Clock synchronization between systems
++- Token validation logic is correct
++- User credentials are valid
++
++#### Security Configuration
++
++If you encounter security configuration issues, consider the following:
++- Review security headers for correctness
++- Ensure CSRF protection is properly configured
++- Verify password hashing strength is appropriate
++- Check that encryption keys are properly managed
++- Ensure secure communication channels are used
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the security ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses security
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use security
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/sqlite/README.md b/infrastructure/adapters/sqlite/README.md
+index 6f72b6f..0cfb7e4 100644
+--- a/infrastructure/adapters/sqlite/README.md
++++ b/infrastructure/adapters/sqlite/README.md
+@@ -1,51 +1,340 @@
+-# SQLite Adapter
++# Infrastructure Adapters - SQLite
+
+ ## Overview
+
+-The SQLite Adapter package provides functionality for interacting with SQLite databases. It implements the repository interfaces defined in the domain layer, allowing the application to store and retrieve data from SQLite.
++The SQLite adapter provides implementations for database-related ports defined in the core domain and application layers, specifically for SQLite database interactions. This adapter connects the application to SQLite database systems, following the Ports and Adapters (Hexagonal) architecture pattern.
+
+-## Architecture
++> **For Junior Developers**: Think of this adapter as a bridge between your business logic and the SQLite database. It allows your core business code to store and retrieve data without knowing the details of how SQLite works.
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for SQLite that can be used by the application.
++By isolating SQLite implementations in adapter classes, the core business logic remains independent of specific database technologies, making the system more maintainable, testable, and flexible.
+
+-## Implementation Details
++## Features
+
+-The SQLite Adapter implements the following design patterns:
+-- Repository Pattern: Provides a clean interface for data access
+-- Adapter Pattern: Adapts the SQLite driver to the application's needs
+-- Factory Pattern: Creates instances of SQLite repositories
++- SQLite database connection management
++- Query execution and result mapping
++- Transaction management
++- Migration support
++- Data mapping between domain entities and SQLite tables
++- Error handling and translation
++- Connection pooling
++- Performance optimization
+
+-## Examples
++## Getting Started
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Repository Example](../../../examples/repository/README.md) - Shows how to use the repository adapters
++If you're new to this codebase, follow these steps to start using the SQLite adapter:
++
++1. **Understand the purpose**: The SQLite adapter handles all database operations for SQLite
++2. **Learn the interfaces**: Look at the domain repository interfaces to understand what operations are available
++3. **Database location**: SQLite databases are stored as files, usually in the `./data` directory
++4. **Ask questions**: If something isn't clear, ask a more experienced developer
++
++## Installation
++
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/sqlite
++```
+
+ ## Configuration
+
+-The SQLite Adapter can be configured with the following options:
+-- Database Path: Configure the SQLite database file path
+-- Table Names: Configure the SQLite table names
+-- Connection Pool Size: Configure the SQLite connection pool size
+-- Timeout Settings: Configure the SQLite timeout settings
+-- Journal Mode: Configure the SQLite journal mode
++The SQLite adapter can be configured according to specific requirements. Here's an example of configuring the SQLite adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a SQLite adapter
++
++// 1. Import necessary packages
++import sqlite, config, logging
++
++// 2. Create a logger
++// This is needed for the SQLite adapter to log any issues
++logger = logging.NewLogger()
++
++// 3. Configure the SQLite connection
++// These settings determine how the SQLite database behaves
++sqliteConfig = {
++    databasePath: "./data/family_service.db",      // Where the database file is stored
++    journalMode: "WAL",                            // Write-Ahead Logging for better performance
++    busyTimeout: 5000,                             // How long to wait if the database is locked (ms)
++    foreignKeys: true,                             // Enable foreign key constraints
++    maxOpenConnections: 10,                        // Maximum number of open connections
++    maxIdleConnections: 5,                         // Maximum number of idle connections
++    connectionMaxLifetime: 1 hour                  // How long a connection can be reused
++}
++
++// 4. Create the SQLite adapter
++// This is the object you'll use for all database operations
++sqliteAdapter = sqlite.NewSQLiteAdapter(sqliteConfig, logger)
++
++// 5. Use the SQLite adapter
++// First, connect to the database
++err = sqliteAdapter.Connect()
++if err != nil {
++    logger.Error("Failed to connect to SQLite database", err)
++}
++
++// Execute a query with a parameter
++// The "?" is a placeholder that will be replaced with "family-123"
++results, err = sqliteAdapter.Query(context, "SELECT * FROM families WHERE id = ?", "family-123")
++if err != nil {
++    logger.Error("Failed to execute query", err)
++}
++```
++
++## API Documentation
++
++### Core Concepts
++
++> **For Junior Developers**: These concepts are fundamental to understanding how the SQLite adapter works. Take time to understand each one before diving into the code.
++
++The SQLite adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements database ports defined in the core domain or application layer
++   - This means the SQLite adapter implements interfaces defined elsewhere
++   - The business logic only knows about these interfaces, not the SQLite implementation details
++
++2. **Dependency Injection**: Receives dependencies through constructor injection
++   - Dependencies like loggers are passed in when creating the adapter
++   - This makes testing easier and components more loosely coupled
++
++3. **Configuration**: Configured through a central configuration system
++   - Settings like connection parameters are defined in configuration
++   - This allows changing behavior without changing code
++
++4. **Logging**: Uses a consistent logging approach
++   - All database operations are logged for debugging and monitoring
++   - Context information is included in logs when available
++
++5. **Error Handling**: Translates SQLite-specific errors to domain errors
++   - SQLite errors are converted to domain-specific errors
++   - This prevents SQLite-specific error details from leaking into the domain
++
++### Key Adapter Functions
++
++Here are the main functions you'll use when working with the SQLite adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a SQLite adapter implementation
++
++// SQLite adapter structure
++type SQLiteAdapter {
++    config        // SQLite configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    db            // Database connection
++}
++
++// Constructor for the SQLite adapter
++// This is how you create a new instance of the adapter
++function NewSQLiteAdapter(config, logger) {
++    return new SQLiteAdapter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        db: nil  // Database connection is initialized later
++    }
++}
++
++// Method to connect to the database
++// Call this before using any other methods
++function SQLiteAdapter.Connect() {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Opening a connection to the SQLite database
++    // 3. Configuring connection parameters
++    // 4. Setting up connection pooling
++    // 5. Handling connection errors
++}
++
++// Method to execute a query
++// Use this for SELECT statements
++function SQLiteAdapter.Query(context, query, args...) {
++    // Implementation would include:
++    // 1. Logging the operation with context
++    // 2. Preparing the SQL statement
++    // 3. Executing the query with arguments
++    // 4. Mapping results to appropriate structures
++    // 5. Handling query errors
++    // 6. Returning results or error
++}
++```
++
++### Common Database Operations
++
++Here are some common operations you might need to perform:
++
++1. **Connecting to the database**:
++   ```
++   err = sqliteAdapter.Connect()
++   if err != nil {
++       // Handle connection error
++   }
++   ```
++
++2. **Executing a query**:
++   ```
++   results, err = sqliteAdapter.Query(context, "SELECT * FROM users WHERE age > ?", 18)
++   if err != nil {
++       // Handle query error
++   }
++   ```
++
++3. **Executing a command (insert, update, delete)**:
++   ```
++   rowsAffected, err = sqliteAdapter.Execute(context, "UPDATE users SET active = ? WHERE id = ?", true, "user-123")
++   if err != nil {
++       // Handle execution error
++   }
++   ```
++
++4. **Using transactions**:
++   ```
++   tx, err = sqliteAdapter.BeginTransaction(context)
++   if err != nil {
++       // Handle transaction error
++   }
++
++   // Perform operations within the transaction
++
++   err = tx.Commit()
++   if err != nil {
++       // Handle commit error
++   }
++   ```
++
++## Best Practices
++
++> **For Junior Developers**: Following these best practices will help you avoid common pitfalls and write more maintainable code.
++
++1. **Separation of Concerns**: Keep database logic separate from domain logic
++   - **Why?** Your business logic shouldn't need to know how data is stored or retrieved
++   - **Example:** Don't put SQL queries in your domain entities or services
++
++2. **Interface Segregation**: Define focused database interfaces in the domain layer
++   - **Why?** Small, specific interfaces are easier to understand and implement
++   - **Example:** Have separate repository interfaces for different entity types
++
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++   - **Why?** This makes testing easier and components more loosely coupled
++   - **Example:** Pass the logger and configuration to the SQLite adapter constructor
++
++4. **Error Translation**: Translate SQLite-specific errors to domain errors
++   - **Why?** Domain code shouldn't need to understand SQLite error codes
++   - **Example:** Convert "SQLITE_CONSTRAINT" errors to domain-specific validation errors
++
++5. **Consistent Logging**: Use a consistent logging approach
++   - **Why?** Makes it easier to debug issues and monitor performance
++   - **Example:** Log all database operations with context information
++
++6. **Transaction Management**: Implement proper transaction handling
++   - **Why?** Ensures data consistency and integrity
++   - **Example:** Use transactions for operations that modify multiple records
++
++7. **Connection Management**: Properly manage database connections
++   - **Why?** Prevents resource leaks and improves performance
++   - **Example:** Use connection pooling and close connections when done
++
++8. **Testing**: Write unit and integration tests for SQLite adapters
++   - **Why?** Ensures the adapter works correctly and catches regressions
++   - **Example:** Use an in-memory SQLite database for testing
++
++## Common Mistakes to Avoid
++
++1. **Not using parameterized queries**
++   - **Problem:** Makes your code vulnerable to SQL injection attacks
++   - **Solution:** Always use query parameters (?) instead of string concatenation
++
++2. **Forgetting to close resources**
++   - **Problem:** Can lead to resource leaks and performance issues
++   - **Solution:** Always close statements, result sets, and connections
++
++3. **Not handling concurrent access**
++   - **Problem:** SQLite has limitations with concurrent writes
++   - **Solution:** Use appropriate locking strategies and journal modes
++
++4. **Using SQLite for high-concurrency workloads**
++   - **Problem:** SQLite may not perform well with many concurrent writers
++   - **Solution:** Consider other databases for high-concurrency scenarios
++
++## Troubleshooting
++
++### Common Issues
++
++#### Database Connection Issues
++
++If you encounter database connection issues, check the following:
++
++- **Database file path is correct and accessible**
++  - **Example:** Verify the path with `os.Stat(databasePath)`
++  - **Solution:** Use absolute paths to avoid confusion
++
++- **File permissions allow reading and writing to the database file**
++  - **Problem:** The process might not have permission to access the file
++  - **Solution:** Check and fix file permissions with `chmod`
++
++- **Database is not locked by another process**
++  - **Problem:** SQLite allows only one writer at a time
++  - **Solution:** Increase busy timeout or use WAL journal mode
++
++- **Connection string parameters are correct**
++  - **Example:** Check for typos in parameter names
++  - **Solution:** Use constants for parameter names to avoid typos
++
++#### Performance Issues
++
++If you encounter performance issues with SQLite, consider the following:
++
++- **Use WAL (Write-Ahead Logging) journal mode**
++  - **Why?** Allows concurrent reads while writing
++  - **Example:** Set `PRAGMA journal_mode=WAL`
++
++- **Implement proper indexing for frequently queried columns**
++  - **Why?** Indexes speed up queries dramatically
++  - **Example:** `CREATE INDEX idx_users_email ON users(email)`
++
++- **Use prepared statements for repeated queries**
++  - **Why?** Prepared statements are compiled once and executed many times
++  - **Example:** Prepare a statement once and reuse it with different parameters
++
++- **Optimize query patterns**
++  - **Why?** Some query patterns are more efficient than others
++  - **Example:** Use `EXISTS` instead of `COUNT(*)` when checking existence
++
++- **Configure appropriate connection pool settings**
++  - **Why?** Too few connections limit concurrency, too many waste resources
++  - **Example:** Start with `maxOpenConnections = 10` and adjust based on load
++
++## Related Components
++
++> **For Junior Developers**: Understanding how components relate to each other is crucial for working effectively in this codebase.
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the database ports
++  - This is where the interfaces that the SQLite adapter implements are defined
++  - Look here to understand what operations are available
++
++- [Application Layer](../../core/application/README.md) - The application layer that uses database operations
++  - This layer contains the business logic that uses the SQLite adapter
++  - See how database operations are used in business processes
++
++- [Repository Adapters](../repository/README.md) - The repository adapters that use SQLite
++  - These adapters implement the repository pattern using SQLite
++  - They provide a higher-level abstraction over the SQLite adapter
+
+-## Testing
++## Glossary of Terms
+
+-The SQLite Adapter is tested through:
+-1. Unit Tests: Each repository method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the SQLite adapter works correctly with a real SQLite database
++- **Adapter Pattern**: A design pattern that allows incompatible interfaces to work together
++- **Port**: An interface defined in the domain or application layer
++- **Dependency Injection**: A technique where an object receives its dependencies from outside
++- **SQLite**: A self-contained, serverless, zero-configuration, transactional SQL database engine
++- **WAL**: Write-Ahead Logging, a journal mode that allows concurrent reads while writing
++- **Transaction**: A sequence of operations performed as a single logical unit of work
++- **Connection Pool**: A cache of database connections maintained for reuse
++- **Prepared Statement**: A precompiled SQL statement that can be executed multiple times with different parameters
+
+-## Design Notes
++## Contributing
+
+-1. The SQLite Adapter uses the official SQLite Go driver
+-2. Repositories are implemented as adapters for the domain repository interfaces
+-3. The adapter handles SQLite-specific concerns like connection management and query building
+-4. Error handling is consistent with the application's error handling strategy
+-5. The adapter supports both in-memory and file-based SQLite databases
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+-## References
++## License
+
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [SQLite Go Driver](https://github.com/mattn/go-sqlite3)
+-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
+\ No newline at end of file
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+diff --git a/infrastructure/adapters/telemetrywrapper/README.md b/infrastructure/adapters/telemetrywrapper/README.md
+index b7575dc..dd543b1 100644
+--- a/infrastructure/adapters/telemetrywrapper/README.md
++++ b/infrastructure/adapters/telemetrywrapper/README.md
+@@ -1,52 +1,154 @@
+-# Telemetry Wrapper
++# Infrastructure Adapters - Telemetry Wrapper
+
+ ## Overview
+
+-The Telemetry Wrapper package provides functionality for collecting, processing, and exporting telemetry data from the application. It includes metrics, traces, and logs, allowing developers to monitor the application's performance and behavior.
++The Telemetry Wrapper adapter provides implementations for telemetry-related ports defined in the core domain and application layers. This adapter connects the application to telemetry frameworks and services, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating telemetry implementations in adapter classes, the core business logic remains independent of specific telemetry technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for telemetry that can be used by the application.
++- Application metrics collection and reporting
++- Distributed tracing
++- Performance monitoring
++- Health checks and status reporting
++- Integration with telemetry services and dashboards
++- Custom metric definition and collection
+
+-## Implementation Details
++## Installation
+
+-The Telemetry Wrapper implements the following design patterns:
+-- Decorator Pattern: Wraps existing functionality with telemetry capabilities
+-- Strategy Pattern: Allows different telemetry strategies to be used
+-- Factory Pattern: Creates instances of telemetry components
+-- Observer Pattern: Notifies observers of telemetry events
+-
+-## Examples
+-
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
+-- [Telemetry Example](../../../examples/telemetry/README.md) - Shows how to use the telemetry wrapper
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/telemetrywrapper
++```
+
+ ## Configuration
+
+-The Telemetry Wrapper can be configured with the following options:
+-- Metrics Configuration: Configure which metrics to collect and how to export them
+-- Tracing Configuration: Configure which traces to collect and how to export them
+-- Logging Configuration: Configure which logs to collect and how to export them
+-- Sampling Rate: Configure the sampling rate for telemetry data
+-
+-## Testing
+-
+-The Telemetry Wrapper is tested through:
+-1. Unit Tests: Each telemetry method has comprehensive unit tests
+-2. Integration Tests: Tests that verify the telemetry wrapper works correctly with the application
+-3. Performance Tests: Tests that verify the telemetry wrapper has minimal performance impact
+-
+-## Design Notes
+-
+-1. The Telemetry Wrapper supports multiple telemetry backends (Prometheus, Jaeger, OpenTelemetry)
+-2. Telemetry data is collected with minimal performance impact
+-3. The wrapper provides a consistent interface for all telemetry types
+-4. Telemetry can be enabled/disabled at runtime
+-
+-## References
+-
+-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+-- [OpenTelemetry](https://opentelemetry.io/)
+-- [Prometheus](https://prometheus.io/)
+-- [Jaeger](https://www.jaegertracing.io/)
+\ No newline at end of file
++The telemetry adapter can be configured according to specific requirements. Here's an example of configuring the telemetry adapter:
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a telemetry adapter
++
++// 1. Import necessary packages
++import telemetry, config, logging
++
++// 2. Create a logger
++logger = logging.NewLogger()
++
++// 3. Configure the telemetry
++telemetryConfig = {
++    enabled: true,
++    endpoint: "https://telemetry.example.com",
++    apiKey: "your-api-key",
++    sampleRate: 0.1,
++    batchSize: 100,
++    flushInterval: 15 seconds
++}
++
++// 4. Create the telemetry adapter
++telemetryAdapter = telemetry.NewTelemetryAdapter(telemetryConfig, logger)
++
++// 5. Use the telemetry adapter
++span = telemetryAdapter.StartSpan(context, "operation-name")
++defer span.End()
++
++// Record metrics
++telemetryAdapter.RecordMetric(context, "request_count", 1)
++```
++
++## API Documentation
++
++### Core Concepts
++
++The telemetry wrapper adapter follows these core concepts:
++
++1. **Adapter Pattern**: Implements telemetry ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Handles telemetry errors gracefully without affecting core functionality
++
++### Key Adapter Functions
++
++```
++// Pseudocode example - not actual Go code
++// This demonstrates a telemetry adapter implementation
++
++// Telemetry adapter structure
++type TelemetryAdapter {
++    config        // Telemetry configuration
++    logger        // Logger for logging operations
++    contextLogger // Context-aware logger
++    client        // Telemetry client
++}
++
++// Constructor for the telemetry adapter
++function NewTelemetryAdapter(config, logger) {
++    client = createTelemetryClient(config)
++    return new TelemetryAdapter {
++        config: config,
++        logger: logger,
++        contextLogger: new ContextLogger(logger),
++        client: client
++    }
++}
++
++// Method to start a span for tracing
++function TelemetryAdapter.StartSpan(context, name) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Creating a span in the telemetry system
++    // 3. Handling errors gracefully
++    // 4. Returning the span
++}
++
++// Method to record a metric
++function TelemetryAdapter.RecordMetric(context, name, value) {
++    // Implementation would include:
++    // 1. Logging the operation
++    // 2. Recording the metric in the telemetry system
++    // 3. Handling errors gracefully
++}
++```
++
++## Best Practices
++
++1. **Separation of Concerns**: Keep telemetry logic separate from domain logic
++2. **Interface Segregation**: Define focused telemetry interfaces in the domain layer
++3. **Dependency Injection**: Use constructor injection for adapter dependencies
++4. **Error Handling**: Handle telemetry errors gracefully without affecting core functionality
++5. **Consistent Logging**: Use a consistent logging approach
++6. **Configuration**: Configure telemetry through a central configuration system
++7. **Testing**: Write unit and integration tests for telemetry adapters
++
++## Troubleshooting
++
++### Common Issues
++
++#### Telemetry Service Connectivity
++
++If you encounter connectivity issues with telemetry services, check the following:
++- Telemetry service endpoint is correct
++- Network connectivity between the application and the telemetry service
++- API keys and authentication are properly configured
++- Firewall rules allow the necessary connections
++
++#### Performance Impact
++
++If telemetry collection is impacting application performance, consider the following:
++- Reduce sampling rate for high-volume operations
++- Increase batch size for metric reporting
++- Use asynchronous reporting where possible
++- Optimize the telemetry client configuration
++
++## Related Components
++
++- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the telemetry ports
++- [Application Layer](../../core/application/README.md) - The application layer that uses telemetry
++- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use telemetry
++
++## Contributing
++
++Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
++
++## License
++
++This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+\ No newline at end of file
+diff --git a/infrastructure/adapters/validationwrapper/README.md b/infrastructure/adapters/validationwrapper/README.md
+index 46dfd1d..0c6e501 100644
+--- a/infrastructure/adapters/validationwrapper/README.md
++++ b/infrastructure/adapters/validationwrapper/README.md
+@@ -1,173 +1,136 @@
+-# Validation Wrapper
++# Infrastructure Adapters - Validation Wrapper
+
+ ## Overview
+
+-The Validation Wrapper package provides a wrapper around the `github.com/abitofhelp/servicelib/validation` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters), allowing the domain layer to remain isolated from external dependencies.
++The Validation Wrapper adapter provides implementations for validation-related ports defined in the core domain and application layers. This adapter connects the application to validation frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating validation implementations in adapter classes, the core business logic remains independent of specific validation technologies, making the system more maintainable, testable, and flexible.
+
+-## Architecture
++## Features
+
+-The Validation Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/validation` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
++- Input validation for domain entities and value objects
++- Validation rule management and execution
++- Error message formatting and localization
++- Custom validation rule support
++- Integration with validation frameworks
+
+-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
++## Installation
+
+-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
+-- **Adapter Pattern**: This package adapts the external library to the domain's needs
+-- **Composite Pattern**: Validation rules can be composed to create complex validation logic
+-- **Chain of Responsibility**: Validation rules are chained together in a pipeline
+-
+-## Implementation Details
+-
+-The Validation Wrapper package implements the following design patterns:
+-
+-1. **Adapter Pattern**: Adapts the external library to the domain's needs
+-2. **Composite Pattern**: Validation rules can be composed to create complex validation logic
+-3. **Chain of Responsibility**: Validation rules are chained together in a pipeline
+-4. **Strategy Pattern**: Different validation strategies can be implemented as validation rules
++```bash
++go get github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper
++```
+
+-Key implementation details:
++## Configuration
+
+-- **Interface-Based Design**: The package defines interfaces for validation rules and pipelines
+-- **Composition Over Inheritance**: Validation rules can be composed to create complex validation logic
+-- **Fluent Interface**: The validation pipeline provides a fluent interface for adding rules
+-- **Helper Functions**: Common validation logic is encapsulated in helper functions
++The validation adapter can be configured according to specific requirements. Here's an example of configuring the validation adapter:
+
+-The package uses the `github.com/abitofhelp/servicelib/validation` package internally but exposes its own API to the domain layer, ensuring that the domain layer doesn't directly depend on the external library.
++```
++// Pseudocode example - not actual Go code
++// This demonstrates how to configure and use a validation adapter
+
+-## Examples
++// 1. Import necessary packages
++import validation, config, logging
+
+-For complete, runnable examples, see the following directories in the EXAMPLES directory:
++// 2. Create a logger
++logger = logging.NewLogger()
+
+-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the validation wrapper
++// 3. Configure the validation
++validationConfig = {
++    strictMode: true,
++    localization: "en-US"
++}
+
+-Example of using the validation wrapper:
++// 4. Create the validation adapter
++validationAdapter = validation.NewValidator(validationConfig, logger)
+
++// 5. Use the validation adapter
++errors = validationAdapter.Validate(entity)
++if len(errors) > 0 {
++    logger.Error("Validation failed", errors)
++}
+ ```
+-// Create a validation rule
+-rule := validationwrapper.NewValidationRule("myRule", func(entity interface{}) error {
+-    // Validation logic
+-    return nil
+-})
+-
+-// Create a validation pipeline
+-pipeline := validationwrapper.NewValidationPipeline()
+-pipeline.AddRule(rule)
+-
+-// Validate an entity
+-err := pipeline.Validate(myEntity)
+-
+-// Create a composite rule
+-compositeRule := validationwrapper.NewCompositeRule("myCompositeRule")
+-compositeRule.AddRule(rule1)
+-compositeRule.AddRule(rule2)
+-
+-// Use helper functions
+-err := validationwrapper.ValidateNotNil(value, "fieldName")
+-err := validationwrapper.ValidateNotEmpty(value, "fieldName")
+-err := validationwrapper.ValidateMinLength(value, 5, "fieldName")
+-err := validationwrapper.ValidateMaxLength(value, 10, "fieldName")
+-```
+-
+-## Configuration
+-
+-The Validation Wrapper package doesn't require any specific configuration. It provides a set of interfaces and implementations that can be used as-is. However, you can configure the validation behavior by:
+
+-- **Creating Custom Rules**: Implement the `ValidationRule` interface to create custom validation rules
+-- **Composing Rules**: Use the `CompositeRule` to compose multiple rules into a single rule
+-- **Building Pipelines**: Use the `ValidationPipeline` to build a pipeline of validation rules
+-- **Using Helper Functions**: Use the provided helper functions for common validations
+-
+-## Testing
+-
+-The Validation Wrapper package is tested through:
++## API Documentation
+
+-1. **Unit Tests**: Each function and interface implementation has unit tests
+-2. **Integration Tests**: Tests that verify the wrapper works correctly with the underlying library
+-3. **Validation Logic Tests**: Tests that verify the validation logic works correctly
++### Core Concepts
+
+-Key testing approaches:
++The validation wrapper adapter follows these core concepts:
+
+-- **Rule Testing**: Tests that verify validation rules work correctly
+-- **Pipeline Testing**: Tests that verify validation pipelines work correctly
+-- **Composite Rule Testing**: Tests that verify composite rules work correctly
+-- **Helper Function Testing**: Tests that verify helper functions work correctly
++1. **Adapter Pattern**: Implements validation ports defined in the core domain or application layer
++2. **Dependency Injection**: Receives dependencies through constructor injection
++3. **Configuration**: Configured through a central configuration system
++4. **Logging**: Uses a consistent logging approach
++5. **Error Handling**: Translates validation-specific errors to domain errors
+
+-Example of a test case:
++### Key Adapter Functions
+
+ ```
+-// Test that the validation rule validates correctly
+-func TestValidationRule_Validate(t *testing.T) {
+-    // Create a validation rule
+-    rule := validationwrapper.NewValidationRule("myRule", func(entity interface{}) error {
+-        // Validation logic that always passes
+-        return nil
+-    })
+-
+-    // Validate an entity
+-    err := rule.Validate("test entity")
+-
+LINE LIMIT EXCEEDED
