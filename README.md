@@ -291,10 +291,10 @@ The following UML diagrams provide visual representations of the system architec
 - [SRS Use Case Diagram](./DOCS/diagrams/srs_use_case_diagram.svg) - Shows the main operations that can be performed by API clients
 - [SRS Data Model Diagram](./DOCS/diagrams/srs_data_model_diagram.svg) - Illustrates the key entities and their relationships
 - [SDD Class Diagram](./DOCS/diagrams/sdd_class_diagram.svg) - Detailed structure of the system's classes and their relationships
-- [SDD Sequence Diagram - Divorce Operation](./DOCS/diagrams/sdd_sequence_diagram.svg) - Shows the interactions during a complex workflow
+- [SDD Sequence Diagram - Divorce Operation](./DOCS/diagrams/sdd_sequence_diagram___divorce_operation.svg) - Shows the interactions during a complex workflow
 
 ### Testing Diagrams
-- [STP Test Process Activity Diagram](./DOCS/diagrams/stp_test_process_diagram.svg) - Illustrates the test execution process
+- [STP Test Process Activity Diagram](./DOCS/diagrams/stp_test_process_activity_diagram.svg) - Illustrates the test execution process
 - [STP Test Coverage Component Diagram](./DOCS/diagrams/stp_test_coverage_diagram.svg) - Shows test coverage targets for each component
 
 ### Deployment Diagrams
@@ -868,7 +868,7 @@ The SDD describes the architecture and technologies used:
 
 UML References:
 - [SDD Class Diagram](./DOCS/diagrams/sdd_class_diagram.svg)
-- [SDD Sequence Diagram - Divorce Operation](./DOCS/diagrams/sdd_sequence_diagram.svg)
+- [SDD Sequence Diagram - Divorce Operation](./DOCS/diagrams/sdd_sequence_diagram___divorce_operation.svg)
 
 ## 🧪 Software Test Plan (STP)
 
@@ -893,7 +893,7 @@ Edge Cases:
 - Divorce with no children
 
 UML References:
-- [STP Test Process Activity Diagram](./DOCS/diagrams/stp_test_process_diagram.svg)
+- [STP Test Process Activity Diagram](./DOCS/diagrams/stp_test_process_activity_diagram.svg)
 - [STP Test Coverage Component Diagram](./DOCS/diagrams/stp_test_coverage_diagram.svg)
 
 ## 🚢 Deployment Document
