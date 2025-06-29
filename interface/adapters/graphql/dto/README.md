@@ -88,37 +88,14 @@ Key testing approaches:
 
 Example of a test case:
 
-```go
-package dto_test
-
-import (
-    "testing"
-    "time"
-
-    "github.com/stretchr/testify/assert"
-
-    "github.com/abitofhelp/family-service/core/domain/entity"
-    "github.com/abitofhelp/family-service/interface/adapters/graphql/dto"
-    "github.com/abitofhelp/family-service/interface/adapters/graphql/model"
-)
-
+```
+// Example test for the FamilyMapper
 func TestFamilyMapper_ToGraphQL(t *testing.T) {
     // Create a domain DTO
-    domainDTO := &entity.FamilyDTO{
-        ID: "fam-123",
-        Status: entity.StatusMarried,
-        Parents: []*entity.ParentDTO{
-            {
-                ID: "par-123",
-                FirstName: "John",
-                LastName: "Doe",
-                BirthDate: time.Now(),
-            },
-        },
-    }
+    domainDTO := createTestFamilyDTO()
 
     // Create a mapper
-    mapper := dto.NewFamilyMapper()
+    mapper := NewFamilyMapper()
 
     // Convert to GraphQL model
     graphqlModel, err := mapper.ToGraphQL(domainDTO)
