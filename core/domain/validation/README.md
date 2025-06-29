@@ -14,6 +14,52 @@ The Domain Validation package provides a flexible and extensible framework for v
 - **Error Aggregation**: Collects and reports multiple validation errors
 - **Clean Separation**: Keeps validation logic separate from entity logic
 
+## Installation
+
+```bash
+go get github.com/abitofhelp/family-service/core/domain/validation
+```
+
+## Quick Start
+
+See the [Quick Start example](../../../EXAMPLES/validation/basic_usage/README.md) for a complete, runnable example of how to use the validation framework.
+
+## Configuration
+
+The Domain Validation package can be configured with the following options:
+
+- **Rule Parameters**: Configure parameters for specific rules (e.g., minimum parent age)
+- **Pipeline Composition**: Configure which rules are included in the validation pipeline
+- **Error Handling**: Configure how validation errors are handled and reported
+- **Context Values**: Configure values that are passed through context to validation rules
+
+## Examples
+
+There may be additional examples in the /EXAMPLES directory.
+
+```go
+package main
+
+import (
+    "github.com/abitofhelp/family-service/core/domain/validation"
+)
+
+func main() {
+    // Configure the minimum parent age
+    minimumParentAge := 18
+
+    // Create a rule with the configured parameter
+    parentAgeRule := validation.NewParentAgeRule(minimumParentAge)
+
+    // Configure the validation pipeline
+    pipeline := validation.NewPipeline(
+        parentAgeRule,
+        validation.NewChildBirthDateRule(),
+        validation.NewFamilyStatusRule(),
+    )
+}
+```
+
 ## API Documentation
 
 ### Core Types
@@ -44,44 +90,72 @@ type Pipeline struct {
 func NewPipeline(rules ...Rule) *Pipeline
 ```
 
-### Family-Specific Rules
+### Key Methods
 
-#### ParentAgeRule
+#### Validate
 
-Validates that parents meet minimum age requirements.
+Validates an entity using the validation pipeline.
 
 ```
-// ParentAgeRule validates that parents meet minimum age requirements
-type ParentAgeRule struct {
-    minimumAge int
+// Validate applies all rules in the pipeline to the entity
+func (p *Pipeline) Validate(ctx context.Context, entity interface{}) error
+```
+
+#### NewCompositeRule
+
+Creates a composite rule that combines multiple rules.
+
+```
+// NewCompositeRule creates a new composite rule that combines multiple rules
+func NewCompositeRule(rules ...Rule) *CompositeRule
+```
+
+## Examples
+
+For complete, runnable examples, see the following directories in the EXAMPLES directory:
+
+- [Validation Example](../../../EXAMPLES/validation/README.md) - Shows how to use the validation framework
+
+Example of using the validation pipeline:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "github.com/abitofhelp/family-service/core/domain/validation"
+    "github.com/abitofhelp/family-service/core/domain/entity"
+)
+
+func main() {
+    // Create validation rules
+    parentAgeRule := validation.NewParentAgeRule(18)
+    childBirthDateRule := validation.NewChildBirthDateRule()
+    familyStatusRule := validation.NewFamilyStatusRule()
+
+    // Create a validation pipeline
+    pipeline := validation.NewPipeline(
+        parentAgeRule,
+        childBirthDateRule,
+        familyStatusRule,
+    )
+
+    // Create a family to validate
+    family := &entity.Family{
+        // Family details
+    }
+
+    // Validate the family
+    ctx := context.Background()
+    err := pipeline.Validate(ctx, family)
+    if err != nil {
+        fmt.Printf("Validation error: %v\n", err)
+        return
+    }
+
+    fmt.Println("Family is valid!")
 }
-
-// NewParentAgeRule creates a new ParentAgeRule
-func NewParentAgeRule(minimumAge int) *ParentAgeRule
-```
-
-#### ChildBirthDateRule
-
-Validates that children's birth dates are after parents' birth dates.
-
-```
-// ChildBirthDateRule validates that children's birth dates are after parents' birth dates
-type ChildBirthDateRule struct{}
-
-// NewChildBirthDateRule creates a new ChildBirthDateRule
-func NewChildBirthDateRule() *ChildBirthDateRule
-```
-
-#### FamilyStatusRule
-
-Validates that the family status is consistent with the number of parents.
-
-```
-// FamilyStatusRule validates that the family status is consistent with the number of parents
-type FamilyStatusRule struct{}
-
-// NewFamilyStatusRule creates a new FamilyStatusRule
-func NewFamilyStatusRule() *FamilyStatusRule
 ```
 
 ## Best Practices
@@ -92,9 +166,29 @@ func NewFamilyStatusRule() *FamilyStatusRule
 4. **Context Awareness**: Use context to access contextual information during validation
 5. **Separation of Concerns**: Keep validation logic separate from entity logic
 
+## Troubleshooting
+
+### Common Issues
+
+#### Validation Errors
+
+If you encounter validation errors, check that your entities meet all the validation criteria. The error message should provide details about which validation rule failed.
+
+#### Context Cancellation
+
+If you're using a context with a timeout or cancellation, ensure that your validation rules handle context cancellation properly.
+
 ## Related Components
 
 - [Domain Entities](../entity/README.md) - The entities being validated
 - [Domain Services](../services/README.md) - Services that use these validation rules
 - [Validation Wrapper](../../../infrastructure/adapters/validationwrapper/README.md) - Infrastructure for validation results
 - [Error Wrapper](../../../infrastructure/adapters/errorswrapper/README.md) - Infrastructure for error handling
+
+## Contributing
+
+Contributions to this component are welcome! Please see the [Contributing Guide](../../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../../LICENSE) file for details.

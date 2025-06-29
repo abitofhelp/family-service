@@ -1,6 +1,6 @@
 module github.com/abitofhelp/family-service
 
-go 1.24
+go 1.24.4
 
 // The replace is not required for local vs CI/CD builds.
 // Go tooling will automatically resolve imports for local modules
@@ -9,7 +9,7 @@ go 1.24
 
 require (
 	github.com/99designs/gqlgen v0.17.75
-	github.com/abitofhelp/servicelib v1.5.0
+	github.com/abitofhelp/servicelib v1.8.0
 	github.com/golang/mock v1.6.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/mattn/go-sqlite3 v1.14.28

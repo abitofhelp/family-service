@@ -46,9 +46,7 @@ The package uses the `errorswrapper` package from the infrastructure layer to cr
 
 ## Examples
 
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-
-- [Family Errors Example](../../../examples/family_errors/README.md) - Shows how to use domain-specific errors
+There may be additional examples in the /EXAMPLES directory.
 
 Example of creating and handling a domain error:
 

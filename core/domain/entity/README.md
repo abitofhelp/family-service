@@ -51,9 +51,7 @@ Key implementation details:
 
 ## Examples
 
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-
-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the domain entities
+There may be additional examples in the /EXAMPLES directory.
 
 Example of creating a new family:
 

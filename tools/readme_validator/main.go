@@ -14,13 +14,17 @@ import (
 // Required sections in component README files
 var componentRequiredSections = []string{
 	"Overview",
-	"Architecture",
-	"Implementation Details",
-	"Examples",
+	"Features",
+	"Installation",
+	"Quick Start",
 	"Configuration",
-	"Testing",
-	"Design Notes",
-	"References",
+	"API Documentation",
+	"Examples",
+	"Best Practices",
+	"Troubleshooting",
+	"Related Components",
+	"Contributing",
+	"License",
 }
 
 // Required sections in example README files
