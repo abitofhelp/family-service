@@ -17,8 +17,9 @@ This project follows the following coding guidelines:
 * All new or existing README.md files must adhere to the COMPONENT_README_TEMPLATE.md structure.
 * Every package must have a README.md file, even if it is empty.
 * Standardize naming conventions between .puml files and .svg files to use underscores and lowercase.
-* All dependencies must point inward, never outward.  
-
+* All dependencies must point inward, never outward.
+* All date and time strings must be in RFC3339 format.
+ 
 The project must follow these godoc guidelines, which are based on best practices and conventions:
 1. Document Exported Identifiers:
    Rule: Every exported identifier (functions, types, variables, constants) should have a doc comment.

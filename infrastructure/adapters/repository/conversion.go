@@ -3,6 +3,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/abitofhelp/family-service/core/domain/entity"
 )
 
@@ -10,7 +12,7 @@ import (
 type EntityConverter interface {
 	// EntityToDocument converts a domain entity to a database-specific document
 	EntityToDocument(entity interface{}) (interface{}, error)
-	
+
 	// DocumentToEntity converts a database-specific document to a domain entity
 	DocumentToEntity(document interface{}) (interface{}, error)
 }
@@ -19,19 +21,19 @@ type EntityConverter interface {
 type FamilyConverter interface {
 	// FamilyToDocument converts a Family entity to a database-specific document
 	FamilyToDocument(family *entity.Family) (interface{}, error)
-	
+
 	// DocumentToFamily converts a database-specific document to a Family entity
 	DocumentToFamily(document interface{}) (*entity.Family, error)
-	
+
 	// ParentToDocument converts a Parent entity to a database-specific document
 	ParentToDocument(parent *entity.Parent) (interface{}, error)
-	
+
 	// DocumentToParent converts a database-specific document to a Parent entity
 	DocumentToParent(document interface{}) (*entity.Parent, error)
-	
+
 	// ChildToDocument converts a Child entity to a database-specific document
 	ChildToDocument(child *entity.Child) (interface{}, error)
-	
+
 	// DocumentToChild converts a database-specific document to a Child entity
 	DocumentToChild(document interface{}) (*entity.Child, error)
 }

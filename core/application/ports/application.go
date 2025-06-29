@@ -45,6 +45,12 @@ type FamilyApplicationService interface {
 	// GetAllFamilies retrieves all families (alias for GetAll)
 	GetAllFamilies(ctx context.Context) ([]*entity.FamilyDTO, error)
 
+	// UpdateFamily updates an existing family
+	UpdateFamily(ctx context.Context, dto entity.FamilyDTO) (*entity.FamilyDTO, error)
+
+	// DeleteFamily deletes a family by ID
+	DeleteFamily(ctx context.Context, id string) error
+
 	// AddParent adds a parent to a family
 	AddParent(ctx context.Context, familyID string, parentDTO entity.ParentDTO) (*entity.FamilyDTO, error)
 

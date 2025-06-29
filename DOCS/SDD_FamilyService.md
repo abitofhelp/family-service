@@ -189,7 +189,7 @@ Example FamilyRepository interface that embeds the ServiceLib Repository:
     // It's defined in the domain layer but implemented in the infrastructure layer
     type FamilyRepository interface {
         // Embed the generic Repository interface with Family entity
-        repository.Repository[*entity.Family]
+        repositorywrapper.Repository[*entity.Family]
 
         // FindByParentID finds families that contain a specific parent
         FindByParentID(ctx context.Context, parentID string) ([]*entity.Family, error)

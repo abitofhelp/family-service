@@ -8,8 +8,8 @@ import (
 
 	domainerrors "github.com/abitofhelp/family-service/core/domain/errors"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
+	"github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper"
-	"github.com/abitofhelp/servicelib/valueobject/identification"
 	"github.com/google/uuid"
 )
 
@@ -27,7 +27,7 @@ const (
 
 // Family is the root aggregate that represents a family unit
 type Family struct {
-	id       identification.ID
+	id       identificationwrapper.ID
 	status   Status
 	parents  []*Parent
 	children []*Child
@@ -46,7 +46,7 @@ func NewFamily(id string, status Status, parents []*Parent, children []*Child) (
 	}
 
 	// Create ID value object
-	idVO, err := identification.NewID(id)
+	idVO, err := identificationwrapper.NewIDFromString(id)
 	if err != nil {
 		return nil, errorswrapper.NewValidationError("invalid ID: "+err.Error(), "ID", err)
 	}
@@ -100,7 +100,7 @@ func (f *Family) Validate() error {
 		}
 
 		// Check for duplicates using a composite key
-		key := p.FirstName() + p.LastName() + p.BirthDate().Format("2006-01-02")
+		key := p.FirstName() + p.LastName() + p.BirthDate().Format(time.RFC3339)
 		if seen[key] {
 			result.AddError("duplicate parent in family", "Parents")
 		}

@@ -11,12 +11,11 @@ import (
 	"github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper"
 	"github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper"
-	"github.com/abitofhelp/servicelib/valueobject/identification"
 )
 
 // Parent represents a parent entity in the family domain
 type Parent struct {
-	id        identification.ID
+	id        identificationwrapper.ID
 	firstName identificationwrapper.Name
 	lastName  identificationwrapper.Name
 	birthDate identificationwrapper.DateOfBirth
@@ -26,7 +25,7 @@ type Parent struct {
 // NewParent creates a new Parent entity with validation
 func NewParent(id, firstName, lastName string, birthDate time.Time, deathDate *time.Time) (*Parent, error) {
 	// Create ID value object
-	idVO, err := identification.NewID(id)
+	idVO, err := identificationwrapper.NewIDFromString(id)
 	if err != nil {
 		return nil, errorswrapper.NewValidationError("invalid ID: "+err.Error(), "ID", err)
 	}
@@ -206,7 +205,7 @@ func (p *Parent) Equals(other *Parent) bool {
 	if other == nil {
 		return false
 	}
-	return p.id == other.id
+	return p.id.Equals(other.id)
 }
 
 // ToDTO converts the Parent entity to a data transfer object for external use

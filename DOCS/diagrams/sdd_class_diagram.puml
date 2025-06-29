@@ -71,6 +71,14 @@ package "ServiceLib" {
     }
   }
 
+  package "RepositoryWrapper" {
+    interface "repositorywrapper.Repository<T>" as RepositoryWrapper {
+      +GetByID(ctx: context.Context, id: string): (T, error)
+      +GetAll(ctx: context.Context): ([]T, error)
+      +Save(ctx: context.Context, entity: T): error
+    }
+  }
+
   package "DI" {
     interface "di.ApplicationService" as ServiceLibApplicationService {
       +GetID(): string
@@ -245,7 +253,7 @@ package "Application Layer" {
 
 package "Ports Layer" {
   interface FamilyRepository {
-    +repository.Repository<*entity.Family>
+    +repositorywrapper.Repository<*entity.Family>
     +FindByParentID(ctx: context.Context, parentID: string): ([]*entity.Family, error)
     +FindByChildID(ctx: context.Context, childID: string): (*entity.Family, error)
   }
@@ -385,7 +393,8 @@ SQLiteFamilyRepository --> RetryConfig : uses
 Config ..|> RetryConfigAdapter : implements
 Config *-- RetryConfig : contains
 
-FamilyRepository --|> ServiceLibRepository : extends
+FamilyRepository --|> RepositoryWrapper : extends
+RepositoryWrapper ..> ServiceLibRepository : wraps
 
 FamilyDomainService ..> Family : creates/manipulates
 FamilyDomainService ..> FamilyDTO : converts

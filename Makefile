@@ -489,8 +489,15 @@ lint:
 
 # Pre-commit checks
 .PHONY: pre-commit
-pre-commit: tidy fmt lint test vuln-check validate-readme check-go-version
+pre-commit: tidy fmt lint test vuln-check validate-readme check-go-version enforce-naming-convention
 	@echo "All pre-commit checks passed!"
+
+# Enforce naming conventions for .puml and .svg files
+.PHONY: enforce-naming-convention
+enforce-naming-convention:
+	@echo "Enforcing naming conventions for .puml and .svg files..."
+	./DOCS/tools/scripts/enforce_naming_convention.sh
+	@echo "Naming conventions enforced"
 
 # Tidy and verify Go modules
 .PHONY: tidy
