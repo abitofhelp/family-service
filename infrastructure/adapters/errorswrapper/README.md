@@ -1,131 +1,166 @@
-# Error Wrapper
+# Infrastructure Adapters - Error Wrapper
 
 ## Overview
 
-This package provides a wrapper around the `github.com/abitofhelp/servicelib/errors` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters).
+The Error Wrapper adapter provides implementations for error handling-related ports defined in the core domain and application layers. This adapter connects the application to error handling frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating error handling implementations in adapter classes, the core business logic remains independent of specific error handling technologies, making the system more maintainable, testable, and flexible.
 
-The purpose of this wrapper is to:
+## Features
 
-1. Isolate the domain layer from external dependencies
-2. Provide a consistent error handling approach throughout the application
-3. Make it easier to replace or update the underlying error handling library in the future
+- Structured error handling
+- Error categorization and classification
+- Error wrapping and unwrapping
+- Error translation between layers
+- Error context enrichment
+- Stack trace management
+- Error logging integration
+- Error reporting and monitoring
 
-## Architecture
+## Installation
 
-The `errorswrapper` package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/errors` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
-
-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer.
-
-## Usage
-
-Instead of directly importing `github.com/abitofhelp/servicelib/errors`, import this wrapper:
-
-```go
-import "github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper"
-```
-
-Then use the wrapper functions:
-
-```go
-// Create a domain error
-err := errorswrapper.NewDomainError("ERROR_CODE", "Error message", cause)
-
-// Create a validation error
-err := errorswrapper.NewValidationError("Error message", "field", cause)
-
-// Create a database error
-err := errorswrapper.NewDatabaseError("Error message", "operation", "table", cause)
-
-// Create a not found error
-err := errorswrapper.NewNotFoundError("ResourceType", "resourceID", cause)
-
-// Check error types
-if errorswrapper.IsValidationError(err) {
-    // Handle validation error
-}
-
-// Get error details
-code := errorswrapper.GetErrorCode(err)
-message := errorswrapper.GetErrorMessage(err)
-cause := errorswrapper.GetErrorCause(err)
-```
-
-## Implementation Details
-
-The wrapper provides the following error types:
-
-- `Error`: Base error interface
-- `ValidationError`: For validation errors
-- `DomainError`: For domain-specific errors
-- `DatabaseError`: For database-related errors
-- `NotFoundError`: For resource not found errors
-
-The wrapper provides the following functions:
-
-- `NewDomainError`: Creates a new domain error
-- `NewValidationError`: Creates a new validation error
-- `NewDatabaseError`: Creates a new database error
-- `NewNotFoundError`: Creates a new not found error
-- `IsValidationError`: Checks if an error is a validation error
-- `IsDomainError`: Checks if an error is a domain error
-- `IsDatabaseError`: Checks if an error is a database error
-- `IsNotFoundError`: Checks if an error is a not found error
-- `GetErrorCode`: Gets the error code
-- `GetErrorMessage`: Gets the error message
-- `GetErrorCause`: Gets the error cause
-- `FormatError`: Formats an error with its code, message, and cause
-- `WrapError`: Wraps an error with a message
-
-## Examples
-
-```go
-// Create a domain error
-err := errorswrapper.NewDomainError("INVALID_FAMILY", "Family must have at least one parent", nil)
-
-// Check if an error is a domain error
-if errorswrapper.IsDomainError(err) {
-    // Handle domain error
-    code := errorswrapper.GetErrorCode(err)
-    message := errorswrapper.GetErrorMessage(err)
-    // ...
-}
-
-// Create a validation error
-validationErr := errorswrapper.NewValidationError("First name cannot be empty", "firstName", nil)
-
-// Create a database error
-dbErr := errorswrapper.NewDatabaseError("Failed to insert record", "insert", "families", someError)
-
-// Format an error for logging
-formattedErr := errorswrapper.FormatError(err)
-logger.Error(formattedErr)
+```bash
+go get github.com/abitofhelp/family-service/infrastructure/adapters/errorswrapper
 ```
 
 ## Configuration
 
-The `errorswrapper` package doesn't require any specific configuration. It's a stateless wrapper around the `servicelib/errors` package.
+The error wrapper can be configured according to specific requirements. Here's an example of configuring the error wrapper:
 
-## Testing
+```
+// Pseudocode example - not actual Go code
+// This demonstrates how to configure and use an error wrapper
 
-The package includes unit tests that verify the correct behavior of all error types and functions. Tests cover:
+// 1. Import necessary packages
+import errors, config, logging
 
-- Creating different types of errors
-- Checking error types
-- Getting error details
-- Formatting errors
-- Wrapping errors
+// 2. Create a logger
+logger = logging.NewLogger()
 
-## Design Notes
+// 3. Configure the error wrapper
+errorConfig = {
+    includeStackTrace: true,
+    maxStackDepth: 20,
+    errorReporting: {
+        enabled: true,
+        sampleRate: 0.1,
+        endpoint: "https://errors.example.com"
+    },
+    sensitiveFields: ["password", "token", "secret"]
+}
 
-1. **Dependency Inversion**: The wrapper follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations.
-2. **Error Types**: The package provides specific error types for different categories of errors, making it easier to handle errors appropriately.
-3. **Error Details**: All errors include details such as error code, message, and cause, making it easier to debug issues.
-4. **Consistency**: The wrapper ensures consistent error handling throughout the application.
+// 4. Create the error wrapper
+errorWrapper = errors.NewErrorWrapper(errorConfig, logger)
 
-## References
+// 5. Use the error wrapper
+err = someOperation()
+if err != nil {
+    // Wrap a low-level error with domain context
+    domainErr = errorWrapper.Wrap(err, "failed to process family data")
+    
+    // Categorize the error
+    if errorWrapper.IsNotFound(err) {
+        // Handle not found case
+    }
+    
+    // Log the error with context
+    errorWrapper.LogError(context, domainErr)
+}
+```
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Go Error Handling Best Practices](https://blog.golang.org/error-handling-and-go)
-- [Domain Errors](../../../core/domain/errors/README.md) - Domain-specific error types
-- [Validation Wrapper](../validationwrapper/README.md) - Validation utilities that use these errors
+## API Documentation
+
+### Core Concepts
+
+The error wrapper follows these core concepts:
+
+1. **Adapter Pattern**: Implements error handling ports defined in the core domain or application layer
+2. **Dependency Injection**: Receives dependencies through constructor injection
+3. **Configuration**: Configured through a central configuration system
+4. **Logging**: Uses a consistent logging approach
+5. **Error Classification**: Categorizes errors into meaningful types
+
+### Key Adapter Functions
+
+```
+// Pseudocode example - not actual Go code
+// This demonstrates an error wrapper implementation
+
+// Error wrapper structure
+type ErrorWrapper {
+    config        // Error wrapper configuration
+    logger        // Logger for logging operations
+    contextLogger // Context-aware logger
+}
+
+// Constructor for the error wrapper
+function NewErrorWrapper(config, logger) {
+    return new ErrorWrapper {
+        config: config,
+        logger: logger,
+        contextLogger: new ContextLogger(logger)
+    }
+}
+
+// Method to wrap an error with additional context
+function ErrorWrapper.Wrap(err, message) {
+    // Implementation would include:
+    // 1. Creating a new error with the original as cause
+    // 2. Adding the message
+    // 3. Capturing stack trace if configured
+    // 4. Preserving error type information
+    // 5. Returning the wrapped error
+}
+
+// Method to check if an error is of a specific type
+function ErrorWrapper.IsNotFound(err) {
+    // Implementation would include:
+    // 1. Unwrapping the error if needed
+    // 2. Checking if it's a not found error
+    // 3. Returning the result
+}
+```
+
+## Best Practices
+
+1. **Separation of Concerns**: Keep error handling logic separate from domain logic
+2. **Interface Segregation**: Define focused error handling interfaces in the domain layer
+3. **Dependency Injection**: Use constructor injection for adapter dependencies
+4. **Error Classification**: Categorize errors into meaningful types
+5. **Consistent Logging**: Use a consistent logging approach for errors
+6. **Context Enrichment**: Add relevant context to errors
+7. **Security**: Avoid including sensitive information in errors
+8. **Testing**: Write unit and integration tests for error handling
+
+## Troubleshooting
+
+### Common Issues
+
+#### Error Information Loss
+
+If you encounter issues with error information being lost, consider the following:
+- Ensure errors are properly wrapped rather than replaced
+- Preserve stack traces when wrapping errors
+- Use error types or codes to maintain categorization
+- Add sufficient context when wrapping errors
+
+#### Error Handling Performance
+
+If error handling is impacting application performance, consider the following:
+- Optimize stack trace capture
+- Use sampling for error reporting
+- Implement asynchronous error reporting
+- Optimize error serialization
+- Cache error templates or messages
+
+## Related Components
+
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the error handling ports
+- [Application Layer](../../core/application/README.md) - The application layer that uses error handling
+- [Errors Package](../errors/README.md) - The errors package that defines error types
+
+## Contributing
+
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.

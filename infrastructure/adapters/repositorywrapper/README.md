@@ -1,206 +1,175 @@
-# Repository Wrapper
+# Infrastructure Adapters - Repository Wrapper
 
 ## Overview
 
-The Repository Wrapper package provides a wrapper around the servicelib/repository package to ensure the domain layer doesn't directly depend on external libraries. This follows the Dependency Inversion Principle, where high-level modules should not depend on low-level modules, but both should depend on abstractions.
-
-## Architecture
-
-The Repository Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/repository` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
-
-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
-
-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
-- **Adapter Pattern**: This package adapts the external library to the domain's needs
-- **Repository Pattern**: Provides a consistent interface for data access operations
-- **Generic Programming**: Uses Go's generics for type-safe repository operations
-
-## Implementation Details
-
-The Repository Wrapper package implements the following design patterns:
-
-1. **Adapter Pattern**: Adapts the external library to the domain's needs
-2. **Repository Pattern**: Provides a consistent interface for data access operations
-3. **Generic Programming**: Uses Go's generics for type-safe repository operations
-4. **Facade Pattern**: Simplifies the interface to the underlying repository implementation
-
-Key implementation details:
-
-- **Generic Interface**: The `Repository` interface uses type parameters to create a reusable interface for any entity type
-- **Delegation**: The `RepositoryWrapper` delegates to the underlying repository implementation
-- **Context Propagation**: All methods accept a context.Context parameter for cancellation and value propagation
-- **Error Handling**: Methods return errors that can be handled by the caller
-- **Type Safety**: Leverages Go's generics for type-safe repository operations
+The Repository Wrapper adapter provides implementations for repository-related ports defined in the core domain and application layers. This adapter connects the application to repository implementations, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating repository wrapper implementations in adapter classes, the core business logic remains independent of specific repository technologies, making the system more maintainable, testable, and flexible.
 
 ## Features
 
-- **Dependency Inversion**: Decouples the domain layer from external libraries
-- **Generic Interface**: Provides a generic Repository interface that can be used with any entity type
-- **Adapter Pattern**: Implements the adapter pattern to wrap the servicelib/repository functionality
-- **Type Safety**: Leverages Go's generics for type-safe repository operations
+- Repository pattern implementation
+- Cross-cutting concerns for repositories (logging, metrics, caching)
+- Transaction management
+- Repository decorators
+- Error handling and translation
+- Performance monitoring
+- Retry mechanisms
+- Circuit breaking for repository operations
 
-## API Documentation
+## Installation
 
-### Core Types
-
-#### Repository
-
-The Repository interface defines the contract for basic repository operations. It's a generic interface that can be used with any entity type.
-
-```
-// Repository is a generic interface for repository operations
-// It wraps the servicelib/repository.Repository interface
-type Repository[T any] interface {
-    // GetByID retrieves an entity by its ID
-    GetByID(ctx context.Context, id string) (T, error)
-
-    // Save persists an entity
-    Save(ctx context.Context, entity T) error
-
-    // GetAll retrieves all entities
-    GetAll(ctx context.Context) ([]T, error)
-}
-```
-
-#### RepositoryWrapper
-
-The RepositoryWrapper struct implements the Repository interface by delegating to the servicelib/repository.Repository interface.
-
-```
-// RepositoryWrapper is a wrapper around servicelib/repository.Repository
-type RepositoryWrapper[T any] struct {
-    repo repository.Repository[T]
-}
-```
-
-### Key Methods
-
-#### NewRepositoryWrapper
-
-Creates a new RepositoryWrapper instance.
-
-```
-// NewRepositoryWrapper creates a new RepositoryWrapper
-func NewRepositoryWrapper[T any](repo repository.Repository[T]) *RepositoryWrapper[T]
-```
-
-## Examples
-
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-
-- [Repository Example](../../../examples/repository/README.md) - Shows how to use the repository wrapper
-
-Example of using the repository wrapper:
-
-```
-// Create a repository implementation
-repo := postgres.NewFamilyRepository(db)
-
-// Wrap it with the repository wrapper
-wrappedRepo := repositorywrapper.NewRepositoryWrapper(repo)
-
-// Use the wrapped repository
-family, err := wrappedRepo.GetByID(ctx, "family-123")
-if err != nil {
-    // Handle error
-}
-
-// Save an entity
-err = wrappedRepo.Save(ctx, family)
-if err != nil {
-    // Handle error
-}
-
-// Get all entities
-families, err := wrappedRepo.GetAll(ctx)
-if err != nil {
-    // Handle error
-}
+```bash
+go get github.com/abitofhelp/family-service/infrastructure/adapters/repositorywrapper
 ```
 
 ## Configuration
 
-The Repository Wrapper package doesn't require any specific configuration. It's a stateless wrapper around the underlying repository implementation. However, the underlying repository implementation may require configuration for:
-
-- Database connections
-- Connection pooling
-- Retry policies
-- Timeout settings
-- Caching strategies
-
-These configurations are typically provided to the underlying repository implementation through dependency injection.
-
-## Testing
-
-The Repository Wrapper package is tested through:
-
-1. **Unit Tests**: Each method has unit tests that verify it correctly delegates to the underlying repository
-2. **Integration Tests**: Tests that verify the wrapper works correctly with real repository implementations
-3. **Mock Tests**: Tests that use mock repositories to verify the wrapper's behavior
-
-Key testing approaches:
-
-- **Mock Repositories**: Tests use mock repositories to verify that the wrapper correctly delegates to the underlying repository
-- **Error Propagation**: Tests verify that errors from the underlying repository are properly propagated
-- **Context Propagation**: Tests verify that context is properly propagated to the underlying repository
-
-Example of a test case:
+The repository wrapper can be configured according to specific requirements. Here's an example of configuring the repository wrapper:
 
 ```
-func TestRepositoryWrapper_GetByID(t *testing.T) {
-    // Create a mock repository
-    ctrl := gomock.NewController(t)
-    defer ctrl.Finish()
-    mockRepo := mock.NewMockRepository[*entity.Family](ctrl)
+// Pseudocode example - not actual Go code
+// This demonstrates how to configure and use a repository wrapper
 
-    // Set up expectations
-    expectedFamily := &entity.Family{}
-    mockRepo.EXPECT().
-        GetByID(gomock.Any(), "family-123").
-        Return(expectedFamily, nil)
+// 1. Import necessary packages
+import repository, config, logging, cache, metrics
 
-    // Create the wrapper
-    wrapper := repositorywrapper.NewRepositoryWrapper(mockRepo)
+// 2. Create a logger
+logger = logging.NewLogger()
 
-    // Call the method
-    family, err := wrapper.GetByID(context.Background(), "family-123")
+// 3. Create dependencies
+cacheAdapter = cache.NewCacheAdapter(cacheConfig, logger)
+metricsAdapter = metrics.NewMetricsAdapter(metricsConfig, logger)
 
-    // Verify the result
-    assert.NoError(t, err)
-    assert.Equal(t, expectedFamily, family)
+// 4. Configure the repository wrapper
+repositoryConfig = {
+    cacheEnabled: true,
+    cacheTTL: 5 minutes,
+    metricsEnabled: true,
+    retryEnabled: true,
+    maxRetries: 3,
+    retryBackoff: 100 milliseconds,
+    circuitBreakerEnabled: true,
+    circuitBreakerThreshold: 5,
+    circuitBreakerTimeout: 30 seconds
+}
+
+// 5. Create the base repository
+baseRepository = mongo.NewFamilyRepository(mongoAdapter, logger)
+
+// 6. Create the repository wrapper
+familyRepository = repository.NewRepositoryWrapper(
+    baseRepository,
+    repositoryConfig,
+    logger,
+    cacheAdapter,
+    metricsAdapter
+)
+
+// 7. Use the repository wrapper
+family, err = familyRepository.FindById(context, "family-123")
+if err != nil {
+    logger.Error("Failed to find family", err)
+}
+```
+
+## API Documentation
+
+### Core Concepts
+
+The repository wrapper follows these core concepts:
+
+1. **Decorator Pattern**: Wraps repository implementations to add cross-cutting concerns
+2. **Dependency Injection**: Receives dependencies through constructor injection
+3. **Configuration**: Configured through a central configuration system
+4. **Logging**: Uses a consistent logging approach
+5. **Error Handling**: Translates repository-specific errors to domain errors
+
+### Key Adapter Functions
+
+```
+// Pseudocode example - not actual Go code
+// This demonstrates a repository wrapper implementation
+
+// Repository wrapper structure
+type RepositoryWrapper {
+    repository     // Base repository implementation
+    config         // Repository wrapper configuration
+    logger         // Logger for logging operations
+    contextLogger  // Context-aware logger
+    cache          // Cache adapter
+    metrics        // Metrics adapter
+}
+
+// Constructor for the repository wrapper
+function NewRepositoryWrapper(repository, config, logger, cache, metrics) {
+    return new RepositoryWrapper {
+        repository: repository,
+        config: config,
+        logger: logger,
+        contextLogger: new ContextLogger(logger),
+        cache: cache,
+        metrics: metrics
+    }
+}
+
+// Method to find an entity by ID
+function RepositoryWrapper.FindById(context, id) {
+    // Implementation would include:
+    // 1. Logging the operation with context
+    // 2. Checking cache if enabled
+    // 3. Starting metrics collection
+    // 4. Implementing retry logic
+    // 5. Checking circuit breaker status
+    // 6. Delegating to the base repository
+    // 7. Caching the result if enabled
+    // 8. Recording metrics
+    // 9. Handling errors
+    // 10. Returning the result or error
 }
 ```
 
 ## Best Practices
 
-1. **Dependency Inversion**: Use this wrapper to avoid direct dependencies on external libraries in the domain layer
-2. **Interface Segregation**: Keep interfaces focused on specific responsibilities
-3. **Consistent Naming**: Follow consistent naming conventions for interface methods
-4. **Context Propagation**: Always include context.Context as the first parameter
-5. **Error Handling**: Return meaningful errors that can be handled by the caller
+1. **Separation of Concerns**: Keep repository wrapper logic separate from domain logic
+2. **Interface Segregation**: Define focused repository interfaces in the domain layer
+3. **Dependency Injection**: Use constructor injection for adapter dependencies
+4. **Error Translation**: Translate repository-specific errors to domain errors
+5. **Consistent Logging**: Use a consistent logging approach
+6. **Transaction Management**: Implement proper transaction handling
+7. **Testing**: Write unit and integration tests for repository wrappers
+8. **Performance Monitoring**: Include performance metrics for repository operations
 
-## Design Notes
+## Troubleshooting
 
-1. **Adapter Pattern**: The Repository Wrapper implements the Adapter pattern to provide a layer of abstraction over the external repository library
-2. **Delegation**: The wrapper delegates all operations to the underlying repository implementation
-3. **Type Safety**: The wrapper leverages Go's generics to provide type-safe repository operations
-4. **Minimal Interface**: The wrapper exposes only the methods needed by the domain layer
-5. **Context Propagation**: All methods accept a context.Context parameter for cancellation and value propagation
-6. **Error Handling**: All methods return errors that can be handled by the caller
-7. **Dependency Inversion**: The wrapper follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
+### Common Issues
+
+#### Cache Consistency
+
+If you encounter cache consistency issues, consider the following:
+- Implement cache invalidation strategies
+- Use appropriate cache TTL values
+- Consider cache dependencies for related entities
+- Implement cache versioning
+- Use write-through or write-behind caching strategies
+
+#### Performance Issues
+
+If you encounter performance issues with repositories, consider the following:
+- Optimize the underlying repository implementation
+- Adjust cache settings for frequently accessed data
+- Review retry and circuit breaker configurations
+- Monitor and optimize transaction usage
+- Implement batch operations where appropriate
 
 ## Related Components
 
-- [Domain Ports](../../../core/domain/ports/README.md) - The domain layer interfaces that use this wrapper
-- [Infrastructure Adapters](../../adapters/README.md) - Other infrastructure adapters
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the repository interfaces
+- [Application Layer](../../core/application/README.md) - The application layer that uses repositories
+- [Database Adapters](../mongo/README.md) - The database adapters used by repositories
 
-## References
+## Contributing
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Adapter Pattern](https://en.wikipedia.org/wiki/Adapter_pattern)
-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
-- [Go Generics](https://go.dev/doc/tutorial/generics)
-- [Domain Entities](../../../core/domain/entity/README.md) - The entities managed by repositories
-- [Domain Ports](../../../core/domain/ports/README.md) - The interfaces that define repository contracts
-- [Application Services](../../../core/application/services/README.md) - Services that use repositories
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.

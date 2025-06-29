@@ -95,6 +95,6 @@ Key testing approaches:
 
 - [Markdown Guide](https://www.markdownguide.org/) - Guide to Markdown syntax
 - [Component README Template](../../COMPONENT_README_TEMPLATE.md) - Template for component README.md files
-- [Example README Template](../../EXAMPLE_README_TEMPLATE.md) - Template for example README.md files
+- [Example README Template](../../EXAMPLES/EXAMPLE_README_TEMPLATE.md) - Template for example README.md files
 - [Go filepath Package](https://golang.org/pkg/path/filepath/) - Used for file system traversal
 - [Go regexp Package](https://golang.org/pkg/regexp/) - Used for regular expression matching

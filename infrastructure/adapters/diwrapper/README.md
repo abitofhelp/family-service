@@ -1,46 +1,153 @@
-# Dependency Injection Wrapper
+# Infrastructure Adapters - Dependency Injection Wrapper
 
 ## Overview
 
-The Dependency Injection Wrapper package provides a clean and flexible way to manage dependencies in the application. It abstracts away the details of the underlying dependency injection framework and provides a consistent interface for registering and resolving dependencies.
+The Dependency Injection Wrapper adapter provides implementations for dependency injection-related ports defined in the core domain and application layers. This adapter connects the application to dependency injection frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating dependency injection implementations in adapter classes, the core business logic remains independent of specific DI technologies, making the system more maintainable, testable, and flexible.
 
-## Architecture
+## Features
 
-This package is part of the infrastructure layer in the Clean Architecture and Hexagonal Architecture patterns. It provides adapters for dependency injection that can be used by the application.
+- Dependency registration and resolution
+- Lifecycle management of dependencies
+- Scoped dependency containers
+- Factory pattern support
+- Lazy initialization
+- Conditional registration
+- Configuration-based dependency setup
+- Integration with various DI frameworks
 
-## Implementation Details
+## Installation
 
-The Dependency Injection Wrapper implements the following design patterns:
-- Factory Pattern: Creates instances of dependencies
-- Adapter Pattern: Adapts external dependency injection libraries to the application's needs
-- Service Locator Pattern: Provides a central registry for dependencies
-
-## Examples
-
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-- [Dependency Injection Example](../../../examples/di/README.md) - Shows how to use the dependency injection wrapper
+```bash
+go get github.com/abitofhelp/family-service/infrastructure/adapters/diwrapper
+```
 
 ## Configuration
 
-The Dependency Injection Wrapper can be configured with the following options:
-- Singleton Registration: Configure which dependencies are registered as singletons
-- Transient Registration: Configure which dependencies are registered as transients
-- Scoped Registration: Configure which dependencies are registered as scoped
+The dependency injection wrapper can be configured according to specific requirements. Here's an example of configuring the DI wrapper:
 
-## Testing
+```
+// Pseudocode example - not actual Go code
+// This demonstrates how to configure and use a dependency injection wrapper
 
-The Dependency Injection Wrapper is tested through:
-1. Unit Tests: Each dependency injection method has comprehensive unit tests
-2. Integration Tests: Tests that verify the dependency injection wrapper works correctly with the application
+// 1. Import necessary packages
+import di, config, logging
 
-## Design Notes
+// 2. Create a logger
+logger = logging.NewLogger()
 
-1. The Dependency Injection Wrapper uses a container-based approach to dependency management
-2. Dependencies are registered at startup and resolved at runtime
-3. The wrapper supports both constructor and property injection
+// 3. Create the DI container
+container = di.NewContainer(logger)
 
-## References
+// 4. Register dependencies
+container.Register("logger", logger, {singleton: true})
+container.Register("config", configAdapter, {singleton: true})
+container.Register("database", databaseAdapter, {singleton: true})
+container.Register("familyRepository", function(c) {
+    return repository.NewFamilyRepository(
+        c.Resolve("database"),
+        c.Resolve("logger")
+    )
+}, {singleton: true})
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Dependency Injection](https://en.wikipedia.org/wiki/Dependency_injection)
+// 5. Use the container to resolve dependencies
+familyRepository = container.Resolve("familyRepository")
+```
+
+## API Documentation
+
+### Core Concepts
+
+The dependency injection wrapper follows these core concepts:
+
+1. **Adapter Pattern**: Implements dependency injection ports defined in the core domain or application layer
+2. **Dependency Injection**: Facilitates the injection of dependencies into components
+3. **Configuration**: Configured through a central configuration system
+4. **Logging**: Uses a consistent logging approach
+5. **Error Handling**: Handles dependency resolution errors gracefully
+
+### Key Adapter Functions
+
+```
+// Pseudocode example - not actual Go code
+// This demonstrates a dependency injection wrapper implementation
+
+// DI container structure
+type Container {
+    logger        // Logger for logging operations
+    contextLogger // Context-aware logger
+    registrations // Map of registered dependencies
+}
+
+// Constructor for the DI container
+function NewContainer(logger) {
+    return new Container {
+        logger: logger,
+        contextLogger: new ContextLogger(logger),
+        registrations: {}
+    }
+}
+
+// Method to register a dependency
+function Container.Register(name, instance, options) {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Validating the registration
+    // 3. Storing the registration with options
+    // 4. Handling registration errors
+}
+
+// Method to resolve a dependency
+function Container.Resolve(name) {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Looking up the registration
+    // 3. Creating or returning the instance based on lifecycle
+    // 4. Handling resolution errors
+    // 5. Returning the resolved instance
+}
+```
+
+## Best Practices
+
+1. **Separation of Concerns**: Keep dependency injection logic separate from domain logic
+2. **Interface Segregation**: Define focused interfaces for components
+3. **Constructor Injection**: Use constructor injection for dependencies
+4. **Lifecycle Management**: Properly manage the lifecycle of dependencies
+5. **Consistent Logging**: Use a consistent logging approach
+6. **Configuration**: Configure dependency injection through a central configuration system
+7. **Testing**: Write unit and integration tests for dependency injection
+
+## Troubleshooting
+
+### Common Issues
+
+#### Circular Dependencies
+
+If you encounter circular dependency issues, consider the following:
+- Refactor components to break circular dependencies
+- Use lazy initialization for one of the dependencies
+- Introduce an interface to break the cycle
+- Use a mediator pattern to decouple components
+
+#### Resolution Failures
+
+If you encounter dependency resolution failures, check the following:
+- Ensure all dependencies are registered before resolution
+- Verify that dependency names are correct
+- Check that factory functions don't have errors
+- Ensure that required dependencies for a component are available
+- Look for typos in dependency names
+
+## Related Components
+
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the ports
+- [Application Layer](../../core/application/README.md) - The application layer that uses dependency injection
+- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use dependency injection
+
+## Contributing
+
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.

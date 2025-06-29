@@ -1,194 +1,171 @@
-# Circuit Wrapper
+# Infrastructure Adapters - Circuit Wrapper
 
 ## Overview
 
-The Circuit Wrapper package provides a wrapper around the `github.com/abitofhelp/servicelib/circuit` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters), allowing the domain layer to remain isolated from external dependencies. The package implements the Circuit Breaker pattern to prevent cascading failures when external dependencies are unavailable.
+The Circuit Wrapper adapter provides implementations for circuit breaker-related ports defined in the core domain and application layers. This adapter connects the application to circuit breaker frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating circuit breaker implementations in adapter classes, the core business logic remains independent of specific circuit breaker technologies, making the system more maintainable, testable, and flexible.
 
-## Architecture
+## Features
 
-The Circuit Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/circuit` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
+- Circuit breaker pattern implementation
+- Failure detection and handling
+- Automatic recovery
+- Configurable thresholds and timeouts
+- Half-open state management
+- Fallback mechanisms
+- Circuit state monitoring and reporting
+- Integration with various circuit breaker libraries
 
-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
+## Installation
 
-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
-- **Adapter Pattern**: This package adapts the external library to the domain's needs
-- **Circuit Breaker Pattern**: Prevents cascading failures when external dependencies are unavailable
-
-## Implementation Details
-
-The Circuit Wrapper package implements the following design patterns:
-
-1. **Adapter Pattern**: Adapts the external library to the domain's needs
-2. **Circuit Breaker Pattern**: Prevents cascading failures when external dependencies are unavailable
-3. **Null Object Pattern**: Handles nil circuit breaker gracefully by falling back to the original function
-4. **State Pattern**: Manages the state of the circuit breaker (Closed, Open, HalfOpen)
-5. **Facade Pattern**: Simplifies the interface to the underlying circuit breaker implementation
-
-Key implementation details:
-
-- **State Enum**: Represents the state of the circuit breaker (Closed, Open, HalfOpen)
-- **CircuitBreaker Struct**: Implements the circuit breaker pattern
-- **Configuration Integration**: Uses application configuration to configure the circuit breaker
-- **Context Propagation**: Supports context-aware circuit breaking operations
-- **Fallback Support**: Provides ExecuteWithFallback for handling failures with fallback logic
-- **Graceful Degradation**: Falls back to the original function when circuit breaker is disabled or nil
-- **State Management**: Manages the state of the circuit breaker based on the results of operations
-
-## Examples
-
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-
-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the circuit wrapper
-
-Example of using the circuit wrapper:
-
-```
-// Create a new circuit breaker
-cb := circuit.NewCircuitBreaker("database", cfg.Circuit, logger)
-
-// Execute a function with circuit breaking
-err := cb.Execute(ctx, "GetByID", func(ctx context.Context) error {
-    // This function will be executed if the circuit is closed or half-open
-    return repository.GetByID(ctx, id)
-})
-if err != nil {
-    // Handle error (could be a circuit open error or a repository error)
-}
-
-// Execute a function with circuit breaking and fallback
-err := cb.ExecuteWithFallback(
-    ctx,
-    "GetByID",
-    func(ctx context.Context) error {
-        // This function will be executed if the circuit is closed or half-open
-        return repository.GetByID(ctx, id)
-    },
-    func(ctx context.Context, err error) error {
-        // This function will be executed if the circuit is open or the main function fails
-        return getFromCache(ctx, id)
-    },
-)
-if err != nil {
-    // Handle error (could be a fallback error)
-}
-
-// Get the current state of the circuit breaker
-state := cb.GetState()
-switch state {
-case circuit.Closed:
-    // Circuit is closed, requests are allowed through
-case circuit.Open:
-    // Circuit is open, requests are not allowed through
-case circuit.HalfOpen:
-    // Circuit is half-open, limited requests are allowed through
-}
-
-// Reset the circuit breaker
-cb.Reset()
+```bash
+go get github.com/abitofhelp/family-service/infrastructure/adapters/circuitwrapper
 ```
 
 ## Configuration
 
-The Circuit Wrapper package is configured through the application's configuration system. The following configuration options are available:
-
-- **Enabled**: Whether the circuit breaker is enabled
-- **Timeout**: The maximum time allowed for a function to execute
-- **MaxConcurrent**: The maximum number of concurrent requests allowed
-- **ErrorThreshold**: The error threshold percentage (0.0 to 1.0) that triggers the circuit to open
-- **VolumeThreshold**: The minimum number of requests required before the error threshold is checked
-- **SleepWindow**: The time the circuit stays open before transitioning to half-open
-
-Example configuration:
-
-```yaml
-circuit:
-  enabled: true
-  timeout: 5s
-  max_concurrent: 100
-  error_threshold: 0.5
-  volume_threshold: 20
-  sleep_window: 10s
-```
-
-## Testing
-
-The Circuit Wrapper package is tested through:
-
-1. **Unit Tests**: Each function and method has unit tests
-2. **Integration Tests**: Tests that verify the wrapper works correctly with the underlying circuit breaker
-3. **State Transition Tests**: Tests that verify the circuit breaker transitions between states correctly
-
-Key testing approaches:
-
-- **Mock Dependencies**: Tests use mock dependencies to verify circuit breaker behavior
-- **State Transition Testing**: Tests verify that the circuit breaker transitions between states correctly
-- **Fallback Testing**: Tests verify that fallback functions are called when appropriate
-- **Error Handling**: Tests verify that errors are properly propagated and transformed
-- **Configuration Testing**: Tests verify that configuration options affect circuit breaker behavior
-
-Example of a test case:
+The circuit wrapper can be configured according to specific requirements. Here's an example of configuring the circuit wrapper:
 
 ```
-// Create a circuit breaker
-cfg := &config.CircuitConfig{
-    Enabled: true,
-    Timeout: 1 * time.Second,
-    MaxConcurrent: 10,
-    ErrorThreshold: 0.5,
-    VolumeThreshold: 5,
-    SleepWindow: 5 * time.Second,
-}
-logger, _ := zap.NewDevelopment()
-cb := circuit.NewCircuitBreaker("test", cfg, logger)
+// Pseudocode example - not actual Go code
+// This demonstrates how to configure and use a circuit wrapper
 
-// Test successful execution
-err := cb.Execute(context.Background(), "test", func(ctx context.Context) error {
-    return nil
-})
-assert.NoError(t, err)
+// 1. Import necessary packages
+import circuit, config, logging
 
-// Test failed execution
-err = cb.Execute(context.Background(), "test", func(ctx context.Context) error {
-    return fmt.Errorf("test error")
-})
-assert.Error(t, err)
-assert.Equal(t, "test error", err.Error())
+// 2. Create a logger
+logger = logging.NewLogger()
 
-// Test circuit open
-// Force the circuit to open by making multiple failed requests
-for i := 0; i < 10; i++ {
-    _ = cb.Execute(context.Background(), "test", func(ctx context.Context) error {
-        return fmt.Errorf("test error")
-    })
+// 3. Configure the circuit breaker
+circuitConfig = {
+    name: "database-circuit",
+    failureThreshold: 5,
+    successThreshold: 2,
+    timeout: 30 seconds,
+    resetTimeout: 60 seconds,
+    fallbackEnabled: true,
+    monitoringEnabled: true,
+    metricsEnabled: true
 }
 
-// Verify the circuit is open
-assert.Equal(t, circuit.Open, cb.GetState())
+// 4. Create the circuit wrapper
+circuitWrapper = circuit.NewCircuitWrapper(circuitConfig, logger)
 
-// Test execution with open circuit
-err = cb.Execute(context.Background(), "test", func(ctx context.Context) error {
-    return nil
+// 5. Use the circuit wrapper
+result, err = circuitWrapper.Execute(context, "database-operation", function() {
+    // Operation that might fail
+    return databaseOperation()
+}, function() {
+    // Fallback function
+    return getCachedData()
 })
-assert.Error(t, err)
-assert.Contains(t, err.Error(), "circuit breaker test is open")
+
+// 6. Check circuit state
+state = circuitWrapper.GetState("database-circuit")
+if state == circuit.StateOpen {
+    logger.Warn("Circuit is open, database operations will fail fast")
+}
 ```
 
-## Design Notes
+## API Documentation
 
-1. **Dependency Inversion**: The package follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
-2. **Graceful Degradation**: The package gracefully handles nil circuit breaker by falling back to the original function
-3. **Context Propagation**: The package supports context-aware circuit breaking operations
-4. **State Management**: The package manages the state of the circuit breaker based on the results of operations
-5. **Fallback Support**: The package provides ExecuteWithFallback for handling failures with fallback logic
-6. **Configuration Integration**: The package uses application configuration to configure the circuit breaker
+### Core Concepts
 
-## References
+The circuit wrapper follows these core concepts:
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Circuit Breaker Pattern](https://martinfowler.com/bliki/CircuitBreaker.html)
-- [Adapter Pattern](https://en.wikipedia.org/wiki/Adapter_pattern)
-- [State Pattern](https://en.wikipedia.org/wiki/State_pattern)
-- [Application Services](../../../core/application/services/README.md) - Uses this circuit wrapper for circuit breaking
-- [Repository Implementations](../../../infrastructure/adapters/repository/README.md) - Uses this circuit wrapper for database operations
-- [GraphQL Resolvers](../../../interface/adapters/graphql/resolver/README.md) - Uses this circuit wrapper for GraphQL operations
+1. **Circuit Breaker Pattern**: Implements the circuit breaker pattern to prevent cascading failures
+2. **Dependency Injection**: Receives dependencies through constructor injection
+3. **Configuration**: Configured through a central configuration system
+4. **Logging**: Uses a consistent logging approach
+5. **Error Handling**: Handles circuit breaker errors gracefully
+
+### Key Adapter Functions
+
+```
+// Pseudocode example - not actual Go code
+// This demonstrates a circuit wrapper implementation
+
+// Circuit wrapper structure
+type CircuitWrapper {
+    config        // Circuit wrapper configuration
+    logger        // Logger for logging operations
+    contextLogger // Context-aware logger
+    circuits      // Map of circuit breakers
+}
+
+// Constructor for the circuit wrapper
+function NewCircuitWrapper(config, logger) {
+    return new CircuitWrapper {
+        config: config,
+        logger: logger,
+        contextLogger: new ContextLogger(logger),
+        circuits: {}
+    }
+}
+
+// Method to execute a function with circuit breaker protection
+function CircuitWrapper.Execute(context, name, operation, fallback) {
+    // Implementation would include:
+    // 1. Logging the operation with context
+    // 2. Getting or creating the circuit breaker
+    // 3. Checking if the circuit is open
+    // 4. Executing the operation if allowed
+    // 5. Handling success or failure
+    // 6. Updating circuit state
+    // 7. Executing fallback if needed
+    // 8. Returning the result or error
+}
+
+// Method to get circuit state
+function CircuitWrapper.GetState(name) {
+    // Implementation would include:
+    // 1. Getting the circuit breaker
+    // 2. Returning its state
+}
+```
+
+## Best Practices
+
+1. **Separation of Concerns**: Keep circuit breaker logic separate from domain logic
+2. **Interface Segregation**: Define focused circuit breaker interfaces in the domain layer
+3. **Dependency Injection**: Use constructor injection for adapter dependencies
+4. **Error Handling**: Handle circuit breaker errors gracefully
+5. **Consistent Logging**: Use a consistent logging approach
+6. **Monitoring**: Monitor circuit breaker states and transitions
+7. **Testing**: Write unit and integration tests for circuit breakers
+8. **Fallbacks**: Implement meaningful fallbacks for operations
+
+## Troubleshooting
+
+### Common Issues
+
+#### Circuit Tripping Too Frequently
+
+If your circuit breaker trips too frequently, consider the following:
+- Increase the failure threshold
+- Adjust the timeout values
+- Implement retry mechanisms before failing
+- Review the error detection logic
+- Consider using a more sophisticated failure detection algorithm
+
+#### Circuit Never Recovering
+
+If your circuit breaker never recovers, consider the following:
+- Verify the reset timeout is appropriate
+- Ensure the success threshold is achievable
+- Check that the half-open state is working correctly
+- Implement health checks for dependent services
+- Monitor circuit state transitions
+
+## Related Components
+
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the circuit breaker ports
+- [Application Layer](../../core/application/README.md) - The application layer that uses circuit breakers
+- [Repository Wrapper](../repositorywrapper/README.md) - The repository wrapper that might use circuit breakers
+
+## Contributing
+
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.

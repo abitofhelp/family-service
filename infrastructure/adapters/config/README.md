@@ -1,16 +1,18 @@
-# Configuration Adapter
+# Infrastructure Adapters - Configuration
 
 ## Overview
 
-The Configuration Adapter package provides functionality for loading and accessing application configuration from various sources.
+The Configuration adapter provides implementations for configuration-related ports defined in the core domain and application layers. This adapter connects the application to configuration sources and frameworks, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating configuration implementations in adapter classes, the core business logic remains independent of specific configuration technologies, making the system more maintainable, testable, and flexible.
 
 ## Features
 
-- **Environment Variables**: Load configuration from environment variables
-- **Configuration Files**: Load configuration from YAML, JSON, and TOML files
-- **Hierarchical Configuration**: Support for nested configuration values
-- **Default Values**: Provide default values for configuration options
-- **Validation**: Validate configuration values at startup
+- Loading configuration from various sources (files, environment variables, etc.)
+- Configuration validation
+- Dynamic configuration updates
+- Configuration change notifications
+- Hierarchical configuration support
+- Environment-specific configuration
+- Secure configuration handling (for secrets)
 
 ## Installation
 
@@ -18,134 +20,136 @@ The Configuration Adapter package provides functionality for loading and accessi
 go get github.com/abitofhelp/family-service/infrastructure/adapters/config
 ```
 
-## Quick Start
-
-See the [Quick Start example](../../../EXAMPLES/config/basic_usage/README.md) for a complete, runnable example of how to use the configuration adapter.
-
 ## Configuration
 
-The Configuration Adapter can be configured with the following options:
-- Environment Variables: Configure which environment variables are used
-- Configuration Files: Configure which configuration files are loaded
+The configuration adapter itself can be configured according to specific requirements. Here's an example of setting up the configuration adapter:
+
+```
+// Pseudocode example - not actual Go code
+// This demonstrates how to set up and use a configuration adapter
+
+// 1. Import necessary packages
+import config, logging
+
+// 2. Create a logger
+logger = logging.NewLogger()
+
+// 3. Configure the configuration adapter
+configOptions = {
+    configPath: "./config",
+    environment: "development",
+    defaultConfigFile: "config.yaml",
+    envPrefix: "APP_",
+    watchForChanges: true,
+    reloadInterval: 30 seconds
+}
+
+// 4. Create the configuration adapter
+configAdapter = config.NewConfigAdapter(configOptions, logger)
+
+// 5. Use the configuration adapter
+dbConfig = configAdapter.GetDatabaseConfig()
+serverPort = configAdapter.GetInt("server.port", 8080)
+apiKeys = configAdapter.GetStringMap("security.apiKeys")
+```
 
 ## API Documentation
 
-### Core Types
+### Core Concepts
 
-Description of the main types provided by the component.
+The configuration adapter follows these core concepts:
 
-#### Config
+1. **Adapter Pattern**: Implements configuration ports defined in the core domain or application layer
+2. **Dependency Injection**: Receives dependencies through constructor injection
+3. **Configuration Sources**: Supports multiple configuration sources with priority order
+4. **Logging**: Uses a consistent logging approach
+5. **Error Handling**: Handles configuration errors gracefully
 
-The main configuration interface that provides access to configuration values.
+### Key Adapter Functions
 
 ```
-// Config interface for accessing configuration values
-type Config interface {
-    GetString(key string) string
-    GetInt(key string) int
-    GetBool(key string) bool
-    GetFloat(key string) float64
-    GetDuration(key string) time.Duration
+// Pseudocode example - not actual Go code
+// This demonstrates a configuration adapter implementation
+
+// Configuration adapter structure
+type ConfigAdapter {
+    options       // Configuration options
+    logger        // Logger for logging operations
+    contextLogger // Context-aware logger
+    provider      // Configuration provider
 }
-```
 
-#### ConfigOptions
-
-Options for configuring the configuration adapter.
-
-```
-// ConfigOptions for configuring the configuration adapter
-type ConfigOptions struct {
-    ConfigFile string
-    EnvPrefix  string
-}
-```
-
-### Key Methods
-
-Description of the key methods provided by the component.
-
-#### New
-
-Creates a new configuration instance.
-
-```
-// New creates a new configuration instance
-func New(configFile string) (Config, error)
-```
-
-#### NewWithOptions
-
-Creates a new configuration instance with custom options.
-
-```
-// NewWithOptions creates a new configuration instance with custom options
-func NewWithOptions(options ConfigOptions) (Config, error)
-```
-
-## Examples
-
-For complete, runnable examples, see the following directories in the EXAMPLES directory.
-
-### Configuration Example
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/abitofhelp/family-service/infrastructure/adapters/config"
-)
-
-func main() {
-    // Initialize the configuration
-    cfg, err := config.New("config.yaml")
-    if err != nil {
-        fmt.Printf("Error initializing configuration: %v\n", err)
-        return
+// Constructor for the configuration adapter
+function NewConfigAdapter(options, logger) {
+    provider = createConfigProvider(options)
+    return new ConfigAdapter {
+        options: options,
+        logger: logger,
+        contextLogger: new ContextLogger(logger),
+        provider: provider
     }
+}
 
-    // Access configuration values
-    dbHost := cfg.GetString("database.host")
-    dbPort := cfg.GetInt("database.port")
+// Method to get a string value
+function ConfigAdapter.GetString(key, defaultValue) {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Retrieving the value from the configuration provider
+    // 3. Handling errors gracefully
+    // 4. Returning the value or default
+}
 
-    fmt.Printf("Database connection: %s:%d\n", dbHost, dbPort)
-
-    // You can also use environment variables that override file settings
-    // export APP_DATABASE_HOST=localhost
-    // export APP_DATABASE_PORT=5432
+// Method to get a typed configuration section
+function ConfigAdapter.GetDatabaseConfig() {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Retrieving the database configuration section
+    // 3. Validating the configuration
+    // 4. Mapping to a typed structure
+    // 5. Returning the typed configuration
 }
 ```
 
 ## Best Practices
 
-1. **Use Environment Variables for Secrets**: Never store secrets in configuration files
-2. **Validate Configuration at Startup**: Fail fast if required configuration is missing
-3. **Use Hierarchical Keys**: Organize configuration using hierarchical keys
-4. **Provide Default Values**: Always provide sensible default values
-5. **Use Strong Typing**: Use the typed getter methods instead of generic ones
+1. **Separation of Concerns**: Keep configuration logic separate from domain logic
+2. **Interface Segregation**: Define focused configuration interfaces in the domain layer
+3. **Dependency Injection**: Use constructor injection for adapter dependencies
+4. **Error Handling**: Handle configuration errors gracefully with sensible defaults
+5. **Consistent Logging**: Use a consistent logging approach
+6. **Configuration Validation**: Validate configuration at startup
+7. **Testing**: Write unit and integration tests for configuration adapters
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### Missing Configuration File
+#### Configuration Loading Failures
 
-If the configuration file is missing, the adapter will return an error. Make sure the file exists and is readable.
+If you encounter issues with configuration loading, check the following:
+- Configuration files exist in the expected locations
+- File permissions allow reading the configuration files
+- Environment variables are set correctly
+- Configuration format is valid (JSON, YAML, etc.)
 
-#### Invalid Configuration Values
+#### Configuration Type Mismatches
 
-If the configuration values are invalid, the adapter will return an error. Make sure the values are of the correct type.
+If you encounter type mismatch issues with configuration values, consider the following:
+- Validate configuration values against expected types
+- Provide clear error messages for type mismatches
+- Use default values when types don't match
+- Consider using a schema for configuration validation
 
 ## Related Components
 
-- [Logging Wrapper](../loggingwrapper/README.md) - Used for logging configuration errors
-- [Error Wrapper](../errorswrapper/README.md) - Used for handling configuration errors
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the configuration ports
+- [Application Layer](../../core/application/README.md) - The application layer that uses configuration
+- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use configuration
 
 ## Contributing
 
-Contributions to this component are welcome! Please see the [Contributing Guide](../../../CONTRIBUTING.md) for more information.
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../../../LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.

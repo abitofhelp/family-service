@@ -1,140 +1,157 @@
-# Identification Wrapper
+# Infrastructure Adapters - Identification Wrapper
 
 ## Overview
 
-The Identification Wrapper package provides a wrapper around the `github.com/abitofhelp/servicelib/valueobject/identification` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters), allowing the domain layer to remain isolated from external dependencies.
+The Identification Wrapper adapter provides implementations for identification-related ports defined in the core domain and application layers. This adapter connects the application to identification frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating identification implementations in adapter classes, the core business logic remains independent of specific identification technologies, making the system more maintainable, testable, and flexible.
 
-## Architecture
+## Features
 
-The Identification Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/valueobject/identification` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
+- Unique identifier generation (UUID, ULID, etc.)
+- ID validation and verification
+- Custom ID formats and patterns
+- Sequential ID generation
+- ID conversion and formatting
+- Distributed ID generation
+- Collision detection and handling
+- Time-based ID generation
 
-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
+## Installation
 
-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
-- **Adapter Pattern**: This package adapts the external library to the domain's needs
-- **Value Object Pattern**: The ID type is implemented as a value object with identity semantics
-
-## Implementation Details
-
-The Identification Wrapper package implements the following design patterns:
-
-1. **Adapter Pattern**: Adapts the external library to the domain's needs
-2. **Value Object Pattern**: The ID type is implemented as a value object with identity semantics
-3. **Factory Pattern**: Factory methods create new ID instances
-
-Key implementation details:
-
-- **Type Alias**: The ID type is a type alias for string, making it type-safe
-- **Factory Methods**: Methods like NewID() and NewIDFromString() create new ID instances
-- **Value Object Methods**: Methods like Equals() and IsEmpty() provide value object semantics
-- **JSON Marshaling**: The ID type implements the json.Marshaler and json.Unmarshaler interfaces
-
-The package uses the `github.com/abitofhelp/servicelib/valueobject/identification` package internally but exposes its own API to the domain layer, ensuring that the domain layer doesn't directly depend on the external library.
-
-## Examples
-
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-
-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the identification wrapper
-
-Example of using the identification wrapper:
-
-```
-// Create a new ID
-id := identificationwrapper.NewID()
-
-// Create an ID from a string
-id2, err := identificationwrapper.NewIDFromString("123e4567-e89b-12d3-a456-426614174000")
-if err != nil {
-    // Handle error
-}
-
-// Get the string representation
-str := id.String()
-
-// Check if an ID is empty
-if id.IsEmpty() {
-    // Handle empty ID
-}
-
-// Compare IDs
-if id.Equals(id2) {
-    // IDs are equal
-}
+```bash
+go get github.com/abitofhelp/family-service/infrastructure/adapters/identificationwrapper
 ```
 
 ## Configuration
 
-The Identification Wrapper package doesn't require any specific configuration. It uses the default configuration of the underlying `github.com/abitofhelp/servicelib/valueobject/identification` package.
-
-## Testing
-
-The Identification Wrapper package is tested through:
-
-1. **Unit Tests**: Each function and method has unit tests
-2. **Property-Based Testing**: Tests with randomized inputs to find edge cases
-3. **Integration Tests**: Tests that verify the wrapper works correctly with the underlying library
-
-Key testing approaches:
-
-- **Factory Method Testing**: Tests that verify factory methods create valid IDs
-- **Value Object Testing**: Tests that verify value object semantics (equality, emptiness)
-- **JSON Marshaling Testing**: Tests that verify JSON marshaling and unmarshaling
-- **Error Handling Testing**: Tests that verify error handling for invalid inputs
-
-Example of a test case:
+The identification wrapper can be configured according to specific requirements. Here's an example of configuring the identification wrapper:
 
 ```
-// Test function for NewIDFromString
-// Valid UUID
-validUUID := "123e4567-e89b-12d3-a456-426614174000"
-id, err := identificationwrapper.NewIDFromString(validUUID)
-assert.NoError(t, err)
-assert.Equal(t, validUUID, id.String())
+// Pseudocode example - not actual Go code
+// This demonstrates how to configure and use an identification wrapper
 
-// Invalid UUID
-invalidUUID := "not-a-uuid"
-_, err = identificationwrapper.NewIDFromString(invalidUUID)
-assert.Error(t, err)
+// 1. Import necessary packages
+import id, config, logging
+
+// 2. Create a logger
+logger = logging.NewLogger()
+
+// 3. Configure the identification generator
+idConfig = {
+    idType: "uuid",
+    version: 4,
+    namespace: "family-service",
+    prefix: "fam-",
+    sequentialStart: 1000,
+    nodeId: 1
+}
+
+// 4. Create the identification wrapper
+idGenerator = id.NewIdentificationGenerator(idConfig, logger)
+
+// 5. Use the identification wrapper
+newId = idGenerator.Generate()
+logger.Info("Generated new ID", newId)
+
+isValid = idGenerator.Validate("fam-123e4567-e89b-12d3-a456-426614174000")
+if !isValid {
+    logger.Warn("Invalid ID format")
+}
 ```
-
-## Design Notes
-
-1. **Type Safety**: The ID type is a type alias for string, providing type safety
-2. **Value Object Semantics**: The ID type has value object semantics (equality, immutability)
-3. **Factory Methods**: Factory methods ensure that IDs are created correctly
-4. **Error Handling**: Methods that can fail return errors that can be handled by the caller
-5. **JSON Support**: The ID type implements the json.Marshaler and json.Unmarshaler interfaces for JSON support
-6. **Dependency Inversion**: The package follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
 
 ## API Documentation
 
-### ID
+### Core Concepts
 
-The `ID` type represents a unique identifier:
+The identification wrapper follows these core concepts:
+
+1. **Adapter Pattern**: Implements identification ports defined in the core domain or application layer
+2. **Dependency Injection**: Receives dependencies through constructor injection
+3. **Configuration**: Configured through a central configuration system
+4. **Logging**: Uses a consistent logging approach
+5. **Error Handling**: Handles identification errors gracefully
+
+### Key Adapter Functions
 
 ```
-type ID string
+// Pseudocode example - not actual Go code
+// This demonstrates an identification wrapper implementation
+
+// Identification generator structure
+type IdentificationGenerator {
+    config        // Identification configuration
+    logger        // Logger for logging operations
+    contextLogger // Context-aware logger
+}
+
+// Constructor for the identification generator
+function NewIdentificationGenerator(config, logger) {
+    return new IdentificationGenerator {
+        config: config,
+        logger: logger,
+        contextLogger: new ContextLogger(logger)
+    }
+}
+
+// Method to generate a new ID
+function IdentificationGenerator.Generate() {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Generating the ID based on configuration
+    // 3. Handling generation errors
+    // 4. Returning the generated ID
+}
+
+// Method to validate an ID
+function IdentificationGenerator.Validate(id) {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Validating the ID format
+    // 3. Checking for compliance with configuration
+    // 4. Returning validation result
+}
 ```
 
-### Functions
+## Best Practices
 
-The package provides the following functions:
+1. **Separation of Concerns**: Keep identification logic separate from domain logic
+2. **Interface Segregation**: Define focused identification interfaces in the domain layer
+3. **Dependency Injection**: Use constructor injection for adapter dependencies
+4. **Error Handling**: Handle identification errors gracefully
+5. **Consistent Logging**: Use a consistent logging approach
+6. **Configuration**: Configure identification through a central configuration system
+7. **Testing**: Write unit and integration tests for identification adapters
 
-- `NewID()`: Creates a new ID with a random UUID
-- `NewIDFromString(id string)`: Creates a new ID from a string
-- `(id ID) String()`: Returns the string representation of the ID
-- `(id ID) IsEmpty()`: Checks if the ID is empty
-- `(id ID) Equals(other ID)`: Checks if the ID equals another ID
-- `(id ID) MarshalJSON()`: Implements the json.Marshaler interface
-- `(id *ID) UnmarshalJSON(data []byte)`: Implements the json.Unmarshaler interface
+## Troubleshooting
 
-## References
+### Common Issues
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Value Objects](https://martinfowler.com/bliki/ValueObject.html)
-- [UUID Specification](https://tools.ietf.org/html/rfc4122)
-- [Domain Entities](../../../core/domain/entity/README.md) - Uses these IDs for entity identification
-- [Domain Services](../../../core/domain/services/README.md) - Uses these IDs for service operations
-- [Repository Wrapper](../repositorywrapper/README.md) - Uses these IDs for entity retrieval
+#### ID Generation Failures
+
+If you encounter ID generation failures, check the following:
+- Configuration parameters are valid
+- Required dependencies are available
+- System has sufficient entropy for random generation
+- Network connectivity for distributed ID generation
+
+#### ID Collisions
+
+If you encounter ID collisions, consider the following:
+- Use a more collision-resistant ID generation algorithm
+- Increase the ID space (longer IDs)
+- Add node-specific components to distributed IDs
+- Implement collision detection and retry logic
+- Use time-based components in IDs
+
+## Related Components
+
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the identification ports
+- [Application Layer](../../core/application/README.md) - The application layer that uses identification
+- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use identification
+
+## Contributing
+
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.

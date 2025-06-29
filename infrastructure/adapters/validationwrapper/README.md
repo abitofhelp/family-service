@@ -1,173 +1,136 @@
-# Validation Wrapper
+# Infrastructure Adapters - Validation Wrapper
 
 ## Overview
 
-The Validation Wrapper package provides a wrapper around the `github.com/abitofhelp/servicelib/validation` package to ensure that the domain layer doesn't directly depend on external libraries. This follows the principles of Clean Architecture and Hexagonal Architecture (Ports and Adapters), allowing the domain layer to remain isolated from external dependencies.
+The Validation Wrapper adapter provides implementations for validation-related ports defined in the core domain and application layers. This adapter connects the application to validation frameworks and libraries, following the Ports and Adapters (Hexagonal) architecture pattern. By isolating validation implementations in adapter classes, the core business logic remains independent of specific validation technologies, making the system more maintainable, testable, and flexible.
 
-## Architecture
+## Features
 
-The Validation Wrapper package follows the Adapter pattern from Hexagonal Architecture, providing a layer of abstraction over the external `servicelib/validation` package. This ensures that the core domain doesn't directly depend on external libraries, maintaining the dependency inversion principle.
+- Input validation for domain entities and value objects
+- Validation rule management and execution
+- Error message formatting and localization
+- Custom validation rule support
+- Integration with validation frameworks
 
-The package sits in the infrastructure layer of the application and is used by the domain layer through interfaces defined in the domain layer. The architecture follows these principles:
+## Installation
 
-- **Dependency Inversion**: The domain layer depends on abstractions, not concrete implementations
-- **Adapter Pattern**: This package adapts the external library to the domain's needs
-- **Composite Pattern**: Validation rules can be composed to create complex validation logic
-- **Chain of Responsibility**: Validation rules are chained together in a pipeline
-
-## Implementation Details
-
-The Validation Wrapper package implements the following design patterns:
-
-1. **Adapter Pattern**: Adapts the external library to the domain's needs
-2. **Composite Pattern**: Validation rules can be composed to create complex validation logic
-3. **Chain of Responsibility**: Validation rules are chained together in a pipeline
-4. **Strategy Pattern**: Different validation strategies can be implemented as validation rules
-
-Key implementation details:
-
-- **Interface-Based Design**: The package defines interfaces for validation rules and pipelines
-- **Composition Over Inheritance**: Validation rules can be composed to create complex validation logic
-- **Fluent Interface**: The validation pipeline provides a fluent interface for adding rules
-- **Helper Functions**: Common validation logic is encapsulated in helper functions
-
-The package uses the `github.com/abitofhelp/servicelib/validation` package internally but exposes its own API to the domain layer, ensuring that the domain layer doesn't directly depend on the external library.
-
-## Examples
-
-For complete, runnable examples, see the following directories in the EXAMPLES directory:
-
-- [Family Service Example](../../../examples/family_service/README.md) - Shows how to use the validation wrapper
-
-Example of using the validation wrapper:
-
-```
-// Create a validation rule
-rule := validationwrapper.NewValidationRule("myRule", func(entity interface{}) error {
-    // Validation logic
-    return nil
-})
-
-// Create a validation pipeline
-pipeline := validationwrapper.NewValidationPipeline()
-pipeline.AddRule(rule)
-
-// Validate an entity
-err := pipeline.Validate(myEntity)
-
-// Create a composite rule
-compositeRule := validationwrapper.NewCompositeRule("myCompositeRule")
-compositeRule.AddRule(rule1)
-compositeRule.AddRule(rule2)
-
-// Use helper functions
-err := validationwrapper.ValidateNotNil(value, "fieldName")
-err := validationwrapper.ValidateNotEmpty(value, "fieldName")
-err := validationwrapper.ValidateMinLength(value, 5, "fieldName")
-err := validationwrapper.ValidateMaxLength(value, 10, "fieldName")
+```bash
+go get github.com/abitofhelp/family-service/infrastructure/adapters/validationwrapper
 ```
 
 ## Configuration
 
-The Validation Wrapper package doesn't require any specific configuration. It provides a set of interfaces and implementations that can be used as-is. However, you can configure the validation behavior by:
-
-- **Creating Custom Rules**: Implement the `ValidationRule` interface to create custom validation rules
-- **Composing Rules**: Use the `CompositeRule` to compose multiple rules into a single rule
-- **Building Pipelines**: Use the `ValidationPipeline` to build a pipeline of validation rules
-- **Using Helper Functions**: Use the provided helper functions for common validations
-
-## Testing
-
-The Validation Wrapper package is tested through:
-
-1. **Unit Tests**: Each function and interface implementation has unit tests
-2. **Integration Tests**: Tests that verify the wrapper works correctly with the underlying library
-3. **Validation Logic Tests**: Tests that verify the validation logic works correctly
-
-Key testing approaches:
-
-- **Rule Testing**: Tests that verify validation rules work correctly
-- **Pipeline Testing**: Tests that verify validation pipelines work correctly
-- **Composite Rule Testing**: Tests that verify composite rules work correctly
-- **Helper Function Testing**: Tests that verify helper functions work correctly
-
-Example of a test case:
+The validation adapter can be configured according to specific requirements. Here's an example of configuring the validation adapter:
 
 ```
-// Test that the validation rule validates correctly
-func TestValidationRule_Validate(t *testing.T) {
-    // Create a validation rule
-    rule := validationwrapper.NewValidationRule("myRule", func(entity interface{}) error {
-        // Validation logic that always passes
-        return nil
-    })
+// Pseudocode example - not actual Go code
+// This demonstrates how to configure and use a validation adapter
 
-    // Validate an entity
-    err := rule.Validate("test entity")
+// 1. Import necessary packages
+import validation, config, logging
 
-    // Verify the validation passed
-    assert.NoError(t, err)
+// 2. Create a logger
+logger = logging.NewLogger()
+
+// 3. Configure the validation
+validationConfig = {
+    strictMode: true,
+    localization: "en-US"
+}
+
+// 4. Create the validation adapter
+validationAdapter = validation.NewValidator(validationConfig, logger)
+
+// 5. Use the validation adapter
+errors = validationAdapter.Validate(entity)
+if len(errors) > 0 {
+    logger.Error("Validation failed", errors)
 }
 ```
-
-## Design Notes
-
-1. **Interface-Based Design**: The package uses interfaces to define validation rules and pipelines
-2. **Composition Over Inheritance**: Validation rules can be composed to create complex validation logic
-3. **Fluent Interface**: The validation pipeline provides a fluent interface for adding rules
-4. **Helper Functions**: Common validation logic is encapsulated in helper functions
-5. **Dependency Inversion**: The package follows the Dependency Inversion Principle by ensuring that the domain layer depends on abstractions rather than concrete implementations
-6. **Error Handling**: Validation errors are returned as errors with descriptive messages
 
 ## API Documentation
 
-### ValidationRule
+### Core Concepts
 
-The `ValidationRule` interface defines a validation rule that can be applied to an entity:
+The validation wrapper adapter follows these core concepts:
+
+1. **Adapter Pattern**: Implements validation ports defined in the core domain or application layer
+2. **Dependency Injection**: Receives dependencies through constructor injection
+3. **Configuration**: Configured through a central configuration system
+4. **Logging**: Uses a consistent logging approach
+5. **Error Handling**: Translates validation-specific errors to domain errors
+
+### Key Adapter Functions
 
 ```
-type ValidationRule interface {
-    Validate(entity interface{}) error
+// Pseudocode example - not actual Go code
+// This demonstrates a validation adapter implementation
+
+// Validation adapter structure
+type ValidationAdapter {
+    config        // Validation configuration
+    logger        // Logger for logging operations
+    contextLogger // Context-aware logger
+}
+
+// Constructor for the validation adapter
+function NewValidationAdapter(config, logger) {
+    return new ValidationAdapter {
+        config: config,
+        logger: logger,
+        contextLogger: new ContextLogger(logger)
+    }
+}
+
+// Method to validate an entity
+function ValidationAdapter.Validate(context, entity) {
+    // Implementation would include:
+    // 1. Logging the operation
+    // 2. Applying validation rules to the entity
+    // 3. Collecting validation errors
+    // 4. Translating validation errors to domain errors
+    // 5. Returning validation results
 }
 ```
 
-### ValidationPipeline
+## Best Practices
 
-The `ValidationPipeline` interface defines a pipeline of validation rules:
+1. **Separation of Concerns**: Keep validation logic separate from domain logic
+2. **Interface Segregation**: Define focused validation interfaces in the domain layer
+3. **Dependency Injection**: Use constructor injection for adapter dependencies
+4. **Error Translation**: Translate validation-specific errors to domain errors
+5. **Consistent Logging**: Use a consistent logging approach
+6. **Configuration**: Configure validation through a central configuration system
+7. **Testing**: Write unit and integration tests for validation adapters
 
-```
-type ValidationPipeline interface {
-    AddRule(rule ValidationRule) ValidationPipeline
-    Validate(entity interface{}) error
-}
-```
+## Troubleshooting
 
-### CompositeRule
+### Common Issues
 
-The `CompositeRule` interface defines a composite validation rule that combines multiple rules:
+#### Validation Rule Conflicts
 
-```
-type CompositeRule interface {
-    ValidationRule
-    AddRule(rule ValidationRule) CompositeRule
-}
-```
+If you encounter validation rule conflicts, check the following:
+- Ensure validation rules are consistent across the application
+- Check for duplicate validation rules
+- Verify rule priorities are correctly set
 
-### Helper Functions
+#### Performance Issues
 
-The package provides several helper functions for common validations:
+If you encounter performance issues with validation, consider the following:
+- Optimize validation rules for performance
+- Implement caching for validation results
+- Use lazy validation where appropriate
 
-- `ValidateNotNil`: Validates that a value is not nil
-- `ValidateNotEmpty`: Validates that a string is not empty
-- `ValidateMinLength`: Validates that a string has a minimum length
-- `ValidateMaxLength`: Validates that a string has a maximum length
+## Related Components
 
-## References
+- [Domain Layer](../../core/domain/README.md) - The domain layer that defines the validation ports
+- [Application Layer](../../core/application/README.md) - The application layer that uses validation
+- [Interface Adapters](../../interface/adapters/README.md) - The interface adapters that use validation
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Composite Pattern](https://en.wikipedia.org/wiki/Composite_pattern)
-- [Chain of Responsibility Pattern](https://en.wikipedia.org/wiki/Chain-of-responsibility_pattern)
-- [Domain Validation](../../../core/domain/validation/README.md) - Uses this wrapper for domain validation
-- [Domain Entities](../../../core/domain/entity/README.md) - Entities that are validated using this wrapper
-- [Error Wrapper](../errorswrapper/README.md) - Used for creating validation errors
+## Contributing
+
+Contributions to this component are welcome! Please see the [Contributing Guide](../../CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
