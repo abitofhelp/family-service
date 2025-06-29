@@ -544,8 +544,8 @@ func convertDurations(m map[string]interface{}) {
 // getDefaultsMap returns a map of default configuration values
 func getDefaultsMap() map[string]interface{} {
 	return map[string]interface{}{
-		// App defaults
-  "app.version": "1.1.0",
+ 	// App defaults
+  "app.version": "1.2.0",
 
 		// Auth defaults
 		"auth.oidc_timeout": "30s", // 30 seconds
