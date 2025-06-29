@@ -3,6 +3,15 @@
 
 // Copyright (c) 2025 A Bit of Help, Inc.
 
+// Package main demonstrates how to use the error types from the servicelib/errors package.
+//
+// This example shows how to:
+// - Create and use DatabaseError for database operation failures
+// - Create and use NotFoundError for resource not found situations
+// - Create and use ValidationError for input validation failures
+//
+// Each error type provides structured error information that can be used
+// for logging, error handling, and generating appropriate responses to clients.
 package main
 
 import (

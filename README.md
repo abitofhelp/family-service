@@ -288,18 +288,18 @@ app:
 The following UML diagrams provide visual representations of the system architecture, design, and processes:
 
 ### Domain and Architecture Diagrams
-- [SRS Use Case Diagram](./docs/diagrams/SRS%20Use%20Case%20Diagram.svg) - Shows the main operations that can be performed by API clients
-- [SRS Data Model Diagram](./docs/diagrams/SRS%20Data%20Model%20Diagram.svg) - Illustrates the key entities and their relationships
-- [SDD Class Diagram](./docs/diagrams/SDD%20Class%20Diagram.svg) - Detailed structure of the system's classes and their relationships
-- [SDD Sequence Diagram - Divorce Operation](./docs/diagrams/SDD%20Sequence%20Diagram%20-%20Divorce%20Operation.svg) - Shows the interactions during a complex workflow
+- [SRS Use Case Diagram](./DOCS/diagrams/srs_use_case_diagram.svg) - Shows the main operations that can be performed by API clients
+- [SRS Data Model Diagram](./DOCS/diagrams/srs_data_model_diagram.svg) - Illustrates the key entities and their relationships
+- [SDD Class Diagram](./DOCS/diagrams/sdd_class_diagram.svg) - Detailed structure of the system's classes and their relationships
+- [SDD Sequence Diagram - Divorce Operation](./DOCS/diagrams/sdd_sequence_diagram.svg) - Shows the interactions during a complex workflow
 
 ### Testing Diagrams
-- [STP Test Process Activity Diagram](./docs/diagrams/STP%20Test%20Process%20Activity%20Diagram.svg) - Illustrates the test execution process
-- [STP Test Coverage Component Diagram](./docs/diagrams/STP%20Test%20Coverage%20Component%20Diagram.svg) - Shows test coverage targets for each component
+- [STP Test Process Activity Diagram](./DOCS/diagrams/stp_test_process_diagram.svg) - Illustrates the test execution process
+- [STP Test Coverage Component Diagram](./DOCS/diagrams/stp_test_coverage_diagram.svg) - Shows test coverage targets for each component
 
 ### Deployment Diagrams
-- [Deployment Diagram](./docs/diagrams/Deployment%20Diagram.svg) - Shows the physical architecture of the deployed system
-- [Deployment Container Diagram](./docs/diagrams/Deployment%20Container%20Diagram.svg) - Illustrates the Docker Compose configuration
+- [Deployment Diagram](./DOCS/diagrams/deployment_diagram.svg) - Shows the physical architecture of the deployed system
+- [Deployment Container Diagram](./DOCS/diagrams/deployment_container_diagram.svg) - Illustrates the Docker Compose configuration
 
 ## 📋 Developer Documentation
 
@@ -311,12 +311,12 @@ Each document is crafted to guide a developer from understanding to implementati
 - **Software Design Document (SDD)**: Describes the layered architecture, key interfaces, technology choices, and database models (embedded for MongoDB, normalized for PostgreSQL). Includes class and sequence diagrams.
 - **Software Test Plan (STP)**: Covers testing strategy including unit, repository, integration, and end-to-end tests. Defines coverage targets, edge cases (e.g. invalid dates, duplicate parents), and transaction rollback scenarios.
 
-All diagrams and specifications are embedded or referenced in the spec PDF and available individually in the `/docs` folder.
+All diagrams and specifications are embedded or referenced in the spec PDF and available individually in the `/DOCS` folder.
 
-- [Software Requirements Specification (SRS)](./docs/SRS_FamilyService.md)
-- [Software Design Document (SDD)](./docs/SDD_FamilyService.md)
-- [Software Test Plan (STP)](./docs/STP_FamilyService.md)
-- [Deployment Document](./docs/Deployment_FamilyService.md)
+- [Software Requirements Specification (SRS)](./DOCS/SRS_FamilyService.md)
+- [Software Design Document (SDD)](./DOCS/SDD_FamilyService.md)
+- [Software Test Plan (STP)](./DOCS/STP_FamilyService.md)
+- [Deployment Document](./DOCS/Deployment_FamilyService.md)
 
 ## ⚙️ Running the Project
 
@@ -326,7 +326,7 @@ All diagrams and specifications are embedded or referenced in the spec PDF and a
 - SQLite (default for local development)
 - MongoDB / PostgreSQL (optional for advanced use cases)
 - Docker (optional for local dev)
-- Secrets folder setup (see [Secrets Setup Guide](docs/Secrets_Setup_Guide.md))
+- Secrets folder setup (see [Secrets Setup Guide](./DOCS/Secrets_Setup_Guide.md))
 
 ### Database Initialization Scripts
 
@@ -512,7 +512,7 @@ This ensures that the generated code is always in sync with the GraphQL schema, 
 Before deploying the application, you must set up the required secrets files:
 
 1. Create a `secrets` folder in the project root if it doesn't exist
-2. Create all the required files as described in the [Secrets Setup Guide](docs/Secrets_Setup_Guide.md)
+2. Create all the required files as described in the [Secrets Setup Guide](./DOCS/Secrets_Setup_Guide.md)
 3. Ensure the secrets folder is not committed to the repository (it's already in .gitignore)
 
 ### Option 1: Local Deployment (Manual)
@@ -674,11 +674,11 @@ http://localhost:9090
 
 From here, you can query metrics and create graphs:
 
-![Prometheus Go Info Query](docs/assets/prometheus_go_info_query.png)
+![Prometheus Go Info Query](./DOCS/assets/prometheus_go_info_query.png)
 
 You can also check that Prometheus is successfully scraping metrics from the Family Service:
 
-![Prometheus Target Query](docs/assets/prometheus_target_query.png)
+![Prometheus Target Query](./DOCS/assets/prometheus_target_query.png)
 
 ### Grafana Integration
 
@@ -691,9 +691,9 @@ http://localhost:3000
 
 The Family Service includes a custom Grafana dashboard that visualizes key metrics:
 
-![Grafana Dashboard](docs/assets/grafana_dashboard_for_family_service.png)
+![Grafana Dashboard](./DOCS/assets/grafana_dashboard_for_family_service.png)
 
-The dashboard configuration is available at `docs/assets/grafana_dashboard_for_family_service.json` and can be imported into Grafana.
+The dashboard configuration is available at `./DOCS/assets/grafana_dashboard_for_family_service.json` and can be imported into Grafana.
 
 ### Available Metrics
 
@@ -704,7 +704,7 @@ The Family Service exposes the following metrics:
 - **Database Metrics**: Operation counts, durations, and connection pools
 - **Application Metrics**: Error counts and custom business metrics
 
-For more detailed information about monitoring and observability, refer to the [Deployment Document](docs/Deployment_FamilyService.md).
+For more detailed information about monitoring and observability, refer to the [Deployment Document](./DOCS/Deployment_FamilyService.md).
 
 ### Health Check
 
@@ -846,8 +846,8 @@ The SRS outlines the essential business rules and functional constraints for man
 - Validation must occur in adapters and domain layer
 
 UML References: 
-- [SRS Use Case Diagram](./docs/diagrams/SRS%20Use%20Case%20Diagram.svg)
-- [SRS Data Model Diagram](./docs/diagrams/SRS%20Data%20Model%20Diagram.svg)
+- [SRS Use Case Diagram](./DOCS/diagrams/srs_use_case_diagram.svg)
+- [SRS Data Model Diagram](./DOCS/diagrams/srs_data_model_diagram.svg)
 
 ## 📘 Software Design Document (SDD)
 
@@ -867,8 +867,8 @@ The SDD describes the architecture and technologies used:
 - OS signals and context are used for graceful shutdown
 
 UML References:
-- [SDD Class Diagram](./docs/diagrams/SDD%20Class%20Diagram.svg)
-- [SDD Sequence Diagram - Divorce Operation](./docs/diagrams/SDD%20Sequence%20Diagram%20-%20Divorce%20Operation.svg)
+- [SDD Class Diagram](./DOCS/diagrams/sdd_class_diagram.svg)
+- [SDD Sequence Diagram - Divorce Operation](./DOCS/diagrams/sdd_sequence_diagram.svg)
 
 ## 🧪 Software Test Plan (STP)
 
@@ -893,8 +893,8 @@ Edge Cases:
 - Divorce with no children
 
 UML References:
-- [STP Test Process Activity Diagram](./docs/diagrams/STP%20Test%20Process%20Activity%20Diagram.svg)
-- [STP Test Coverage Component Diagram](./docs/diagrams/STP%20Test%20Coverage%20Component%20Diagram.svg)
+- [STP Test Process Activity Diagram](./DOCS/diagrams/stp_test_process_diagram.svg)
+- [STP Test Coverage Component Diagram](./DOCS/diagrams/stp_test_coverage_diagram.svg)
 
 ## 🚢 Deployment Document
 
@@ -908,8 +908,8 @@ The Deployment Document provides detailed instructions for deploying the system:
 - Security considerations
 
 UML References:
-- [Deployment Diagram](./docs/diagrams/Deployment%20Diagram.svg)
-- [Deployment Container Diagram](./docs/diagrams/Deployment%20Container%20Diagram.svg)
+- [Deployment Diagram](./DOCS/diagrams/deployment_diagram.svg)
+- [Deployment Container Diagram](./DOCS/diagrams/deployment_container_diagram.svg)
 
 ## ✅ Testing
 

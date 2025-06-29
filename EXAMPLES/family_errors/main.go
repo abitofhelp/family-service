@@ -3,6 +3,21 @@
 
 // Copyright (c) 2025 A Bit of Help, Inc.
 
+// Package main demonstrates how to use both standard and domain-specific error types
+// in the family-service project.
+//
+// This example shows how to:
+// - Create and use standard error types from the servicelib/errors package
+//   (DatabaseError, NotFoundError, ValidationError)
+// - Create and use domain-specific error types from the family-service project
+//   (FamilyTooManyParentsError, FamilyNotMarriedError, etc.)
+// - Check error types to handle different errors appropriately
+//
+// The example is organized into sections:
+// 1. Standard error types - Shows basic error creation and usage
+// 2. Domain-specific error types - Shows family domain error creation
+// 3. Error handling examples - Demonstrates working with errors
+// 4. Error type checking - Shows how to check error types for conditional handling
 package main
 
 import (

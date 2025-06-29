@@ -12,7 +12,7 @@ import (
 )
 
 // Required sections in component README files
-var requiredSections = []string{
+var componentRequiredSections = []string{
 	"Overview",
 	"Architecture",
 	"Implementation Details",
@@ -23,6 +23,18 @@ var requiredSections = []string{
 	"References",
 }
 
+// Required sections in example README files
+var exampleRequiredSections = []string{
+	"Overview",
+	"Features",
+	"Running the Example",
+	"Code Walkthrough",
+	"Expected Output",
+	"Related Examples",
+	"Related Components",
+	"License",
+}
+
 // validateReadme checks if a README.md file follows the template structure
 func validateReadme(filePath string) (bool, []string) {
 	file, err := os.Open(filePath)
@@ -31,10 +43,11 @@ func validateReadme(filePath string) (bool, []string) {
 	}
 	defer file.Close()
 
-	// Skip validation for the main README.md, examples/README.md, and COMPONENT_README_TEMPLATE.md
-	if filePath == "README.md" || 
-	   filePath == "examples/README.md" || 
-	   filepath.Base(filePath) == "COMPONENT_README_TEMPLATE.md" {
+	// Skip validation for the main README.md, EXAMPLES/README.md, and COMPONENT_README_TEMPLATE.md
+	if strings.ToLower(filePath) == "readme.md" || 
+	   strings.ToLower(filePath) == "examples/readme.md" || 
+	   strings.ToLower(filePath) == "docs/tools/scripts/readme.md" || 
+	   strings.ToLower(filepath.Base(filePath)) == "component_readme_template.md" {
 		return true, nil
 	}
 
@@ -52,8 +65,8 @@ func validateReadme(filePath string) (bool, []string) {
 		}
 	}
 
-	// Scan for section headings
-	sectionRegex := regexp.MustCompile(`^## [📖🏗🧩📊📋🧪📝📚]* (.+)$`)
+	// Scan for section headings - match any level 2 heading
+	sectionRegex := regexp.MustCompile(`^## (.*)$`)
 	examplePathRegex := regexp.MustCompile(`\[.*\]\((\.\.)?/[Ee][Xx][Aa][Mm][Pp][Ll][Ee][Ss]/.*\)`)
 
 	for scanner.Scan() {
@@ -79,11 +92,22 @@ func validateReadme(filePath string) (bool, []string) {
 		return false, []string{fmt.Sprintf("Error reading file: %v", err)}
 	}
 
+	// Determine which set of required sections to use based on the file path
+	var requiredSections []string
+	if strings.Contains(strings.ToLower(filePath), "examples/") && !strings.EqualFold(filePath, "examples/readme.md") {
+		// Use example required sections for README.md files in EXAMPLES subdirectories
+		requiredSections = exampleRequiredSections
+	} else {
+		// Use component required sections for all other README.md files
+		requiredSections = componentRequiredSections
+	}
+
 	// Check for missing required sections
 	for _, section := range requiredSections {
 		found := false
 		for _, foundSection := range foundSections {
-			if strings.Contains(foundSection, section) {
+			// Case-insensitive check for section name
+			if strings.Contains(strings.ToLower(foundSection), strings.ToLower(section)) {
 				found = true
 				break
 			}

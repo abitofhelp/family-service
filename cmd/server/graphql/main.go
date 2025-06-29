@@ -1,6 +1,20 @@
 // Copyright (c) 2025 A Bit of Help, Inc.
 
 // Package main is the entry point for the GraphQL server.
+//
+// This package initializes and runs the GraphQL server for the family service.
+// It handles:
+// - Configuration loading
+// - Dependency injection
+// - Logger initialization
+// - Telemetry setup (metrics and tracing)
+// - HTTP server setup with GraphQL endpoints
+// - Graceful shutdown
+//
+// The server follows a clean startup sequence that ensures all components
+// are properly initialized before the server starts accepting requests.
+// Error handling during startup is designed to fail fast if critical
+// components cannot be initialized.
 package main
 
 import (
@@ -25,8 +39,18 @@ import (
 	"go.uber.org/zap"
 )
 
-// initBasicLogger creates a basic logger for use during startup
-// before the main logger is configured.
+// initBasicLogger creates a basic logger for use during startup before the main logger is configured.
+//
+// This function creates a simple production-level logger that can be used
+// during the early stages of application startup, before the configuration
+// is loaded and the main logger is initialized. If the logger creation fails,
+// the application will exit immediately, as logging is essential for observability.
+//
+// Returns:
+//   - A configured zap.Logger instance ready for use
+//
+// Panics:
+//   - If logger creation fails (exits the application with status code 1)
 func initBasicLogger() *zap.Logger {
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -37,8 +61,19 @@ func initBasicLogger() *zap.Logger {
 	return logger
 }
 
-// loadConfig loads the application configuration.
-// It returns the configuration and any error that occurred.
+// loadConfig loads the application configuration from environment variables and files.
+//
+// This function attempts to load the application configuration using the
+// config package's LoadConfig function. It logs the start and result of
+// the configuration loading process, providing visibility into this critical
+// startup step.
+//
+// Parameters:
+//   - logger: The logger to use for logging the configuration loading process
+//
+// Returns:
+//   - A pointer to the loaded configuration if successful
+//   - An error if configuration loading fails
 func loadConfig(logger *zap.Logger) (*config.Config, error) {
 	logger.Info("Loading application configuration")
 	cfg, err := config.LoadConfig()
@@ -50,8 +85,20 @@ func loadConfig(logger *zap.Logger) (*config.Config, error) {
 	return cfg, nil
 }
 
-// initLogger initializes the application logger based on configuration.
-// It returns the logger and any error that occurred.
+// initLogger initializes the application logger based on configuration settings.
+//
+// This function creates a properly configured logger using the settings from
+// the application configuration. It uses the basicLogger to log the initialization
+// process, providing visibility into this critical startup step. The resulting
+// logger will be used throughout the application for all logging needs.
+//
+// Parameters:
+//   - cfg: The application configuration containing logging settings
+//   - basicLogger: A temporary logger to use during initialization
+//
+// Returns:
+//   - A properly configured zap.Logger instance if successful
+//   - An error if logger initialization fails
 func initLogger(cfg *config.Config, basicLogger *zap.Logger) (*zap.Logger, error) {
 	basicLogger.Info("Initializing application logger",
 		zap.String("version", cfg.App.Version),
@@ -68,8 +115,25 @@ func initLogger(cfg *config.Config, basicLogger *zap.Logger) (*zap.Logger, error
 	return logger, nil
 }
 
-// initContainer initializes the dependency injection container.
-// It returns the container and any error that occurred.
+// initContainer initializes the dependency injection container with all application services.
+//
+// This function creates and configures the dependency injection container that
+// will hold all application services and their dependencies. The container is
+// responsible for managing the lifecycle of these services and providing them
+// to the parts of the application that need them.
+//
+// The container initialization is a critical step in the application startup
+// process, as it creates all the services needed by the application, including
+// repositories, domain services, and application services.
+//
+// Parameters:
+//   - ctx: The context for the initialization process
+//   - logger: The logger to use for logging the initialization process
+//   - cfg: The application configuration
+//
+// Returns:
+//   - A configured dependency injection container if successful
+//   - An error if container initialization fails
 func initContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) (*di.Container, error) {
 	logger.Info("Initializing dependency injection container")
 
@@ -83,8 +147,27 @@ func initContainer(ctx context.Context, logger *zap.Logger, cfg *config.Config) 
 	return container, nil
 }
 
-// setupRoutes sets up the HTTP routes for the application.
-// It returns the HTTP handler with all routes configured and a shutdown function.
+// setupRoutes sets up the HTTP routes for the application including GraphQL and health check endpoints.
+//
+// This function configures all the HTTP routes that the server will handle, including:
+// - GraphQL API endpoint
+// - GraphQL Playground for interactive API exploration
+// - Health check endpoint for monitoring
+// - Telemetry endpoints for metrics and tracing
+//
+// It also applies middleware and sets up telemetry (metrics and tracing) based on
+// the application configuration.
+//
+// Parameters:
+//   - ctx: The context for the setup process
+//   - container: The dependency injection container with application services
+//   - logger: The logger to use for logging the setup process
+//   - cfg: The application configuration
+//
+// Returns:
+//   - An HTTP handler with all routes configured
+//   - A shutdown function for telemetry components
+//   - An error if route setup fails
 func setupRoutes(ctx context.Context, container *di.Container, logger *zap.Logger, cfg *config.Config) (http.Handler, func(), error) {
 	logger.Info("Setting up HTTP routes")
 
@@ -113,8 +196,26 @@ func setupRoutes(ctx context.Context, container *di.Container, logger *zap.Logge
 	return mux, telemetryShutdown, nil
 }
 
-// setupTelemetry sets up telemetry (metrics and tracing) based on configuration.
-// It returns a shutdown function that should be called when the application is shutting down.
+// setupTelemetry sets up telemetry (metrics and tracing) based on application configuration.
+//
+// This function configures the telemetry components of the application, including:
+// - Prometheus metrics endpoint for collecting and exposing application metrics
+// - Distributed tracing for tracking requests across service boundaries
+//
+// The telemetry configuration is based on the application configuration, allowing
+// for flexible deployment in different environments. The function returns a shutdown
+// function that should be called during application shutdown to ensure proper cleanup
+// of telemetry resources.
+//
+// Parameters:
+//   - ctx: The context for the setup process
+//   - mux: The HTTP ServeMux to register telemetry endpoints on
+//   - cfg: The application configuration with telemetry settings
+//   - logger: The logger to use for logging the setup process
+//
+// Returns:
+//   - A shutdown function that should be called during application shutdown
+//   - An error if telemetry setup fails
 func setupTelemetry(ctx context.Context, mux *http.ServeMux, cfg *config.Config, logger *zap.Logger) (func(), error) {
 	var shutdownFuncs []func()
 
@@ -145,7 +246,21 @@ func setupTelemetry(ctx context.Context, mux *http.ServeMux, cfg *config.Config,
 	}, nil
 }
 
-// setupGraphQLEndpoints sets up all GraphQL-related endpoints.
+// setupGraphQLEndpoints sets up all GraphQL-related endpoints and handlers.
+//
+// This function configures the GraphQL API endpoints and tools, including:
+// - The main GraphQL API endpoint for handling queries and mutations
+// - GraphQL Playground for interactive API exploration
+// - GraphiQL interface for a more feature-rich API exploration experience
+// - A landing page at the root URL
+//
+// It uses the resolver from the dependency injection container to handle
+// GraphQL operations and sets up authorization directives for securing
+// the API.
+//
+// Parameters:
+//   - mux: The HTTP ServeMux to register GraphQL endpoints on
+//   - container: The dependency injection container with application services
 func setupGraphQLEndpoints(mux *http.ServeMux, container *di.Container) {
 	// Get the resolver
 	resolverInstance := resolver.NewResolver(container.GetFamilyApplicationService(), container.GetFamilyMapper())
@@ -183,8 +298,25 @@ func setupGraphQLEndpoints(mux *http.ServeMux, container *di.Container) {
 	})
 }
 
-// startServer creates and starts the HTTP server.
-// It returns the server and any error that occurred.
+// startServer creates and starts the HTTP server with the configured handler.
+//
+// This function initializes the HTTP server with the provided handler and
+// configuration settings. It configures important server parameters like
+// timeouts and port, and then starts the server in a non-blocking way
+// (in a separate goroutine).
+//
+// The server is configured with sensible defaults for production use,
+// including appropriate timeout settings to prevent resource exhaustion
+// under high load or when clients disconnect unexpectedly.
+//
+// Parameters:
+//   - handler: The HTTP handler that will process all incoming requests
+//   - cfg: The application configuration with server settings
+//   - logger: The logger for server-level logging
+//   - contextLogger: The context-aware logger for request-level logging
+//
+// Returns:
+//   - A running server instance that can be used for shutdown
 func startServer(handler http.Handler, cfg *config.Config, logger *zap.Logger, contextLogger *logging.ContextLogger) *server.Server {
 	serverConfig := server.NewConfig(
 		cfg.Server.Port,
@@ -201,8 +333,27 @@ func startServer(handler http.Handler, cfg *config.Config, logger *zap.Logger, c
 	return srv
 }
 
-// setupGracefulShutdown sets up graceful shutdown for the server.
-// It returns a function that will be called to shut down the server.
+// setupGracefulShutdown sets up graceful shutdown for the server and all components.
+//
+// This function creates a shutdown function that will be called when the
+// application receives a termination signal (e.g., SIGINT or SIGTERM).
+// The shutdown function:
+// 1. Cancels the root context to signal all operations to stop
+// 2. Creates a separate context with a timeout for server shutdown
+// 3. Calls the server's Shutdown method to gracefully close all connections
+//
+// Graceful shutdown ensures that in-flight requests are allowed to complete
+// (up to the shutdown timeout) before the server exits, preventing abrupt
+// connection termination that could lead to errors for clients.
+//
+// Parameters:
+//   - rootCtx: The root context for the application
+//   - rootCancel: The cancel function for the root context
+//   - srv: The HTTP server to shut down
+//   - cfg: The application configuration with shutdown timeout settings
+//
+// Returns:
+//   - A function that will perform the graceful shutdown when called
 func setupGracefulShutdown(rootCtx context.Context, rootCancel context.CancelFunc, srv *server.Server, cfg *config.Config) func() error {
 	return func() error {
 		// Cancel the root context to signal all operations to stop
@@ -217,6 +368,24 @@ func setupGracefulShutdown(rootCtx context.Context, rootCancel context.CancelFun
 	}
 }
 
+// main is the entry point for the GraphQL server application.
+//
+// This function orchestrates the startup sequence for the application:
+// 1. Initialize a basic logger for startup logging
+// 2. Create a root context with cancellation for the application
+// 3. Load application configuration
+// 4. Initialize the main logger based on configuration
+// 5. Initialize the dependency injection container with all services
+// 6. Set up HTTP routes including GraphQL and health check endpoints
+// 7. Apply authentication middleware
+// 8. Start the HTTP server
+// 9. Set up graceful shutdown
+// 10. Wait for termination signal and perform graceful shutdown
+//
+// The function follows a "fail fast" approach, exiting immediately if any
+// critical initialization step fails. This ensures that the application
+// doesn't start in a partially initialized state that could lead to
+// unpredictable behavior.
 func main() {
 	// Initialize a basic logger for startup
 	basicLogger := initBasicLogger()

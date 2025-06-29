@@ -3,6 +3,16 @@
 
 // Copyright (c) 2025 A Bit of Help, Inc.
 
+// Package main demonstrates how to use GraphQL with authorization directives.
+//
+// This example shows how to:
+// - Create and send GraphQL queries to a server
+// - Add JWT authorization tokens to requests
+// - Handle GraphQL responses and errors
+// - Test both authorized and unauthorized requests
+//
+// The example demonstrates the @isAuthorized directive in GraphQL, which
+// protects queries and mutations based on user authentication status.
 package main
 
 import (
@@ -14,14 +24,30 @@ import (
 	"os"
 )
 
-// GraphQLRequest represents a GraphQL request
+// GraphQLRequest represents a GraphQL request to be sent to a server.
+//
+// This struct contains all the necessary fields for a standard GraphQL request:
+// - Query: The GraphQL query or mutation string
+// - OperationName: The name of the operation to execute (optional)
+// - Variables: Any variables needed for the query (optional)
+//
+// When serialized to JSON, this struct follows the standard GraphQL request format
+// expected by GraphQL servers.
 type GraphQLRequest struct {
 	Query         string                 `json:"query"`
 	OperationName string                 `json:"operationName,omitempty"`
 	Variables     map[string]interface{} `json:"variables,omitempty"`
 }
 
-// GraphQLResponse represents a GraphQL response
+// GraphQLResponse represents a GraphQL response received from a server.
+//
+// This struct follows the standard GraphQL response format with:
+// - Data: Contains the requested data if the query was successful
+// - Errors: Contains any errors that occurred during query execution
+//
+// The Errors field is a slice of error objects, each containing at minimum
+// a message field. When unmarshaling JSON responses, this struct captures
+// both successful results and error information.
 type GraphQLResponse struct {
 	Data   map[string]interface{} `json:"data,omitempty"`
 	Errors []struct {
@@ -63,6 +89,22 @@ func main() {
 	}
 }
 
+// testQuery sends a GraphQL query to the specified URL with optional authorization.
+//
+// This function demonstrates how to:
+// - Create a GraphQL request with the specified query and operation name
+// - Add authorization via JWT token if provided
+// - Send the request to the GraphQL server
+// - Parse and display the response
+//
+// Parameters:
+//   - url: The URL of the GraphQL endpoint
+//   - token: JWT token for authorization (can be empty for unauthorized requests)
+//   - operationName: The name of the GraphQL operation to execute
+//   - query: The GraphQL query string
+//
+// The function handles errors at each step of the process and prints
+// appropriate messages to the console.
 func testQuery(url, token, operationName, query string) {
 	// Create the request
 	req := GraphQLRequest{
